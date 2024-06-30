@@ -32,6 +32,12 @@ async function importAccounts(
           closed: account.hidden ? true : false,
         });
         entityIdMap.set(account.entityId, id);
+        if (account.note) {
+          await send('notes-save', {
+            id: `account-${id}`,
+            note: account.note
+          });
+        }
       }
     }),
   );
@@ -40,6 +46,7 @@ async function importAccounts(
 async function importCategories(
   data: YNAB4.YFull,
   entityIdMap: Map<string, string>,
+  categoryNameMap: Map<string, string>,
 ) {
   const masterCategories = sortByKey(data.masterCategories, 'sortableIndex');
 
@@ -76,6 +83,7 @@ async function importCategories(
                 group_id: entityIdMap.get(category.masterCategoryId),
               });
               entityIdMap.set(category.entityId, id);
+              categoryNameMap.set(category.entityId, category.name);
               if (category.note) {
                 send('notes-save', { id, note: category.note });
               }
@@ -238,6 +246,7 @@ function fillInBudgets(
     budgeted: number;
     categoryId: string;
     overspendingHandling?: string;
+    note?: string
   }[] = [...categoryBudgets];
   data.masterCategories.forEach(masterCategory => {
     if (masterCategory.subCategories) {
@@ -257,11 +266,13 @@ function fillInBudgets(
 async function importBudgets(
   data: YNAB4.YFull,
   entityIdMap: Map<string, string>,
+  categoryNameMap: Map<string, string>,
 ) {
   const budgets = sortByKey(data.monthlyBudgets, 'month');
 
   await actual.batchBudgetUpdates(async () => {
     for (const budget of budgets) {
+      const month = monthUtils.monthFromDate(budget.month);
       const filled = fillInBudgets(
         data,
         budget.monthlySubCategoryBudgets.filter(b => !b.isTombstone),
@@ -271,7 +282,6 @@ async function importBudgets(
         filled.map(async catBudget => {
           const amount = amountToInteger(catBudget.budgeted);
           const catId = entityIdMap.get(catBudget.categoryId);
-          const month = monthUtils.monthFromDate(budget.month);
           if (!catId) {
             return;
           }
@@ -285,6 +295,21 @@ async function importBudgets(
           }
         }),
       );
+
+      const monthlyBudgetNotes = filled.reduce((combinedNotes, catBudget) => {
+        if (catBudget.note) {
+          const catName = categoryNameMap.get(catBudget.categoryId);
+          return `${combinedNotes}### ${catName}\n${catBudget.note}\n\n`;
+        } else {
+          return combinedNotes;
+        }
+      }, '');
+      if (monthlyBudgetNotes) {
+        await send('notes-save', {
+          id: `budget-${month}`,
+          note: monthlyBudgetNotes
+        });
+      }
     }
   });
 }
@@ -330,12 +355,13 @@ function findLatestDevice(zipped: AdmZip, entries: AdmZip.IZipEntry[]): string {
 
 export async function doImport(data: YNAB4.YFull) {
   const entityIdMap = new Map<string, string>();
+  const categoryNameMap = new Map<string, string>();
 
   console.log('Importing Accounts...');
   await importAccounts(data, entityIdMap);
 
   console.log('Importing Categories...');
-  await importCategories(data, entityIdMap);
+  await importCategories(data, entityIdMap, categoryNameMap);
 
   console.log('Importing Payees...');
   await importPayees(data, entityIdMap);
@@ -344,7 +370,7 @@ export async function doImport(data: YNAB4.YFull) {
   await importTransactions(data, entityIdMap);
 
   console.log('Importing Budgets...');
-  await importBudgets(data, entityIdMap);
+  await importBudgets(data, entityIdMap, categoryNameMap);
 
   console.log('Setting up...');
 }

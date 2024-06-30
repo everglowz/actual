@@ -84,6 +84,7 @@ export namespace YNAB4 {
     budgeted: number;
     // overspendingHandling: null;
     entityVersion: string;
+    note?: string;
     entityId: string;
     parentMonthlyBudgetId: string;
 
@@ -117,8 +118,17 @@ export namespace YNAB4 {
     targetAccountId?: string;
   }
 
-  // speculative, not in the test data
-  export type SubTransaction = Exclude<Transaction, 'subTransactions'>;
+  export interface SubTransaction {
+    entityType: string;
+    targetAccountId?: string;
+    transferTransactionId?: string;
+    categoryId: string;
+    payeeId?: string;
+    amount: number;
+    entityVersion: string;
+    memo?: string;
+    entityId: string;
+  }
 
   export interface ScheduledTransaction {
     entityType: string;
@@ -130,11 +140,13 @@ export namespace YNAB4 {
     isTombstone?: boolean;
     accountId: string;
     entityVersion: string;
-    memo: string;
+    memo?: string;
     twiceAMonthStartDay: number;
     cleared: string;
+    // Weekly, TwiceAMonth, Monthly, Yearly, more?
     frequency: string;
     accepted: boolean;
+    subTransactions?: SubTransaction[];
   }
 
   export interface BudgetMetaData {
@@ -154,6 +166,7 @@ export namespace YNAB4 {
     lastEnteredCheckNumber: number;
     lastReconciledBalance: number;
     accountType: string;
+    note?: string;
     hidden: boolean;
     sortableIndex: number;
     onBudget: boolean;
