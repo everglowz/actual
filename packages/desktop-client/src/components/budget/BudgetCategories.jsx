@@ -27,6 +27,7 @@ export const BudgetCategories = memo(
     onSaveCategory,
     onSaveGroup,
     onDeleteCategory,
+    onCopyName,
     onDeleteGroup,
     onReorderCategory,
     onReorderGroup,
@@ -224,6 +225,7 @@ export const BudgetCategories = memo(
                     onSave={_onSaveCategory}
                     onHideNewCategory={onHideNewCategory}
                     onEditName={onEditName}
+                    onCopyName={onCopyName}
                   />
                 </Row>
               );
@@ -260,6 +262,7 @@ export const BudgetCategories = memo(
                   onEditMonth={onEditMonth}
                   onSave={_onSaveCategory}
                   onDelete={onDeleteCategory}
+                  onCopyName={onCopyName}
                   onDragChange={onDragChange}
                   onReorder={onReorderCategory}
                   onBudgetAction={onBudgetAction}
@@ -307,6 +310,7 @@ export const BudgetCategories = memo(
                   onEditMonth={onEditMonth}
                   onSave={_onSaveCategory}
                   onDelete={onDeleteCategory}
+                  onCopyName={onCopyName}
                   onDragChange={onDragChange}
                   onReorder={onReorderCategory}
                   onBudgetAction={onBudgetAction}

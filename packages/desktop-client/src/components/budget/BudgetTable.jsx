@@ -10,6 +10,7 @@ import { BudgetSummaries } from './BudgetSummaries';
 import { BudgetTotals } from './BudgetTotals';
 import { MonthsProvider } from './MonthsContext';
 import { findSortDown, findSortUp, getScrollbarWidth } from './util';
+import { copyTextToClipboard } from '../util/CopyToClipboard';
 
 export function BudgetTable(props) {
   const {
@@ -44,6 +45,10 @@ export function BudgetTable(props) {
   const onEditName = id => {
     setEditing(id ? { id, cell: 'name' } : null);
   };
+
+  const onCopyName = name => {
+    copyTextToClipboard(name);
+  }
 
   const _onReorderCategory = (id, dropPos, targetId) => {
     const isGroup = !!categoryGroups.find(g => g.id === targetId);
@@ -224,6 +229,7 @@ export function BudgetTable(props) {
               onSaveCategory={onSaveCategory}
               onSaveGroup={onSaveGroup}
               onDeleteCategory={onDeleteCategory}
+              onCopyName={onCopyName}
               onDeleteGroup={onDeleteGroup}
               onReorderCategory={_onReorderCategory}
               onReorderGroup={_onReorderGroup}

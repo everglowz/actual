@@ -28,6 +28,7 @@ type SidebarCategoryProps = {
   onEditName: (id: string) => void;
   onSave: (category: CategoryEntity) => void;
   onDelete: (id: string) => Promise<void>;
+  onCopyName: (name: string) => void;
   onHideNewCategory?: () => void;
 };
 
@@ -43,6 +44,7 @@ export function SidebarCategory({
   onEditName,
   onSave,
   onDelete,
+  onCopyName,
   onHideNewCategory,
 }: SidebarCategoryProps) {
   const temporary = category.id === 'new';
@@ -102,6 +104,8 @@ export function SidebarCategory({
                 onDelete(category.id);
               } else if (type === 'toggle-visibility') {
                 onSave({ ...category, hidden: !category.hidden });
+              } else if (type === 'copy-name') {
+                onCopyName(category.name);
               }
               setMenuOpen(false);
             }}
@@ -110,6 +114,7 @@ export function SidebarCategory({
                 name: 'toggle-visibility',
                 text: category.hidden ? 'Show' : 'Hide',
               },
+              { name: 'copy-name', text: 'Copy Name' },
               { name: 'rename', text: 'Rename' },
               { name: 'delete', text: 'Delete' },
             ]}
