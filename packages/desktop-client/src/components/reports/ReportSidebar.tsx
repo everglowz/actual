@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState, type ComponentProps } from 'react';
 
 import * as monthUtils from 'loot-core/src/shared/months';
 import { type CategoryEntity } from 'loot-core/types/models/category';
@@ -6,12 +6,14 @@ import { type CategoryGroupEntity } from 'loot-core/types/models/category-group'
 import { type CustomReportEntity } from 'loot-core/types/models/reports';
 import { type LocalPrefs } from 'loot-core/types/prefs';
 
+import { styles } from '../../style/styles';
 import { theme } from '../../style/theme';
 import { Button } from '../common/Button';
 import { Menu } from '../common/Menu';
 import { Popover } from '../common/Popover';
 import { Select } from '../common/Select';
 import { Text } from '../common/Text';
+import { Tooltip } from '../common/Tooltip';
 import { View } from '../common/View';
 
 import { CategorySelector } from './CategorySelector';
@@ -130,6 +132,19 @@ export function ReportSidebar({
     onReportChange({ type: 'modify' });
     setBalanceType(cond);
   };
+
+  const rangeOptions = useMemo(() => {
+    const options: ComponentProps<typeof Select>['options'] =
+      ReportOptions.dateRange
+        .filter(f => f[customReportItems.interval as keyof dateRangeProps])
+        .map(option => [option.description, option.description]);
+
+    // Append separator if necessary
+    if (dateRangeLine > 0) {
+      options.splice(dateRangeLine, 0, Menu.line);
+    }
+    return options;
+  }, [customReportItems, dateRangeLine]);
 
   return (
     <View
@@ -419,16 +434,24 @@ export function ReportSidebar({
             </Text>
             <Select
               value={customReportItems.dateRange}
-              onChange={e => {
-                onSelectRange(e);
-              }}
-              options={ReportOptions.dateRange
-                .filter(
-                  f => f[customReportItems.interval as keyof dateRangeProps],
-                )
-                .map(option => [option.description, option.description])}
-              line={dateRangeLine > 0 ? dateRangeLine : undefined}
+              onChange={onSelectRange}
+              options={rangeOptions}
             />
+            {!disabledList.currentInterval.get(customReportItems.dateRange) &&
+              customReportItems.includeCurrentInterval && (
+                <Tooltip
+                  placement="bottom start"
+                  content={<Text>Current month</Text>}
+                  style={{
+                    ...styles.tooltip,
+                    lineHeight: 1.5,
+                    padding: '6px 10px',
+                    marginTop: 5,
+                  }}
+                >
+                  <Text style={{ marginLeft: 10 }}>+1</Text>
+                </Tooltip>
+              )}
           </View>
         ) : (
           <>

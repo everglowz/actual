@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useReducer } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
 
 import { FocusScope } from '@react-aria/focus';
 import {
@@ -87,7 +88,6 @@ function ConfigureField({
         <Stack direction="row" align="flex-start">
           {field === 'amount' || field === 'date' ? (
             <Select
-              bare
               options={
                 field === 'amount'
                   ? [
@@ -111,7 +111,6 @@ function ConfigureField({
                   dispatch({ type: 'set-op', op: 'is' });
                 }
               }}
-              style={{ borderWidth: 1 }}
             />
           ) : (
             titleFirst(mapField(field))
@@ -317,6 +316,9 @@ export function FilterButton({ onApply, compact, hover, exclude }) {
       dispatch({ type: 'close' });
     }
   }
+  useHotkeys('f', () => dispatch({ type: 'select-field' }), {
+    scopes: ['app'],
+  });
 
   return (
     <View>
