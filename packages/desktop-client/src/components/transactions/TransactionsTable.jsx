@@ -18,6 +18,7 @@ import {
   parseISO,
   isValid as isDateValid,
 } from 'date-fns';
+import { css } from 'glamor';
 
 import { pushModal } from 'loot-core/client/actions';
 import { useCachedSchedules } from 'loot-core/src/client/data-hooks/schedules';
@@ -61,9 +62,10 @@ import { styles, theme } from '../../style';
 import { AccountAutocomplete } from '../autocomplete/AccountAutocomplete';
 import { CategoryAutocomplete } from '../autocomplete/CategoryAutocomplete';
 import { PayeeAutocomplete } from '../autocomplete/PayeeAutocomplete';
-import { Button } from '../common/Button';
+import { Button } from '../common/Button2';
 import { Popover } from '../common/Popover';
 import { Text } from '../common/Text';
+import { Tooltip } from '../common/Tooltip';
 import { View } from '../common/View';
 import { getStatusProps } from '../schedules/StatusBadge';
 import { DateSelect } from '../select/DateSelect';
@@ -207,7 +209,9 @@ const TransactionHeader = memo(
             borderTopWidth: 0,
             borderBottomWidth: 0,
           }}
-          onSelect={e => dispatchSelected({ type: 'select-all', event: e })}
+          onSelect={e =>
+            dispatchSelected({ type: 'select-all', isRangeSelect: e.shiftKey })
+          }
         />
         <HeaderCell
           value="Date"
@@ -467,7 +471,7 @@ function HeaderCell({
       }}
       unexposedContent={({ value: cellValue }) =>
         onClick ? (
-          <Button type="bare" onClick={onClick} style={style}>
+          <Button variant="bare" onPress={onClick} style={style}>
             <UnexposedCellContent value={cellValue} />
             {icon === 'asc' && (
               <SvgArrowDown width={10} height={10} style={{ marginLeft: 5 }} />
@@ -537,6 +541,7 @@ function PayeeCell({
   valueStyle,
   transaction,
   subtransactions,
+  importedPayee,
   isPreview,
   onEdit,
   onUpdate,
@@ -571,9 +576,11 @@ function PayeeCell({
           alignSelf: 'flex-start',
           borderRadius: 4,
           border: '1px solid transparent', // so it doesn't shift on hover
-          ':hover': {
-            border: '1px solid ' + theme.buttonNormalBorder,
-          },
+          ':hover': isPreview
+            ? {}
+            : {
+                border: '1px solid ' + theme.buttonNormalBorder,
+              },
         }}
         disabled={isPreview}
         onSelect={() =>
@@ -597,6 +604,12 @@ function PayeeCell({
             color: theme.pageTextSubdued,
           }}
         >
+          <PayeeIcons
+            transaction={transaction}
+            transferAccount={transferAccount}
+            onNavigateToTransferAccount={onNavigateToTransferAccount}
+            onNavigateToSchedule={onNavigateToSchedule}
+          />
           <SvgSplit
             style={{
               color: 'inherit',
@@ -610,9 +623,30 @@ function PayeeCell({
               fontStyle: 'italic',
               fontWeight: 300,
               userSelect: 'none',
+              borderBottom: importedPayee
+                ? `1px dashed ${theme.pageTextSubdued}`
+                : 'none',
             }}
           >
-            {parentPayee}
+            {importedPayee ? (
+              <Tooltip
+                content={
+                  <View style={{ padding: 10 }}>
+                    <Text style={{ fontWeight: 'bold' }}>Imported Payee</Text>
+                    <Text style={{ fontWeight: 'normal' }}>
+                      {importedPayee}
+                    </Text>
+                  </View>
+                }
+                style={{ ...styles.tooltip, borderRadius: '0px 5px 5px 0px' }}
+                placement="bottom"
+                triggerProps={{ delay: 750 }}
+              >
+                {parentPayee}
+              </Tooltip>
+            ) : (
+              parentPayee
+            )}
           </Text>
         </View>
       </CellButton>
@@ -637,17 +671,48 @@ function PayeeCell({
         }
       }}
       formatter={() => getPayeePretty(transaction, payee, transferAccount)}
-      unexposedContent={props => (
-        <>
-          <PayeeIcons
-            transaction={transaction}
-            transferAccount={transferAccount}
-            onNavigateToTransferAccount={onNavigateToTransferAccount}
-            onNavigateToSchedule={onNavigateToSchedule}
+      unexposedContent={props => {
+        const payeeName = (
+          <UnexposedCellContent
+            {...props}
+            style={
+              importedPayee
+                ? { borderBottom: `1px dashed ${theme.pageTextSubdued}` }
+                : {}
+            }
           />
-          <UnexposedCellContent {...props} />
-        </>
-      )}
+        );
+
+        return (
+          <>
+            <PayeeIcons
+              transaction={transaction}
+              transferAccount={transferAccount}
+              onNavigateToTransferAccount={onNavigateToTransferAccount}
+              onNavigateToSchedule={onNavigateToSchedule}
+            />
+            {importedPayee ? (
+              <Tooltip
+                content={
+                  <View style={{ padding: 10 }}>
+                    <Text style={{ fontWeight: 'bold' }}>Imported Payee</Text>
+                    <Text style={{ fontWeight: 'normal' }}>
+                      {importedPayee}
+                    </Text>
+                  </View>
+                }
+                style={{ ...styles.tooltip, borderRadius: '0px 5px 5px 0px' }}
+                placement="bottom"
+                triggerProps={{ delay: 750 }}
+              >
+                {payeeName}
+              </Tooltip>
+            ) : (
+              payeeName
+            )}
+          </>
+        );
+      }}
     >
       {({
         onBlur,
@@ -656,28 +721,25 @@ function PayeeCell({
         onSave,
         shouldSaveFromKey,
         inputStyle,
-      }) => {
-        return (
-          <PayeeAutocomplete
-            payees={payees}
-            accounts={accounts}
-            value={payee?.id}
-            shouldSaveFromKey={shouldSaveFromKey}
-            inputProps={{
-              onBlur,
-              onKeyDown,
-              style: inputStyle,
-            }}
-            showManagePayees={true}
-            clearOnBlur={false}
-            focused={true}
-            onUpdate={(id, value) => onUpdate?.(value)}
-            onSelect={onSave}
-            onManagePayees={() => onManagePayees(payee?.id)}
-            menuPortalTarget={undefined}
-          />
-        );
-      }}
+      }) => (
+        <PayeeAutocomplete
+          payees={payees}
+          accounts={accounts}
+          value={payee?.id}
+          shouldSaveFromKey={shouldSaveFromKey}
+          inputProps={{
+            onBlur,
+            onKeyDown,
+            style: inputStyle,
+          }}
+          showManagePayees={true}
+          clearOnBlur={false}
+          focused={true}
+          onUpdate={(id, value) => onUpdate?.(value)}
+          onSelect={onSave}
+          onManagePayees={() => onManagePayees(payee?.id)}
+        />
+      )}
     </CustomCell>
   );
 }
@@ -695,22 +757,25 @@ function PayeeIcons({
       ? scheduleData.schedules.find(s => s.id === scheduleId)
       : null;
 
+  const buttonStyle = useMemo(
+    () => ({
+      marginLeft: -5,
+      marginRight: 2,
+      width: 23,
+      height: 23,
+      color: 'inherit',
+    }),
+    [],
+  );
+
+  const scheduleIconStyle = useMemo(() => ({ width: 13, height: 13 }), []);
+
+  const transferIconStyle = useMemo(() => ({ width: 10, height: 10 }), []);
+
   if (schedule == null && transferAccount == null) {
     // Neither a valid scheduled transaction nor a transfer.
     return null;
   }
-
-  const buttonStyle = {
-    marginLeft: -5,
-    marginRight: 2,
-    width: 23,
-    height: 23,
-    color: 'inherit',
-  };
-
-  const scheduleIconStyle = { width: 13, height: 13 };
-
-  const transferIconStyle = { width: 10, height: 10 };
 
   const recurring = schedule && schedule._date && !!schedule._date.frequency;
 
@@ -718,10 +783,10 @@ function PayeeIcons({
     <>
       {schedule && (
         <Button
-          type="bare"
+          variant="bare"
+          aria-label="See schedule details"
           style={buttonStyle}
-          onClick={e => {
-            e.stopPropagation();
+          onPress={() => {
             onNavigateToSchedule(scheduleId);
           }}
         >
@@ -734,11 +799,10 @@ function PayeeIcons({
       )}
       {transferAccount && (
         <Button
-          type="bare"
-          aria-label="Transfer"
+          variant="bare"
+          aria-label="See transfer account"
           style={buttonStyle}
-          onClick={e => {
-            e.stopPropagation();
+          onPress={() => {
             if (!isTemporaryId(transaction.id)) {
               onNavigateToTransferAccount(transferAccount.id);
             }
@@ -939,7 +1003,9 @@ const Transaction = memo(function Transaction({
   const account = accounts && accountId && getAccountsById(accounts)[accountId];
 
   const isChild = transaction.is_child;
-  const transferAcct = transferAccountsByTransaction[id];
+  const transferAcct = isTemporaryId(id)
+    ? getAccountsById(accounts)[payee?.transfer_acct]
+    : transferAccountsByTransaction[id];
   const isBudgetTransfer = transferAcct && transferAcct.offbudget === 0;
   const isOffBudget = account && account.offbudget === 1;
 
@@ -1052,6 +1118,8 @@ const Transaction = memo(function Transaction({
         ) : (
           <Cell width={20} />
         )
+      ) : isPreview && isChild ? (
+        <Cell width={20} />
       ) : (
         <SelectCell
           /* Checkmark field for non-child transaction */
@@ -1061,7 +1129,11 @@ const Transaction = memo(function Transaction({
           }}
           focused={focusedField === 'select'}
           onSelect={e => {
-            dispatchSelected({ type: 'select', id: transaction.id, event: e });
+            dispatchSelected({
+              type: 'select',
+              id: transaction.id,
+              isRangeSelect: e.shiftKey,
+            });
           }}
           onEdit={() => onEdit(id, 'select')}
           selected={selected}
@@ -1168,7 +1240,9 @@ const Transaction = memo(function Transaction({
           focused={focusedField === 'payee'}
           /* Filter out the account we're currently in as it is not a valid transfer */
           accounts={accounts.filter(account => account.id !== accountId)}
-          payees={payees.filter(payee => payee.transfer_acct !== accountId)}
+          payees={payees.filter(
+            payee => !payee.transfer_acct || payee.transfer_acct !== accountId,
+          )}
           valueStyle={valueStyle}
           transaction={transaction}
           subtransactions={subtransactions}
@@ -1184,45 +1258,52 @@ const Transaction = memo(function Transaction({
         />
       ))()}
 
-      {isPreview ? (
-        /* Notes field for all transactions */
-        <Cell name="notes" width="flex" />
-      ) : (
-        <InputCell
-          width="flex"
-          name="notes"
-          textAlign="flex"
-          exposed={focusedField === 'notes'}
-          focused={focusedField === 'notes'}
-          value={notes || ''}
-          valueStyle={valueStyle}
-          formatter={value => notesTagFormatter(value, onNotesTagClick)}
-          onExpose={name => !isPreview && onEdit(id, name)}
-          inputProps={{
-            value: notes || '',
-            onUpdate: onUpdate.bind(null, 'notes'),
-          }}
-        />
-      )}
+      <InputCell
+        width="flex"
+        name="notes"
+        textAlign="flex"
+        exposed={focusedField === 'notes'}
+        focused={focusedField === 'notes'}
+        value={notes || ''}
+        valueStyle={valueStyle}
+        formatter={value => notesTagFormatter(value, onNotesTagClick)}
+        onExpose={name => !isPreview && onEdit(id, name)}
+        inputProps={{
+          value: notes || '',
+          onUpdate: onUpdate.bind(null, 'notes'),
+        }}
+      />
 
-      {isPreview ? (
-        // Category field for preview transactions
-        <Cell width="flex" style={{ alignItems: 'flex-start' }} exposed={true}>
-          {() => (
+      {(isPreview && !isChild) || isParent ? (
+        <Cell
+          /* Category field (Split button) for parent transactions */
+          name="category"
+          width="flex"
+          focused={focusedField === 'category'}
+          style={{
+            padding: 0,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            height: '100%',
+          }}
+          plain
+        >
+          {isPreview && (
             <View
               style={{
                 color:
-                  notes === 'missed'
+                  categoryId === 'missed'
                     ? theme.errorText
-                    : notes === 'due'
+                    : categoryId === 'due'
                       ? theme.warningText
                       : selected
                         ? theme.formLabelText
                         : theme.upcomingText,
                 backgroundColor:
-                  notes === 'missed'
+                  categoryId === 'missed'
                     ? theme.errorBackground
-                    : notes === 'due'
+                    : categoryId === 'due'
                       ? theme.warningBackground
                       : selected
                         ? theme.formLabelBackground
@@ -1232,23 +1313,12 @@ const Transaction = memo(function Transaction({
                 borderRadius: 4,
               }}
             >
-              {titleFirst(notes)}
+              {titleFirst(categoryId)}
             </View>
           )}
-        </Cell>
-      ) : isParent ? (
-        <Cell
-          /* Category field (Split button) for parent transactions */
-          name="category"
-          width="flex"
-          focused={focusedField === 'category'}
-          style={{ padding: 0 }}
-          plain
-        >
           <CellButton
             bare
             style={{
-              alignSelf: 'flex-start',
               borderRadius: 4,
               border: '1px solid transparent', // so it doesn't shift on hover
               ':hover': {
@@ -1256,7 +1326,7 @@ const Transaction = memo(function Transaction({
               },
             }}
             disabled={isTemporaryId(transaction.id)}
-            onEdit={() => onEdit(id, 'category')}
+            onEdit={() => !isPreview && onEdit(id, 'category')}
             onSelect={() => onToggleSplit(id)}
           >
             <View
@@ -1281,19 +1351,21 @@ const Transaction = memo(function Transaction({
                   }}
                 />
               )}
-              <Text
-                style={{
-                  fontStyle: 'italic',
-                  fontWeight: 300,
-                  userSelect: 'none',
-                }}
-              >
-                Split
-              </Text>
+              {!isPreview && (
+                <Text
+                  style={{
+                    fontStyle: 'italic',
+                    fontWeight: 300,
+                    userSelect: 'none',
+                  }}
+                >
+                  Split
+                </Text>
+              )}
             </View>
           </CellButton>
         </Cell>
-      ) : isBudgetTransfer || isOffBudget || isPreview ? (
+      ) : isBudgetTransfer || isOffBudget ? (
         <InputCell
           /* Category field for transfer and off-budget transactions
      (NOT preview, it is covered first) */
@@ -1301,7 +1373,7 @@ const Transaction = memo(function Transaction({
           width="flex"
           exposed={focusedField === 'category'}
           focused={focusedField === 'category'}
-          onExpose={name => !isPreview && onEdit(id, name)}
+          onExpose={name => onEdit(id, name)}
           value={
             isParent
               ? 'Split'
@@ -1340,7 +1412,7 @@ const Transaction = memo(function Transaction({
                 : ''
           }
           exposed={focusedField === 'category'}
-          onExpose={name => onEdit(id, name)}
+          onExpose={name => !isPreview && onEdit(id, name)}
           valueStyle={
             !categoryId
               ? {
@@ -1470,7 +1542,7 @@ const Transaction = memo(function Transaction({
           isPreview={isPreview}
           status={
             isPreview
-              ? notes
+              ? categoryId
               : reconciled
                 ? 'reconciled'
                 : cleared
@@ -1519,18 +1591,18 @@ function TransactionError({
             </Text>
             <View style={{ flex: 1 }} />
             <Button
-              type="normal"
+              variant="normal"
               style={{ marginLeft: 15 }}
-              onClick={onDistributeRemainder}
+              onPress={onDistributeRemainder}
               data-testid="distribute-split-button"
-              disabled={!canDistributeRemainder}
+              isDisabled={!canDistributeRemainder}
             >
               Distribute
             </Button>
             <Button
-              type="primary"
+              variant="primary"
               style={{ marginLeft: 10, padding: '4px 10px' }}
-              onClick={onAddSplit}
+              onPress={onAddSplit}
               data-testid="add-split-button"
             >
               Add Split
@@ -1657,7 +1729,7 @@ function NewTransaction({
       >
         <Button
           style={{ marginRight: 10, padding: '4px 10px' }}
-          onClick={() => onClose()}
+          onPress={() => onClose()}
           data-testid="cancel-button"
         >
           Cancel
@@ -1674,9 +1746,9 @@ function NewTransaction({
           />
         ) : (
           <Button
-            type="primary"
+            variant="primary"
             style={{ padding: '4px 10px' }}
-            onClick={onAdd}
+            onPress={onAdd}
             data-testid="add-button"
           >
             Add
@@ -2432,6 +2504,7 @@ function notesTagFormatter(notes, onNotesTagClick) {
       {words.map((word, i, arr) => {
         const separator = arr.length - 1 === i ? '' : ' ';
         if (word.includes('#') && word.length > 1) {
+          let lastEmptyTag = -1;
           // Treat tags in a single word as separate tags.
           // #tag1#tag2 => (#tag1)(#tag2)
           // not-a-tag#tag2#tag3 => not-a-tag(#tag2)(#tag3)
@@ -2441,30 +2514,36 @@ function notesTagFormatter(notes, onNotesTagClick) {
             }
 
             if (!tag) {
+              lastEmptyTag = ti;
               return '#';
             }
+
+            if (lastEmptyTag === ti - 1) {
+              return `${tag} `;
+            }
+            lastEmptyTag = -1;
 
             const validTag = `#${tag}`;
             return (
               <span key={`${validTag}${ti}`}>
                 <Button
-                  type="bare"
+                  variant="bare"
                   key={i}
-                  style={{
-                    display: 'inline-flex',
-                    padding: '3px 7px',
-                    borderRadius: 16,
-                    userSelect: 'none',
-                    backgroundColor: theme.noteTagBackground,
-                    color: theme.noteTagText,
-                    cursor: 'pointer',
-                  }}
-                  hoveredStyle={{
-                    backgroundColor: theme.noteTagBackgroundHover,
-                    color: theme.noteTagText,
-                  }}
-                  onClick={e => {
-                    e.stopPropagation();
+                  className={String(
+                    css({
+                      display: 'inline-flex',
+                      padding: '3px 7px',
+                      borderRadius: 16,
+                      userSelect: 'none',
+                      backgroundColor: theme.noteTagBackground,
+                      color: theme.noteTagText,
+                      cursor: 'pointer',
+                      '&[data-hovered]': {
+                        backgroundColor: theme.noteTagBackgroundHover,
+                      },
+                    }),
+                  )}
+                  onPress={() => {
                     onNotesTagClick?.(validTag);
                   }}
                 >

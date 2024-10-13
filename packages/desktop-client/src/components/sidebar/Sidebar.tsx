@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDispatch } from 'react-redux';
 
 import { Resizable } from 're-resizable';
@@ -13,6 +14,7 @@ import * as Platform from 'loot-core/src/client/platform';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useGlobalPref } from '../../hooks/useGlobalPref';
 import { useLocalPref } from '../../hooks/useLocalPref';
+import { useMetadataPref } from '../../hooks/useMetadataPref';
 import { useNavigate } from '../../hooks/useNavigate';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { SvgExpandArrow } from '../../icons/v0';
@@ -20,7 +22,7 @@ import { SvgReports, SvgWallet } from '../../icons/v1';
 import { SvgCalendar } from '../../icons/v2';
 import { useResponsive } from '../../ResponsiveProvider';
 import { styles, theme } from '../../style';
-import { Button } from '../common/Button';
+import { Button } from '../common/Button2';
 import { InitialFocus } from '../common/InitialFocus';
 import { Input } from '../common/Input';
 import { Menu } from '../common/Menu';
@@ -37,6 +39,7 @@ import { Tools } from './Tools';
 export function Sidebar() {
   const hasWindowButtons = !Platform.isBrowser && Platform.OS === 'mac';
 
+  const { t } = useTranslation();
   const dispatch = useDispatch();
   const sidebar = useSidebar();
   const accounts = useAccounts();
@@ -47,14 +50,25 @@ export function Sidebar() {
   const [isFloating = false, setFloatingSidebarPref] =
     useGlobalPref('floatingSidebar');
 
-  const [_sidebarWidth, setSidebarWidth] = useLocalPref('sidebarWidth');
+  const [sidebarWidthLocalPref, setSidebarWidthLocalPref] =
+    useLocalPref('sidebarWidth');
   const DEFAULT_SIDEBAR_WIDTH = 240;
   const MAX_SIDEBAR_WIDTH = width / 3;
   const MIN_SIDEBAR_WIDTH = 200;
-  const sidebarWidth = Math.min(
-    MAX_SIDEBAR_WIDTH,
-    Math.max(MIN_SIDEBAR_WIDTH, _sidebarWidth || DEFAULT_SIDEBAR_WIDTH),
+
+  const [sidebarWidth, setSidebarWidth] = useState(
+    Math.min(
+      MAX_SIDEBAR_WIDTH,
+      Math.max(
+        MIN_SIDEBAR_WIDTH,
+        sidebarWidthLocalPref || DEFAULT_SIDEBAR_WIDTH,
+      ),
+    ),
   );
+
+  const onResizeStop = () => {
+    setSidebarWidthLocalPref(sidebarWidth);
+  };
 
   async function onReorder(
     id: string,
@@ -92,6 +106,7 @@ export function Sidebar() {
         width: sidebarWidth,
         height: '100%',
       }}
+      onResizeStop={onResizeStop}
       maxWidth={MAX_SIDEBAR_WIDTH}
       minWidth={MIN_SIDEBAR_WIDTH}
       enable={{
@@ -148,10 +163,10 @@ export function Sidebar() {
         </View>
 
         <View style={{ overflow: 'auto' }}>
-          <Item title="Budget" Icon={SvgWallet} to="/budget" />
-          <Item title="Reports" Icon={SvgReports} to="/reports" />
+          <Item title={t('Budget')} Icon={SvgWallet} to="/budget" />
+          <Item title={t('Reports')} Icon={SvgReports} to="/reports" />
 
-          <Item title="Schedules" Icon={SvgCalendar} to="/schedules" />
+          <Item title={t('Schedules')} Icon={SvgCalendar} to="/schedules" />
 
           <Tools />
 
@@ -176,9 +191,10 @@ export function Sidebar() {
 }
 
 function EditableBudgetName() {
+  const { t } = useTranslation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [budgetName, setBudgetNamePref] = useLocalPref('budgetName');
+  const [budgetName, setBudgetNamePref] = useMetadataPref('budgetName');
   const [editing, setEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const triggerRef = useRef(null);
@@ -204,10 +220,10 @@ function EditableBudgetName() {
   }
 
   const items = [
-    { name: 'rename', text: 'Rename budget' },
-    { name: 'settings', text: 'Settings' },
-    ...(Platform.isBrowser ? [{ name: 'help', text: 'Help' }] : []),
-    { name: 'close', text: 'Close file' },
+    { name: 'rename', text: t('Rename budget') },
+    { name: 'settings', text: t('Settings') },
+    ...(Platform.isBrowser ? [{ name: 'help', text: t('Help') }] : []),
+    { name: 'close', text: t('Close file') },
   ];
 
   if (editing) {
@@ -238,18 +254,18 @@ function EditableBudgetName() {
     <>
       <Button
         ref={triggerRef}
-        type="bare"
-        color={theme.buttonNormalBorder}
+        variant="bare"
         style={{
+          color: theme.buttonNormalBorder,
           fontSize: 16,
           fontWeight: 500,
           marginLeft: -5,
           flex: '0 auto',
         }}
-        onClick={() => setMenuOpen(true)}
+        onPress={() => setMenuOpen(true)}
       >
         <Text style={{ whiteSpace: 'nowrap', overflow: 'hidden' }}>
-          {budgetName || 'A budget has no name'}
+          {budgetName || t('A budget has no name')}
         </Text>
         <SvgExpandArrow width={7} height={7} style={{ marginLeft: 5 }} />
       </Button>

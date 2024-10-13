@@ -18,7 +18,7 @@ import {
   type GroupedEntity,
   type IntervalEntity,
 } from 'loot-core/src/types/models/reports';
-import { type LocalPrefs } from 'loot-core/types/prefs';
+import { type SyncedPrefs } from 'loot-core/types/prefs';
 
 import {
   categoryLists,
@@ -39,7 +39,6 @@ export type createCustomSpreadsheetProps = {
   endDate: string;
   interval: string;
   categories: { list: CategoryEntity[]; grouped: CategoryGroupEntity[] };
-  selectedCategories: CategoryEntity[];
   conditions: RuleConditionEntity[];
   conditionsOp: string;
   showEmpty: boolean;
@@ -51,7 +50,7 @@ export type createCustomSpreadsheetProps = {
   payees?: PayeeEntity[];
   accounts?: AccountEntity[];
   graphType?: string;
-  firstDayOfWeekIdx?: LocalPrefs['firstDayOfWeekIdx'];
+  firstDayOfWeekIdx?: SyncedPrefs['firstDayOfWeekIdx'];
   setDataCheck?: (value: boolean) => void;
 };
 
@@ -60,7 +59,6 @@ export function createCustomSpreadsheet({
   endDate,
   interval,
   categories,
-  selectedCategories,
   conditions = [],
   conditionsOp,
   showEmpty,
@@ -76,14 +74,6 @@ export function createCustomSpreadsheet({
   setDataCheck,
 }: createCustomSpreadsheetProps) {
   const [categoryList, categoryGroup] = categoryLists(categories);
-
-  const categoryFilter = (categories.list || []).filter(
-    category =>
-      selectedCategories &&
-      selectedCategories.some(
-        selectedCategory => selectedCategory.id === category.id,
-      ),
-  );
 
   const [groupByList, groupByLabel]: [
     groupByList: UncategorizedEntity[],
@@ -112,7 +102,6 @@ export function createCustomSpreadsheet({
           startDate,
           endDate,
           interval,
-          categoryFilter,
           conditionsOpKey,
           filters,
         ),
@@ -123,7 +112,6 @@ export function createCustomSpreadsheet({
           startDate,
           endDate,
           interval,
-          categoryFilter,
           conditionsOpKey,
           filters,
         ),

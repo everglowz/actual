@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { useLocalPref } from '../../hooks/useLocalPref';
 import { useSplitsExpanded } from '../../hooks/useSplitsExpanded';
@@ -74,7 +75,8 @@ export function AccountHeader({
   onBatchDelete,
   onBatchDuplicate,
   onBatchEdit,
-  onBatchUnlink,
+  onBatchLinkSchedule,
+  onBatchUnlinkSchedule,
   onCreateRule,
   onApplyFilter,
   onUpdateFilter,
@@ -87,6 +89,8 @@ export function AccountHeader({
   onMakeAsSplitTransaction,
   onMakeAsNonSplitTransactions,
 }) {
+  const { t } = useTranslation();
+
   const [menuOpen, setMenuOpen] = useState(false);
   const searchInput = useRef(null);
   const triggerRef = useRef(null);
@@ -230,7 +234,7 @@ export function AccountHeader({
                   data-testid="account-name"
                 >
                   {account && account.closed
-                    ? 'Closed: ' + accountName
+                    ? t('Closed: {{ accountName }}', { accountName })
                     : accountName}
                 </View>
 
@@ -242,7 +246,7 @@ export function AccountHeader({
                 )}
                 <Button
                   variant="bare"
-                  aria-label="Edit account name"
+                  aria-label={t('Edit account name')}
                   className="hover-visible"
                   onPress={() => onExposeName(true)}
                 >
@@ -261,7 +265,7 @@ export function AccountHeader({
                 data-testid="account-name"
               >
                 {account && account.closed
-                  ? 'Closed: ' + accountName
+                  ? t('Closed: {{ accountName }}', { accountName })
                   : accountName}
               </View>
             )}
@@ -301,7 +305,7 @@ export function AccountHeader({
                     }
                     style={{ marginRight: 4 }}
                   />{' '}
-                  {isServerOffline ? 'Bank Sync Offline' : 'Bank Sync'}
+                  {isServerOffline ? t('Bank Sync Offline') : t('Bank Sync')}
                 </>
               ) : (
                 <>
@@ -310,15 +314,15 @@ export function AccountHeader({
                     height={13}
                     style={{ marginRight: 4 }}
                   />{' '}
-                  Import
+                  <Trans>Import</Trans>
                 </>
               )}
             </Button>
           )}
           {!showEmptyMessage && (
             <Button variant="bare" onPress={onAddTransaction}>
-              <SvgAdd width={10} height={10} style={{ marginRight: 3 }} /> Add
-              New
+              <SvgAdd width={10} height={10} style={{ marginRight: 3 }} />
+              <Trans>Add New</Trans>
             </Button>
           )}
           <View style={{ flexShrink: 0 }}>
@@ -326,7 +330,7 @@ export function AccountHeader({
           </View>
           <View style={{ flex: 1 }} />
           <Search
-            placeholder="Search"
+            placeholder={t('Search')}
             value={search}
             onChange={onSearch}
             inputRef={searchInput}
@@ -337,12 +341,14 @@ export function AccountHeader({
             </View>
           ) : (
             <SelectedTransactionsButton
+              account={account}
               getTransaction={id => transactions.find(t => t.id === id)}
               onShow={onShowTransactions}
               onDuplicate={onBatchDuplicate}
               onDelete={onBatchDelete}
               onEdit={onBatchEdit}
-              onUnlink={onBatchUnlink}
+              onLinkSchedule={onBatchLinkSchedule}
+              onUnlinkSchedule={onBatchUnlinkSchedule}
               onCreateRule={onCreateRule}
               onSetTransfer={onSetTransfer}
               onScheduleAction={onScheduleAction}
@@ -356,8 +362,8 @@ export function AccountHeader({
             variant="bare"
             aria-label={
               splitsExpanded.state.mode === 'collapse'
-                ? 'Collapse split transactions'
-                : 'Expand split transactions'
+                ? t('Collapse split transactions')
+                : t('Expand split transactions')
             }
             isDisabled={search !== '' || filterConditions.length > 0}
             style={{ padding: 6, marginLeft: 10 }}
@@ -366,8 +372,8 @@ export function AccountHeader({
             <View
               title={
                 splitsExpanded.state.mode === 'collapse'
-                  ? 'Collapse split transactions'
-                  : 'Expand split transactions'
+                  ? t('Collapse split transactions')
+                  : t('Expand split transactions')
               }
             >
               {splitsExpanded.state.mode === 'collapse' ? (
@@ -379,7 +385,11 @@ export function AccountHeader({
           </Button>
           {account ? (
             <View>
-              <MenuButton ref={triggerRef} onClick={() => setMenuOpen(true)} />
+              <MenuButton
+                aria-label="Account menu"
+                ref={triggerRef}
+                onPress={() => setMenuOpen(true)}
+              />
 
               <Popover
                 triggerRef={triggerRef}
@@ -406,7 +416,11 @@ export function AccountHeader({
             </View>
           ) : (
             <View>
-              <MenuButton ref={triggerRef} onClick={() => setMenuOpen(true)} />
+              <MenuButton
+                aria-label="Account menu"
+                ref={triggerRef}
+                onPress={() => setMenuOpen(true)}
+              />
 
               <Popover
                 triggerRef={triggerRef}
@@ -421,9 +435,9 @@ export function AccountHeader({
                   items={[
                     isSorted && {
                       name: 'remove-sorting',
-                      text: 'Remove all sorting',
+                      text: t('Remove all sorting'),
                     },
-                    { name: 'export', text: 'Export' },
+                    { name: 'export', text: t('Export') },
                   ]}
                 />
               </Popover>
@@ -469,6 +483,8 @@ function AccountMenu({
   onReconcile,
   onMenuSelect,
 }) {
+  const { t } = useTranslation();
+
   const [tooltip, setTooltip] = useState('default');
   const syncServerStatus = useSyncServerStatus();
 
@@ -490,36 +506,42 @@ function AccountMenu({
       items={[
         isSorted && {
           name: 'remove-sorting',
-          text: 'Remove all sorting',
+          text: t('Remove all sorting'),
         },
         canShowBalances && {
           name: 'toggle-balance',
-          text: (showBalances ? 'Hide' : 'Show') + ' running balance',
+          text: showBalances
+            ? t('Hide running balance')
+            : t('Show running balance'),
         },
         {
           name: 'toggle-cleared',
-          text: (showCleared ? 'Hide' : 'Show') + ' “cleared” checkboxes',
+          text: showCleared
+            ? t('Hide “cleared” checkboxes')
+            : t('Show “cleared” checkboxes'),
         },
         {
           name: 'toggle-reconciled',
-          text: (showReconciled ? 'Hide' : 'Show') + ' reconciled transactions',
+          text: showReconciled
+            ? t('Hide reconciled transactions')
+            : t('Show reconciled transactions'),
         },
-        { name: 'export', text: 'Export' },
-        { name: 'reconcile', text: 'Reconcile' },
+        { name: 'export', text: t('Export') },
+        { name: 'reconcile', text: t('Reconcile') },
         account &&
           !account.closed &&
           (canSync
             ? {
                 name: 'unlink',
-                text: 'Unlink account',
+                text: t('Unlink account'),
               }
             : syncServerStatus === 'online' && {
                 name: 'link',
-                text: 'Link account',
+                text: t('Link account'),
               }),
         account.closed
-          ? { name: 'reopen', text: 'Reopen account' }
-          : { name: 'close', text: 'Close account' },
+          ? { name: 'reopen', text: t('Reopen account') }
+          : { name: 'close', text: t('Close account') },
       ].filter(x => x)}
     />
   );

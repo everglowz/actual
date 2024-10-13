@@ -9,8 +9,7 @@ import { useActions } from '../../hooks/useActions';
 import { useFeatureFlag } from '../../hooks/useFeatureFlag';
 import { useGlobalPref } from '../../hooks/useGlobalPref';
 import { useLatestVersion, useIsOutdated } from '../../hooks/useLatestVersion';
-import { useLocalPref } from '../../hooks/useLocalPref';
-import { useSetThemeColor } from '../../hooks/useSetThemeColor';
+import { useMetadataPref } from '../../hooks/useMetadataPref';
 import { useResponsive } from '../../ResponsiveProvider';
 import { theme } from '../../style';
 import { tokens } from '../../tokens';
@@ -94,8 +93,8 @@ function IDName({ children }: { children: ReactNode }) {
 }
 
 function AdvancedAbout() {
-  const [budgetId] = useLocalPref('id');
-  const [groupId] = useLocalPref('groupId');
+  const [budgetId] = useMetadataPref('id');
+  const [groupId] = useMetadataPref('groupId');
 
   return (
     <Setting>
@@ -124,7 +123,7 @@ function AdvancedAbout() {
 
 export function Settings() {
   const [floatingSidebar] = useGlobalPref('floatingSidebar');
-  const [budgetName] = useLocalPref('budgetName');
+  const [budgetName] = useMetadataPref('budgetName');
 
   const { loadPrefs, closeBudget } = useActions();
 
@@ -139,7 +138,6 @@ export function Settings() {
 
   const { isNarrowWidth } = useResponsive();
 
-  useSetThemeColor(theme.mobileViewTheme);
   return (
     <Page
       header="Settings"

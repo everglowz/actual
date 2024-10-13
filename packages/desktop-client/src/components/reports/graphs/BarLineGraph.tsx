@@ -1,5 +1,6 @@
 // @ts-strict-ignore
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { css } from 'glamor';
 import {
@@ -15,8 +16,7 @@ import {
 
 import { amountToCurrencyNoDecimal } from 'loot-core/shared/util';
 
-import { theme } from '../../../style';
-import { type CSSProperties } from '../../../style';
+import { theme, type CSSProperties } from '../../../style';
 import { AlignedText } from '../../common/AlignedText';
 import { PrivacyFilter } from '../../PrivacyFilter';
 import { Container } from '../Container';
@@ -38,6 +38,8 @@ type CustomTooltipProps = {
 };
 
 const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
+  const { t } = useTranslation();
+
   if (active && payload && payload.length) {
     return (
       <div
@@ -57,10 +59,13 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
           </div>
           <div style={{ lineHeight: 1.5 }}>
             <PrivacyFilter>
-              <AlignedText left="Assets:" right={payload[0].payload.assets} />
-              <AlignedText left="Debt:" right={payload[0].payload.debt} />
               <AlignedText
-                left="Change:"
+                left={t('Assets:')}
+                right={payload[0].payload.assets}
+              />
+              <AlignedText left={t('Debt:')} right={payload[0].payload.debt} />
+              <AlignedText
+                left={t('Change:')}
                 right={<strong>{payload[0].payload.change}</strong>}
               />
             </PrivacyFilter>
@@ -75,9 +80,15 @@ type BarLineGraphProps = {
   style?: CSSProperties;
   data;
   compact?: boolean;
+  showTooltip?: boolean;
 };
 
-export function BarLineGraph({ style, data, compact }: BarLineGraphProps) {
+export function BarLineGraph({
+  style,
+  data,
+  compact,
+  showTooltip = true,
+}: BarLineGraphProps) {
   const tickFormatter = tick => {
     return `${amountToCurrencyNoDecimal(Math.round(tick))}`; // Formats the tick values as strings with commas
   };
@@ -100,11 +111,13 @@ export function BarLineGraph({ style, data, compact }: BarLineGraphProps) {
                 data={data.data}
                 margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
               >
-                <Tooltip
-                  content={<CustomTooltip />}
-                  formatter={numberFormatterTooltip}
-                  isAnimationActive={false}
-                />
+                {showTooltip && (
+                  <Tooltip
+                    content={<CustomTooltip />}
+                    formatter={numberFormatterTooltip}
+                    isAnimationActive={false}
+                  />
+                )}
                 {!compact && (
                   <>
                     <CartesianGrid strokeDasharray="3 3" />

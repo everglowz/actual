@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 
-import { rolloverBudget } from 'loot-core/client/queries';
+import { envelopeBudget } from 'loot-core/client/queries';
 
 import { styles } from '../../style';
+import { useEnvelopeSheetValue } from '../budget/envelope/EnvelopeBudgetComponents';
 import { Button } from '../common/Button2';
 import { InitialFocus } from '../common/InitialFocus';
-import { Modal, ModalCloseButton, ModalHeader } from '../common/Modal2';
+import { Modal, ModalCloseButton, ModalHeader } from '../common/Modal';
 import { View } from '../common/View';
 import { FieldLabel } from '../mobile/MobileForms';
-import { useSheetValue } from '../spreadsheet/useSheetValue';
 import { AmountInput } from '../util/AmountInput';
 
 type HoldBufferModalProps = {
@@ -17,7 +17,7 @@ type HoldBufferModalProps = {
 };
 
 export function HoldBufferModal({ onSubmit }: HoldBufferModalProps) {
-  const available = useSheetValue(rolloverBudget.toBudget);
+  const available = useEnvelopeSheetValue(envelopeBudget.toBudget) ?? 0;
   const [amount, setAmount] = useState<number>(0);
 
   const _onSubmit = (newAmount: number) => {
@@ -32,7 +32,7 @@ export function HoldBufferModal({ onSubmit }: HoldBufferModalProps) {
         <>
           <ModalHeader
             title="Hold Buffer"
-            rightContent={<ModalCloseButton onClick={close} />}
+            rightContent={<ModalCloseButton onPress={close} />}
           />
           <View>
             <FieldLabel title="Hold this amount:" />

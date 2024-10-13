@@ -1,14 +1,14 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 
-import { useLocalPref } from '../../hooks/useLocalPref';
-import { Modal, ModalHeader, ModalCloseButton } from '../common/Modal2';
+import { useMetadataPref } from '../../hooks/useMetadataPref';
+import { Modal, ModalHeader, ModalCloseButton } from '../common/Modal';
 import { Text } from '../common/Text';
 import { View } from '../common/View';
 import { BudgetList } from '../manager/BudgetList';
 
 export function BudgetListModal() {
-  const [id] = useLocalPref('id');
+  const [id] = useMetadataPref('id');
   const currentFile = useSelector(state =>
     state.budgets.allFiles?.find(f => 'id' in f && f.id === id),
   );
@@ -19,7 +19,7 @@ export function BudgetListModal() {
         <>
           <ModalHeader
             title="Switch Budget File"
-            rightContent={<ModalCloseButton onClick={close} />}
+            rightContent={<ModalCloseButton onPress={close} />}
           />
           <View
             style={{

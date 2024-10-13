@@ -10,7 +10,12 @@ import {
   subDays,
   parseDate,
 } from '../../shared/months';
-import { sortNumbers, getApproxNumberThreshold } from '../../shared/rules';
+import {
+  sortNumbers,
+  getApproxNumberThreshold,
+  isValidOp,
+  FIELD_TYPES,
+} from '../../shared/rules';
 import { recurConfigToRSchedule } from '../../shared/schedules';
 import {
   addSplitTransaction,
@@ -154,6 +159,7 @@ const CONDITION_TYPES = {
       'isNot',
       'doesNotContain',
       'notOneOf',
+      'hasTags',
     ],
     nullable: true,
     parse(op, value, fieldName) {
@@ -168,11 +174,22 @@ const CONDITION_TYPES = {
         return value.filter(Boolean).map(val => val.toLowerCase());
       }
 
-      if (op === 'contains' || op === 'matches' || op === 'doesNotContain') {
+      assert(
+        typeof value === 'string',
+        'not-string',
+        `Invalid string value (field: ${fieldName})`,
+      );
+
+      if (
+        op === 'contains' ||
+        op === 'matches' ||
+        op === 'doesNotContain' ||
+        op === 'hasTags'
+      ) {
         assert(
-          typeof value === 'string' && value.length > 0,
+          value.length > 0,
           'no-empty-string',
-          `contains must have non-empty string (field: ${fieldName})`,
+          `${op} must have non-empty string (field: ${fieldName})`,
         );
       }
 
@@ -237,8 +254,8 @@ export class Condition {
   unparsedValue;
   value;
 
-  constructor(op, field, value, options, fieldTypes) {
-    const typeName = fieldTypes.get(field);
+  constructor(op, field, value, options) {
+    const typeName = FIELD_TYPES.get(field);
     assert(typeName, 'internal', 'Invalid condition field: ' + field);
 
     const type = CONDITION_TYPES[typeName];
@@ -251,7 +268,7 @@ export class Condition {
       `Invalid condition type: ${typeName} (field: ${field})`,
     );
     assert(
-      type.ops.includes(op),
+      isValidOp(field, op),
       'internal',
       `Invalid condition operator: ${op} (type: ${typeName}, field: ${field})`,
     );
@@ -378,6 +395,13 @@ export class Condition {
           return false;
         }
         return this.value.indexOf(fieldValue) !== -1;
+
+      case 'hasTags':
+        if (fieldValue === null) {
+          return false;
+        }
+        return fieldValue.indexOf(this.value) !== -1;
+
       case 'notOneOf':
         if (fieldValue === null) {
           return false;
@@ -419,6 +443,16 @@ export class Condition {
           );
         }
         return fieldValue <= extractValue(this.value);
+      case 'matches':
+        if (fieldValue === null) {
+          return false;
+        }
+        try {
+          return new RegExp(this.value).test(fieldValue);
+        } catch (e) {
+          console.log('invalid regexp in matches condition', e);
+          return false;
+        }
       default:
     }
 
@@ -440,7 +474,13 @@ export class Condition {
   }
 }
 
-const ACTION_OPS = ['set', 'set-split-amount', 'link-schedule'] as const;
+const ACTION_OPS = [
+  'set',
+  'set-split-amount',
+  'link-schedule',
+  'prepend-notes',
+  'append-notes',
+] as const;
 type ActionOperator = (typeof ACTION_OPS)[number];
 
 export class Action {
@@ -451,7 +491,7 @@ export class Action {
   type;
   value;
 
-  constructor(op: ActionOperator, field, value, options, fieldTypes) {
+  constructor(op: ActionOperator, field, value, options) {
     assert(
       ACTION_OPS.includes(op),
       'internal',
@@ -459,7 +499,7 @@ export class Action {
     );
 
     if (op === 'set') {
-      const typeName = fieldTypes.get(field);
+      const typeName = FIELD_TYPES.get(field);
       assert(typeName, 'internal', `Invalid field for action: ${field}`);
       this.field = field;
       this.type = typeName;
@@ -468,6 +508,9 @@ export class Action {
       this.type = 'number';
     } else if (op === 'link-schedule') {
       this.field = null;
+      this.type = 'id';
+    } else if (op === 'prepend-notes' || op === 'append-notes') {
+      this.field = 'notes';
       this.type = 'id';
     }
 
@@ -496,6 +539,16 @@ export class Action {
         break;
       case 'link-schedule':
         object.schedule = this.value;
+        break;
+      case 'prepend-notes':
+        object[this.field] = object[this.field]
+          ? this.value + object[this.field]
+          : this.value;
+        break;
+      case 'append-notes':
+        object[this.field] = object[this.field]
+          ? object[this.field] + this.value
+          : this.value;
         break;
       default:
     }
@@ -662,23 +715,21 @@ export class Rule {
     conditionsOp,
     conditions,
     actions,
-    fieldTypes,
   }: {
     id?: string;
     stage?;
     conditionsOp;
     conditions;
     actions;
-    fieldTypes;
   }) {
     this.id = id;
     this.stage = stage;
     this.conditionsOp = conditionsOp;
     this.conditions = conditions.map(
-      c => new Condition(c.op, c.field, c.value, c.options, fieldTypes),
+      c => new Condition(c.op, c.field, c.value, c.options),
     );
     this.actions = actions.map(
-      a => new Action(a.op, a.field, a.value, a.options, fieldTypes),
+      a => new Action(a.op, a.field, a.value, a.options),
     );
   }
 
@@ -833,6 +884,7 @@ const OP_SCORES: Record<RuleConditionEntity['op'], number> = {
   contains: 0,
   doesNotContain: 0,
   matches: 0,
+  hasTags: 0,
 };
 
 function computeScore(rule) {

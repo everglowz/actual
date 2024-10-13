@@ -12,7 +12,6 @@ import { q } from 'loot-core/shared/query';
 import { isPreviewId } from 'loot-core/shared/transactions';
 
 import { useDateFormat } from '../../../hooks/useDateFormat';
-import { useLocalPref } from '../../../hooks/useLocalPref';
 import { useNavigate } from '../../../hooks/useNavigate';
 import { TextOneLine } from '../../common/TextOneLine';
 import { View } from '../../common/View';
@@ -29,7 +28,6 @@ export function CategoryTransactions({ category, month }) {
   const [transactions, setTransactions] = useState([]);
 
   const dateFormat = useDateFormat() || 'MM/dd/yyyy';
-  const [_numberFormat] = useLocalPref('numberFormat');
 
   const makeRootQuery = useCallback(
     () =>
@@ -111,7 +109,7 @@ export function CategoryTransactions({ category, month }) {
     paged.current?.fetchNext();
   };
 
-  const onSelectTransaction = transaction => {
+  const onOpenTranasction = transaction => {
     // details of how the native app used to handle preview transactions here can be found at commit 05e58279
     if (!isPreviewId(transaction.id)) {
       navigate(`/transactions/${transaction.id}`);
@@ -149,7 +147,7 @@ export function CategoryTransactions({ category, month }) {
         searchPlaceholder={`Search ${category.name}`}
         onSearch={onSearch}
         onLoadMore={onLoadMore}
-        onSelectTransaction={onSelectTransaction}
+        onOpenTransaction={onOpenTranasction}
       />
     </Page>
   );

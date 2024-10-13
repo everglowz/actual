@@ -1,17 +1,19 @@
-import React, { useMemo, useRef, useState, type ComponentProps } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 
 import * as monthUtils from 'loot-core/src/shared/months';
 import { type CategoryEntity } from 'loot-core/types/models/category';
 import { type CategoryGroupEntity } from 'loot-core/types/models/category-group';
+import { type TimeFrame } from 'loot-core/types/models/dashboard';
 import { type CustomReportEntity } from 'loot-core/types/models/reports';
-import { type LocalPrefs } from 'loot-core/types/prefs';
+import { type SyncedPrefs } from 'loot-core/types/prefs';
 
 import { styles } from '../../style/styles';
 import { theme } from '../../style/theme';
-import { Button } from '../common/Button';
+import { Information } from '../alerts';
+import { Button } from '../common/Button2';
 import { Menu } from '../common/Menu';
 import { Popover } from '../common/Popover';
-import { Select } from '../common/Select';
+import { Select, type SelectOption } from '../common/Select';
 import { Text } from '../common/Text';
 import { Tooltip } from '../common/Tooltip';
 import { View } from '../common/View';
@@ -26,6 +28,7 @@ import { setSessionReport } from './setSessionReport';
 
 type ReportSidebarProps = {
   customReportItems: CustomReportEntity;
+  selectedCategories: CategoryEntity[];
   categories: { list: CategoryEntity[]; grouped: CategoryGroupEntity[] };
   dateRangeLine: number;
   allIntervals: { name: string; pretty: string }[];
@@ -42,7 +45,11 @@ type ReportSidebarProps = {
   setShowUncategorized: (value: boolean) => void;
   setIncludeCurrentInterval: (value: boolean) => void;
   setSelectedCategories: (value: CategoryEntity[]) => void;
-  onChangeDates: (dateStart: string, dateEnd: string) => void;
+  onChangeDates: (
+    dateStart: string,
+    dateEnd: string,
+    mode: TimeFrame['mode'],
+  ) => void;
   onReportChange: ({
     savedReport,
     type,
@@ -54,11 +61,13 @@ type ReportSidebarProps = {
   defaultItems: (item: string) => void;
   defaultModeItems: (graph: string, item: string) => void;
   earliestTransaction: string;
-  firstDayOfWeekIdx: LocalPrefs['firstDayOfWeekIdx'];
+  firstDayOfWeekIdx: SyncedPrefs['firstDayOfWeekIdx'];
+  isComplexCategoryCondition?: boolean;
 };
 
 export function ReportSidebar({
   customReportItems,
+  selectedCategories,
   categories,
   dateRangeLine,
   allIntervals,
@@ -82,6 +91,7 @@ export function ReportSidebar({
   defaultModeItems,
   earliestTransaction,
   firstDayOfWeekIdx,
+  isComplexCategoryCondition = false,
 }: ReportSidebarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const triggerRef = useRef(null);
@@ -134,10 +144,9 @@ export function ReportSidebar({
   };
 
   const rangeOptions = useMemo(() => {
-    const options: ComponentProps<typeof Select>['options'] =
-      ReportOptions.dateRange
-        .filter(f => f[customReportItems.interval as keyof dateRangeProps])
-        .map(option => [option.description, option.description]);
+    const options: SelectOption[] = ReportOptions.dateRange
+      .filter(f => f[customReportItems.interval as keyof dateRangeProps])
+      .map(option => [option.description, option.description]);
 
     // Append separator if necessary
     if (dateRangeLine > 0) {
@@ -270,7 +279,7 @@ export function ReportSidebar({
           <Text style={{ width: 50, textAlign: 'right', marginRight: 5 }} />
           <Button
             ref={triggerRef}
-            onClick={() => {
+            onPress={() => {
               setMenuOpen(true);
             }}
             style={{
@@ -415,6 +424,7 @@ export function ReportSidebar({
               onChangeDates(
                 customReportItems.startDate,
                 customReportItems.endDate,
+                'static',
               );
             }}
           >
@@ -536,19 +546,25 @@ export function ReportSidebar({
           minHeight: 200,
         }}
       >
-        <CategorySelector
-          categoryGroups={categories.grouped.filter(f => {
-            return customReportItems.showHiddenCategories || !f.hidden
-              ? true
-              : false;
-          })}
-          selectedCategories={customReportItems.selectedCategories || []}
-          setSelectedCategories={e => {
-            setSelectedCategories(e);
-            onReportChange({ type: 'modify' });
-          }}
-          showHiddenCategories={customReportItems.showHiddenCategories}
-        />
+        {isComplexCategoryCondition ? (
+          <Information>
+            Remove active category filters to show the category selector.
+          </Information>
+        ) : (
+          <CategorySelector
+            categoryGroups={categories.grouped.filter(f => {
+              return customReportItems.showHiddenCategories || !f.hidden
+                ? true
+                : false;
+            })}
+            selectedCategories={selectedCategories || []}
+            setSelectedCategories={e => {
+              setSelectedCategories(e);
+              onReportChange({ type: 'modify' });
+            }}
+            showHiddenCategories={customReportItems.showHiddenCategories}
+          />
+        )}
       </View>
     </View>
   );

@@ -45,7 +45,6 @@ import { useCategories } from '../../../hooks/useCategories';
 import { useDateFormat } from '../../../hooks/useDateFormat';
 import { useNavigate } from '../../../hooks/useNavigate';
 import { usePayees } from '../../../hooks/usePayees';
-import { useSetThemeColor } from '../../../hooks/useSetThemeColor';
 import {
   SingleActiveEditFormProvider,
   useSingleActiveEditForm,
@@ -132,7 +131,7 @@ export function lookupName(items, id) {
   return items.find(item => item.id === id)?.name;
 }
 
-export function Status({ status }) {
+export function Status({ status, isSplit }) {
   let color;
 
   switch (status) {
@@ -157,7 +156,7 @@ export function Status({ status }) {
         textAlign: 'left',
       }}
     >
-      {titleFirst(status)}
+      {titleFirst(status) + (isSplit ? ' (Split)' : '')}
     </Text>
   );
 }
@@ -460,7 +459,7 @@ const TransactionEditInner = memo(function TransactionEditInner({
 
   const { editingField, onRequestActiveEdit, onClearActiveEdit } =
     useSingleActiveEditForm();
-  const [totalAmountFocused, setTotalAmountFocused] = useState(false);
+  const [totalAmountFocused, setTotalAmountFocused] = useState(true);
   const childTransactionElementRefMap = useRef({});
 
   const payeesById = useMemo(() => groupById(payees), [payees]);
@@ -1015,7 +1014,6 @@ function TransactionEditUnconnected({
   const [fetchedTransactions, setFetchedTransactions] = useState([]);
   const adding = useRef(false);
   const deleted = useRef(false);
-  useSetThemeColor(theme.mobileViewTheme);
 
   useEffect(() => {
     async function fetchTransaction() {

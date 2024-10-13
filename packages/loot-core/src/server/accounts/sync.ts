@@ -92,6 +92,7 @@ async function downloadGoCardlessTransactions(
   acctId,
   bankId,
   since,
+  includeBalance = true,
 ) {
   const userToken = await asyncStorage.getItem('user-token');
   if (!userToken) return;
@@ -106,6 +107,7 @@ async function downloadGoCardlessTransactions(
       requisitionId: bankId,
       accountId: acctId,
       startDate: since,
+      includeBalance,
     },
     {
       'X-ACTUAL-TOKEN': userToken,
@@ -116,19 +118,27 @@ async function downloadGoCardlessTransactions(
     throw BankSyncError(res.error_type, res.error_code);
   }
 
-  const {
-    transactions: { all },
-    balances,
-    startingBalance,
-  } = res;
+  if (includeBalance) {
+    const {
+      transactions: { all },
+      balances,
+      startingBalance,
+    } = res;
 
-  console.log('Response:', res);
+    console.log('Response:', res);
 
-  return {
-    transactions: all,
-    accountBalance: balances,
-    startingBalance,
-  };
+    return {
+      transactions: all,
+      accountBalance: balances,
+      startingBalance,
+    };
+  } else {
+    console.log('Response:', res);
+
+    return {
+      transactions: res.transactions.all,
+    };
+  }
 }
 
 async function downloadSimpleFinTransactions(acctId, since) {
@@ -272,6 +282,10 @@ async function normalizeBankSyncTransactions(transactions, acctId) {
 
     trans.cleared = Boolean(trans.booked);
 
+    const notes =
+      trans.remittanceInformationUnstructured ||
+      (trans.remittanceInformationUnstructuredArray || []).join(', ');
+
     normalized.push({
       payee_name: trans.payeeName,
       trans: {
@@ -279,9 +293,7 @@ async function normalizeBankSyncTransactions(transactions, acctId) {
         payee: trans.payee,
         account: trans.account,
         date: trans.date,
-        notes:
-          trans.remittanceInformationUnstructured ||
-          (trans.remittanceInformationUnstructuredArray || []).join(', '),
+        notes: notes.trim().replace('#', '##'),
         imported_id: trans.transactionId,
         imported_payee: trans.imported_payee,
         cleared: trans.cleared,
@@ -309,6 +321,7 @@ export async function reconcileTransactions(
   acctId,
   transactions,
   isBankSyncAccount = false,
+  strictIdChecking = true,
   isPreview = false,
 ) {
   console.log('Performing transaction reconciliation');
@@ -323,7 +336,12 @@ export async function reconcileTransactions(
     transactionsStep1,
     transactionsStep2,
     transactionsStep3,
-  } = await matchTransactions(acctId, transactions, isBankSyncAccount);
+  } = await matchTransactions(
+    acctId,
+    transactions,
+    isBankSyncAccount,
+    strictIdChecking,
+  );
 
   // Finally, generate & commit the changes
   for (const { trans, subtransactions, match } of transactionsStep3) {
@@ -416,6 +434,7 @@ export async function matchTransactions(
   acctId,
   transactions,
   isBankSyncAccount = false,
+  strictIdChecking = true,
 ) {
   console.log('Performing transaction reconciliation matching');
 
@@ -459,20 +478,39 @@ export async function matchTransactions(
 
     // If it didn't match, query data needed for fuzzy matching
     if (!match) {
-      // Look 7 days ahead and 7 days back when fuzzy matching. This
+      // Fuzzy matching looks 7 days ahead and 7 days back. This
       // needs to select all fields that need to be read from the
       // matched transaction. See the final pass below for the needed
       // fields.
-      fuzzyDataset = await db.all(
-        `SELECT id, is_parent, date, imported_id, payee, imported_payee, category, notes, reconciled, cleared, amount FROM v_transactions
-           WHERE date >= ? AND date <= ? AND amount = ? AND account = ?`,
-        [
-          db.toDateRepr(monthUtils.subDays(trans.date, 7)),
-          db.toDateRepr(monthUtils.addDays(trans.date, 7)),
-          trans.amount || 0,
-          acctId,
-        ],
-      );
+      const sevenDaysBefore = db.toDateRepr(monthUtils.subDays(trans.date, 7));
+      const sevenDaysAfter = db.toDateRepr(monthUtils.addDays(trans.date, 7));
+      // strictIdChecking has the added behaviour of only matching on transactions with no import ID
+      // if the transaction being imported has an import ID.
+      if (strictIdChecking) {
+        fuzzyDataset = await db.all(
+          `SELECT id, is_parent, date, imported_id, payee, imported_payee, category, notes, reconciled, cleared, amount
+          FROM v_transactions
+          WHERE
+            -- If both ids are set, and we didn't match earlier then skip dedup
+            (imported_id IS NULL OR ? IS NULL)
+            AND date >= ? AND date <= ? AND amount = ?
+            AND account = ?`,
+          [
+            trans.imported_id || null,
+            sevenDaysBefore,
+            sevenDaysAfter,
+            trans.amount || 0,
+            acctId,
+          ],
+        );
+      } else {
+        fuzzyDataset = await db.all(
+          `SELECT id, is_parent, date, imported_id, payee, imported_payee, category, notes, reconciled, cleared, amount
+          FROM v_transactions
+          WHERE date >= ? AND date <= ? AND amount = ? AND account = ?`,
+          [sevenDaysBefore, sevenDaysAfter, trans.amount || 0, acctId],
+        );
+      }
 
       // Sort the matched transactions according to the distance from the original
       // transactions date. i.e. if the original transaction is in 21-02-2024 and
@@ -620,6 +658,10 @@ export async function syncAccount(
   );
 
   const acctRow = await db.select('accounts', id);
+  // If syncing an account from sync source it must not use strictIdChecking. This allows
+  // the fuzzy search to match transactions where the import IDs are different. It is a known quirk
+  // that account sync sources can give two different transaction IDs even though it's the same transaction.
+  const useStrictIdChecking = !acctRow.account_sync_source;
 
   if (latestTransaction) {
     const startingTransaction = await db.first(
@@ -651,6 +693,7 @@ export async function syncAccount(
         acctId,
         bankId,
         startDate,
+        false,
       );
     } else {
       throw new Error(
@@ -670,8 +713,15 @@ export async function syncAccount(
     }));
 
     return runMutator(async () => {
-      const result = await reconcileTransactions(id, transactions, true);
-      await updateAccountBalance(id, accountBalance);
+      const result = await reconcileTransactions(
+        id,
+        transactions,
+        true,
+        useStrictIdChecking,
+      );
+
+      if (accountBalance) await updateAccountBalance(id, accountBalance);
+
       return result;
     });
   } else {
@@ -689,6 +739,7 @@ export async function syncAccount(
         acctId,
         bankId,
         startingDay,
+        true,
       );
     }
 
@@ -725,7 +776,12 @@ export async function syncAccount(
         starting_balance_flag: true,
       });
 
-      const result = await reconcileTransactions(id, transactions, true);
+      const result = await reconcileTransactions(
+        id,
+        transactions,
+        true,
+        useStrictIdChecking,
+      );
       return {
         ...result,
         added: [initialId, ...result.added],

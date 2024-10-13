@@ -9,10 +9,11 @@ import React, {
   type ReactElement,
   useCallback,
 } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { css } from 'glamor';
 
-import { reportBudget, rolloverBudget } from 'loot-core/client/queries';
+import { trackingBudget, envelopeBudget } from 'loot-core/client/queries';
 import { integerToCurrency } from 'loot-core/shared/util';
 import { getNormalisedString } from 'loot-core/src/shared/normalisation';
 import {
@@ -21,10 +22,11 @@ import {
 } from 'loot-core/src/types/models';
 
 import { useCategories } from '../../hooks/useCategories';
-import { useLocalPref } from '../../hooks/useLocalPref';
+import { useSyncedPref } from '../../hooks/useSyncedPref';
 import { SvgSplit } from '../../icons/v0';
 import { useResponsive } from '../../ResponsiveProvider';
 import { type CSSProperties, theme, styles } from '../../style';
+import { useEnvelopeSheetValue } from '../budget/envelope/EnvelopeBudgetComponents';
 import { makeAmountFullStyle } from '../budget/util';
 import { Text } from '../common/Text';
 import { TextOneLine } from '../common/TextOneLine';
@@ -70,6 +72,7 @@ function CategoryList({
   showHiddenItems,
   showBalances,
 }: CategoryListProps) {
+  const { t } = useTranslation();
   let lastGroup: string | undefined | null = null;
 
   const filteredItems = useMemo(
@@ -100,7 +103,7 @@ function CategoryList({
           }
 
           const showGroup = item.cat_group !== lastGroup;
-          const groupName = `${item.group?.name}${item.group?.hidden ? ' (hidden)' : ''}`;
+          const groupName = `${item.group?.name}${item.group?.hidden ? ' ' + t('(hidden)') : ''}`;
           lastGroup = item.cat_group;
           return (
             <Fragment key={item.id}>
@@ -338,7 +341,7 @@ function SplitTransactionButton({
           <SvgSplit width={10} height={10} style={{ marginRight: 5 }} />
         )}
       </Text>
-      Split Transaction
+      <Trans>Split Transaction</Trans>
     </View>
   );
 }
@@ -367,6 +370,7 @@ function CategoryItem({
   showBalances,
   ...props
 }: CategoryItemProps) {
+  const { t } = useTranslation();
   const { isNarrowWidth } = useResponsive();
   const narrowStyle = isNarrowWidth
     ? {
@@ -375,16 +379,19 @@ function CategoryItem({
         borderTop: `1px solid ${theme.pillBorder}`,
       }
     : {};
-  const [budgetType = 'rollover'] = useLocalPref('budgetType');
+  const [budgetType = 'rollover'] = useSyncedPref('budgetType');
 
-  const balance = useSheetValue(
+  const balanceBinding =
     budgetType === 'rollover'
-      ? rolloverBudget.catBalance(item.id)
-      : reportBudget.catBalance(item.id),
-  );
+      ? envelopeBudget.catBalance(item.id)
+      : trackingBudget.catBalance(item.id);
+  const balance = useSheetValue<
+    'envelope-budget' | 'tracking-budget',
+    typeof balanceBinding
+  >(balanceBinding);
 
   const isToBeBudgetedItem = item.id === 'to-be-budgeted';
-  const toBudget = useSheetValue(rolloverBudget.toBudget);
+  const toBudget = useEnvelopeSheetValue(envelopeBudget.toBudget) ?? 0;
 
   return (
     <div
@@ -412,7 +419,7 @@ function CategoryItem({
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <TextOneLine>
           {item.name}
-          {item.hidden ? ' (hidden)' : null}
+          {item.hidden ? ' ' + t('(hidden)') : null}
         </TextOneLine>
         <TextOneLine
           style={{

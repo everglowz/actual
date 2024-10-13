@@ -29,9 +29,9 @@ import { SvgDelete, SvgExpandArrow } from '../icons/v0';
 import { SvgCheckmark } from '../icons/v1';
 import { type CSSProperties, styles, theme } from '../style';
 
-import { Button } from './common/Button';
+import { Button } from './common/Button2';
 import { Input } from './common/Input';
-import { Menu } from './common/Menu';
+import { Menu, type MenuItem } from './common/Menu';
 import { Popover } from './common/Popover';
 import { Text } from './common/Text';
 import { View } from './common/View';
@@ -40,7 +40,12 @@ import {
   ConditionalPrivacyFilter,
   mergeConditionalPrivacyFilterProps,
 } from './PrivacyFilter';
-import { type Binding } from './spreadsheet';
+import {
+  type Spreadsheets,
+  type SheetFields,
+  type SheetNames,
+  type Binding,
+} from './spreadsheet';
 import { type FormatType, useFormat } from './spreadsheet/useFormat';
 import { useSheetValue } from './spreadsheet/useSheetValue';
 
@@ -192,11 +197,6 @@ export function Cell({
         privacyFilter={mergeConditionalPrivacyFilterProps(
           {
             activationFilters: [!focused, !exposed],
-            style: {
-              position: 'absolute',
-              width: '100%',
-              height: '100%',
-            },
           },
           privacyFilter,
         )}
@@ -311,7 +311,7 @@ const readonlyInputStyle = {
   '::selection': { backgroundColor: theme.formInputTextReadOnlySelection },
 };
 
-type InputValueProps = ComponentProps<typeof Input> & {
+type InputValueProps = Omit<ComponentProps<typeof Input>, 'value'> & {
   value?: string;
 };
 
@@ -671,31 +671,45 @@ export function SelectCell({
   );
 }
 
-type SheetCellValueProps = {
-  binding: Binding;
+type SheetCellValueProps<
+  SheetName extends SheetNames,
+  FieldName extends SheetFields<SheetName>,
+> = {
+  binding: Binding<SheetName, FieldName>;
   type: FormatType;
-  getValueStyle?: (value: string | number) => CSSProperties;
-  formatExpr?: (value) => string;
+  getValueStyle?: (value: Spreadsheets[SheetName][FieldName]) => CSSProperties;
+  formatExpr?: (value: Spreadsheets[SheetName][FieldName]) => string;
   unformatExpr?: (value: string) => unknown;
   privacyFilter?: ComponentProps<
     typeof ConditionalPrivacyFilter
   >['privacyFilter'];
 };
 
-type SheetCellProps = ComponentProps<typeof Cell> & {
-  valueProps: SheetCellValueProps;
-  inputProps?: Omit<ComponentProps<typeof InputValue>, 'value' | 'onUpdate'>;
+export type SheetCellProps<
+  SheetName extends SheetNames,
+  FieldName extends SheetFields<SheetName>,
+> = ComponentProps<typeof Cell> & {
+  valueProps: SheetCellValueProps<SheetName, FieldName>;
+  inputProps?: Omit<
+    ComponentProps<typeof InputValue>,
+    'value' | 'onUpdate' | 'onBlur'
+  > & {
+    onBlur?: () => void;
+  };
   onSave?: (value) => void;
   textAlign?: CSSProperties['textAlign'];
 };
-export function SheetCell({
+export function SheetCell<
+  SheetName extends SheetNames,
+  FieldName extends SheetFields<SheetName>,
+>({
   valueProps,
   valueStyle,
   inputProps,
   textAlign,
   onSave,
   ...props
-}: SheetCellProps) {
+}: SheetCellProps<SheetName, FieldName>) {
   const {
     binding,
     type,
@@ -705,10 +719,10 @@ export function SheetCell({
     privacyFilter,
   } = valueProps;
 
-  const sheetValue = useSheetValue(binding, e => {
+  const sheetValue = useSheetValue(binding, () => {
     // "close" the cell if it's editing
     if (props.exposed && inputProps && inputProps.onBlur) {
-      inputProps.onBlur(e);
+      inputProps.onBlur();
     }
   });
   const format = useFormat();
@@ -722,7 +736,7 @@ export function SheetCell({
       }
       textAlign={textAlign}
       {...props}
-      value={sheetValue}
+      value={String(sheetValue ?? '')}
       formatter={value =>
         props.formatter ? props.formatter(value, type) : format(value, type)
       }
@@ -738,7 +752,7 @@ export function SheetCell({
       {() => {
         return (
           <InputValue
-            value={formatExpr ? formatExpr(sheetValue) : sheetValue}
+            value={formatExpr ? formatExpr(sheetValue) : sheetValue.toString()}
             onUpdate={value => {
               onSave(unformatExpr ? unformatExpr(value) : value);
             }}
@@ -796,30 +810,45 @@ export function TableHeader({
   );
 }
 
-export function SelectedItemsButton({ name, items, onSelect }) {
+type SelectedItemsButtonProps<T extends MenuItem = MenuItem> = {
+  id: string;
+  name: ((count: number) => string) | string;
+  items: Array<T | typeof Menu.line>;
+  onSelect: (name: string, items: Array<string>) => void;
+};
+
+export function SelectedItemsButton<T extends MenuItem = MenuItem>({
+  id,
+  name,
+  items,
+  onSelect,
+}: SelectedItemsButtonProps<T>) {
   const selectedItems = useSelectedItems();
-  const [menuOpen, setMenuOpen] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const triggerRef = useRef(null);
 
   if (selectedItems.size === 0) {
     return null;
   }
 
+  const buttonLabel =
+    typeof name === 'function' ? name(selectedItems.size) : name;
+
   return (
     <View style={{ marginLeft: 10, flexShrink: 0 }}>
       <Button
         ref={triggerRef}
-        type="bare"
+        variant="bare"
         style={{ color: theme.pageTextPositive }}
-        onClick={() => setMenuOpen(true)}
-        data-testid={name + '-select-button'}
+        onPress={() => setMenuOpen(true)}
+        data-testid={id + '-select-button'}
       >
         <SvgExpandArrow
           width={8}
           height={8}
           style={{ marginRight: 5, color: theme.pageText }}
         />
-        {selectedItems.size} {name}
+        {buttonLabel}
       </Button>
 
       <Popover
@@ -831,7 +860,7 @@ export function SelectedItemsButton({ name, items, onSelect }) {
         }}
         isOpen={menuOpen}
         onOpenChange={() => setMenuOpen(false)}
-        data-testid={name + '-select-tooltip'}
+        data-testid={id + '-select-tooltip'}
       >
         <Menu
           onMenuSelect={name => {
@@ -893,13 +922,13 @@ type TableProps<T extends TableItem = TableItem> = {
     position: number;
   }) => ReactNode;
   renderEmpty?: ReactNode | (() => ReactNode);
-  getItemKey?: (index: number) => TableItem['id'];
+  getItemKey?: (index: number) => T['id'];
   loadMore?: () => void;
   style?: CSSProperties;
   navigator?: ReturnType<typeof useTableNavigator<T>>;
   listContainerRef?: MutableRefObject<HTMLDivElement>;
   onScroll?: () => void;
-  isSelected?: (id: TableItem['id']) => boolean;
+  isSelected?: (id: T['id']) => boolean;
   saveScrollWidth?: (parent, child) => void;
 };
 

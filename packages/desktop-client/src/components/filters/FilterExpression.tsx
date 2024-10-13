@@ -1,15 +1,13 @@
 import React, { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { mapField, friendlyOp } from 'loot-core/src/shared/rules';
 import { integerToCurrency } from 'loot-core/src/shared/util';
-import {
-  type RuleConditionOp,
-  type RuleConditionEntity,
-} from 'loot-core/src/types/models';
+import { type RuleConditionEntity } from 'loot-core/src/types/models';
 
 import { SvgDelete } from '../../icons/v0';
 import { type CSSProperties, theme } from '../../style';
-import { Button } from '../common/Button';
+import { Button } from '../common/Button2';
 import { Popover } from '../common/Popover';
 import { Text } from '../common/Text';
 import { View } from '../common/View';
@@ -20,18 +18,18 @@ import { subfieldFromFilter } from './subfieldFromFilter';
 
 let isDatepickerClick = false;
 
-type FilterExpressionProps = {
-  field: string | undefined;
-  customName: string | undefined;
-  op: RuleConditionOp | undefined;
-  value: string | string[] | number | boolean | undefined;
-  options: RuleConditionEntity['options'];
+type FilterExpressionProps<T extends RuleConditionEntity> = {
+  field: T['field'];
+  customName: T['customName'];
+  op: T['op'];
+  value: T['value'];
+  options: T['options'];
   style?: CSSProperties;
-  onChange: (cond: RuleConditionEntity) => void;
+  onChange: (cond: T) => void;
   onDelete: () => void;
 };
 
-export function FilterExpression({
+export function FilterExpression<T extends RuleConditionEntity>({
   field: originalField,
   customName,
   op,
@@ -40,7 +38,8 @@ export function FilterExpression({
   style,
   onChange,
   onDelete,
-}: FilterExpressionProps) {
+}: FilterExpressionProps<T>) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const triggerRef = useRef(null);
 
@@ -60,9 +59,9 @@ export function FilterExpression({
     >
       <Button
         ref={triggerRef}
-        type="bare"
-        disabled={customName != null}
-        onClick={() => setEditing(true)}
+        variant="bare"
+        isDisabled={customName != null}
+        onPress={() => setEditing(true)}
       >
         <div style={{ paddingBlock: 1, paddingLeft: 5, paddingRight: 2 }}>
           {customName ? (
@@ -80,14 +79,15 @@ export function FilterExpression({
                 valueIsRaw={
                   op === 'contains' ||
                   op === 'matches' ||
-                  op === 'doesNotContain'
+                  op === 'doesNotContain' ||
+                  op === 'hasTags'
                 }
               />
             </>
           )}
         </div>
       </Button>
-      <Button type="bare" onClick={onDelete} aria-label="Delete filter">
+      <Button variant="bare" onPress={onDelete} aria-label={t('Delete filter')}>
         <SvgDelete
           style={{
             width: 8,
