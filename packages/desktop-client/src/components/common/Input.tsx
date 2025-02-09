@@ -5,11 +5,11 @@ import React, {
   useRef,
 } from 'react';
 
-import { css } from 'glamor';
+import { css, cx } from '@emotion/css';
 
 import { useMergedRefs } from '../../hooks/useMergedRefs';
 import { useProperFocus } from '../../hooks/useProperFocus';
-import { type CSSProperties, styles, theme } from '../../style';
+import { styles, theme, type CSSProperties } from '../../style';
 
 export const defaultInputStyle = {
   outline: 0,
@@ -50,21 +50,24 @@ export function Input({
   return (
     <input
       ref={mergedRef}
-      className={`${css(
-        defaultInputStyle,
-        {
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          flexShrink: 0,
-          ':focus': {
-            border: '1px solid ' + theme.formInputBorderSelected,
-            boxShadow: '0 1px 1px ' + theme.formInputShadowSelected,
+      className={cx(
+        css(
+          defaultInputStyle,
+          {
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            flexShrink: 0,
+            ':focus': {
+              border: '1px solid ' + theme.formInputBorderSelected,
+              boxShadow: '0 1px 1px ' + theme.formInputShadowSelected,
+            },
+            '::placeholder': { color: theme.formInputTextPlaceholder },
           },
-          '::placeholder': { color: theme.formInputTextPlaceholder },
-        },
-        styles.smallText,
-        style,
-      )} ${className}`}
+          styles.smallText,
+          style,
+        ),
+        className,
+      )}
       {...nativeProps}
       onKeyDown={e => {
         nativeProps.onKeyDown?.(e);

@@ -1,4 +1,5 @@
 import React, { type ComponentPropsWithoutRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useFeatureFlag } from '../../../../hooks/useFeatureFlag';
 import { Menu } from '../../../common/Menu';
@@ -25,6 +26,8 @@ export function BudgetMonthMenu({
   onEndOfMonthCleanup,
   ...props
 }: BudgetMonthMenuProps) {
+  const { t } = useTranslation();
+
   const isGoalTemplatesEnabled = useFeatureFlag('goalTemplatesEnabled');
   return (
     <Menu
@@ -39,6 +42,12 @@ export function BudgetMonthMenu({
             break;
           case 'set-3-avg':
             onSetMonthsAverage(3);
+            break;
+          case 'set-6-avg':
+            onSetMonthsAverage(6);
+            break;
+          case 'set-12-avg':
+            onSetMonthsAverage(12);
             break;
           case 'check-templates':
             onCheckTemplates();
@@ -55,29 +64,37 @@ export function BudgetMonthMenu({
         }
       }}
       items={[
-        { name: 'copy-last', text: 'Copy last month’s budget' },
-        { name: 'set-zero', text: 'Set budgets to zero' },
+        { name: 'copy-last', text: t('Copy last month’s budget') },
+        { name: 'set-zero', text: t('Set budgets to zero') },
         {
           name: 'set-3-avg',
-          text: 'Set budgets to 3 month average',
+          text: t('Set budgets to 3 month average'),
+        },
+        {
+          name: 'set-6-avg',
+          text: t('Set budgets to 6 month average'),
+        },
+        {
+          name: 'set-12-avg',
+          text: t('Set budgets to 12 month average'),
         },
         ...(isGoalTemplatesEnabled
           ? [
               {
                 name: 'check-templates',
-                text: 'Check templates',
+                text: t('Check templates'),
               },
               {
                 name: 'apply-goal-template',
-                text: 'Apply budget template',
+                text: t('Apply budget template'),
               },
               {
                 name: 'overwrite-goal-template',
-                text: 'Overwrite with budget template',
+                text: t('Overwrite with budget template'),
               },
               {
                 name: 'cleanup-goal-template',
-                text: 'End of month cleanup',
+                text: t('End of month cleanup'),
               },
             ]
           : []),

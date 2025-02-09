@@ -3,7 +3,7 @@ import { TextArea } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 
-import { css } from 'glamor';
+import { css } from '@emotion/css';
 
 import { type MarkdownWidget } from 'loot-core/src/types/models';
 
@@ -39,6 +39,7 @@ export function MarkdownCard({
   return (
     <ReportCard
       isEditing={isEditing}
+      disableClick={isVisibleTextArea}
       menuItems={[
         {
           type: Menu.label,
@@ -131,7 +132,7 @@ export function MarkdownCard({
             }}
           />
         ) : (
-          <Text {...markdownStyles}>
+          <Text className={markdownStyles}>
             <ReactMarkdown linkTarget="_blank">{meta.content}</ReactMarkdown>
           </Text>
         )}

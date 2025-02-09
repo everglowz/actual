@@ -11,26 +11,25 @@ import React, {
   useEffect,
 } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
-import { useDispatch } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 
+import { css } from '@emotion/css';
 import {
   format as formatDate,
   parseISO,
   isValid as isDateValid,
 } from 'date-fns';
-import { css } from 'glamor';
 
-import { pushModal } from 'loot-core/client/actions';
+import { addNotification, pushModal } from 'loot-core/client/actions';
 import { useCachedSchedules } from 'loot-core/src/client/data-hooks/schedules';
 import {
   getAccountsById,
   getPayeesById,
   getCategoriesById,
-} from 'loot-core/src/client/reducers/queries';
+} from 'loot-core/src/client/queries/queriesSlice';
 import { evalArithmetic } from 'loot-core/src/shared/arithmetic';
 import { currentDay } from 'loot-core/src/shared/months';
 import * as monthUtils from 'loot-core/src/shared/months';
-import { getScheduledAmount } from 'loot-core/src/shared/schedules';
 import {
   splitTransaction,
   updateTransaction,
@@ -47,8 +46,10 @@ import {
   titleFirst,
 } from 'loot-core/src/shared/util';
 
+import { useContextMenu } from '../../hooks/useContextMenu';
 import { useMergedRefs } from '../../hooks/useMergedRefs';
 import { usePrevious } from '../../hooks/usePrevious';
+import { useProperFocus } from '../../hooks/useProperFocus';
 import { useSelectedDispatch, useSelectedItems } from '../../hooks/useSelected';
 import { useSplitsExpanded } from '../../hooks/useSplitsExpanded';
 import { SvgLeftArrow2, SvgRightArrow2, SvgSplit } from '../../icons/v0';
@@ -58,6 +59,7 @@ import {
   SvgCalendar,
   SvgHyperlink2,
 } from '../../icons/v2';
+import { useDispatch } from '../../redux';
 import { styles, theme } from '../../style';
 import { AccountAutocomplete } from '../autocomplete/AccountAutocomplete';
 import { CategoryAutocomplete } from '../autocomplete/CategoryAutocomplete';
@@ -84,16 +86,14 @@ import {
   UnexposedCellContent,
 } from '../table';
 
+import { TransactionMenu } from './TransactionMenu';
+
 function getDisplayValue(obj, name) {
   return obj ? obj[name] : '';
 }
 
 function serializeTransaction(transaction, showZeroInDeposit) {
-  let { amount, date } = transaction;
-
-  if (isPreviewId(transaction.id)) {
-    amount = (transaction._inverse ? -1 : 1) * getScheduledAmount(amount);
-  }
+  const { amount, date: originalDate } = transaction;
 
   let debit = amount < 0 ? -amount : null;
   let credit = amount > 0 ? amount : null;
@@ -106,6 +106,7 @@ function serializeTransaction(transaction, showZeroInDeposit) {
     }
   }
 
+  let date = originalDate;
   // Validate the date format
   if (!isDateValid(parseISO(date))) {
     // Be a little forgiving if the date isn't valid. This at least
@@ -174,8 +175,10 @@ const TransactionHeader = memo(
     onSort,
     ascDesc,
     field,
+    showSelection,
   }) => {
     const dispatchSelected = useSelectedDispatch();
+    const { t } = useTranslation();
 
     useHotkeys(
       'ctrl+a, cmd+a, meta+a',
@@ -200,21 +203,34 @@ const TransactionHeader = memo(
           borderColor: theme.tableBorder,
         }}
       >
-        <SelectCell
-          exposed={true}
-          focused={false}
-          selected={hasSelected}
-          width={20}
-          style={{
-            borderTopWidth: 0,
-            borderBottomWidth: 0,
-          }}
-          onSelect={e =>
-            dispatchSelected({ type: 'select-all', isRangeSelect: e.shiftKey })
-          }
-        />
+        {showSelection && (
+          <SelectCell
+            exposed={true}
+            focused={false}
+            selected={hasSelected}
+            width={20}
+            style={{
+              borderTopWidth: 0,
+              borderBottomWidth: 0,
+            }}
+            onSelect={e =>
+              dispatchSelected({
+                type: 'select-all',
+                isRangeSelect: e.shiftKey,
+              })
+            }
+          />
+        )}
+        {!showSelection && (
+          <Field
+            style={{
+              width: '20px',
+              border: 0,
+            }}
+          />
+        )}
         <HeaderCell
-          value="Date"
+          value={t('Date')}
           width={110}
           alignItems="flex"
           marginLeft={-5}
@@ -226,7 +242,7 @@ const TransactionHeader = memo(
         />
         {showAccount && (
           <HeaderCell
-            value="Account"
+            value={t('Account')}
             width="flex"
             alignItems="flex"
             marginLeft={-5}
@@ -238,7 +254,7 @@ const TransactionHeader = memo(
           />
         )}
         <HeaderCell
-          value="Payee"
+          value={t('Payee')}
           width="flex"
           alignItems="flex"
           marginLeft={-5}
@@ -249,7 +265,7 @@ const TransactionHeader = memo(
           }
         />
         <HeaderCell
-          value="Notes"
+          value={t('Notes')}
           width="flex"
           alignItems="flex"
           marginLeft={-5}
@@ -261,7 +277,7 @@ const TransactionHeader = memo(
         />
         {showCategory && (
           <HeaderCell
-            value="Category"
+            value={t('Category')}
             width="flex"
             alignItems="flex"
             marginLeft={-5}
@@ -276,7 +292,7 @@ const TransactionHeader = memo(
           />
         )}
         <HeaderCell
-          value="Payment"
+          value={t('Payment')}
           width={100}
           alignItems="flex-end"
           marginRight={-5}
@@ -287,7 +303,7 @@ const TransactionHeader = memo(
           }
         />
         <HeaderCell
-          value="Deposit"
+          value={t('Deposit')}
           width={100}
           alignItems="flex-end"
           marginRight={-5}
@@ -299,7 +315,7 @@ const TransactionHeader = memo(
         />
         {showBalance && (
           <HeaderCell
-            value="Balance"
+            value={t('Balance')}
             width={103}
             alignItems="flex-end"
             marginRight={-5}
@@ -342,14 +358,7 @@ function getPayeePretty(transaction, payee, transferAcct, numHiddenPayees = 0) {
           alignItems: 'center',
         }}
       >
-        <div
-          style={{
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {formatPayeeName(transferAcct.name)}
-        </div>
+        {formatPayeeName(transferAcct.name)}
       </View>
     );
   } else if (payee) {
@@ -670,7 +679,13 @@ function PayeeCell({
           isCreatingPayee.current = false;
         }
       }}
-      formatter={() => getPayeePretty(transaction, payee, transferAccount)}
+      formatter={() => {
+        const payeeName = getPayeePretty(transaction, payee, transferAccount);
+        if (!payeeName && isPreview) {
+          return '(No payee)';
+        }
+        return payeeName;
+      }}
       unexposedContent={props => {
         const payeeName = (
           <UnexposedCellContent
@@ -691,25 +706,34 @@ function PayeeCell({
               onNavigateToTransferAccount={onNavigateToTransferAccount}
               onNavigateToSchedule={onNavigateToSchedule}
             />
-            {importedPayee ? (
-              <Tooltip
-                content={
-                  <View style={{ padding: 10 }}>
-                    <Text style={{ fontWeight: 'bold' }}>Imported Payee</Text>
-                    <Text style={{ fontWeight: 'normal' }}>
-                      {importedPayee}
-                    </Text>
-                  </View>
-                }
-                style={{ ...styles.tooltip, borderRadius: '0px 5px 5px 0px' }}
-                placement="bottom"
-                triggerProps={{ delay: 750 }}
-              >
-                {payeeName}
-              </Tooltip>
-            ) : (
-              payeeName
-            )}
+            <div
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              {importedPayee ? (
+                <Tooltip
+                  content={
+                    <View style={{ padding: 10 }}>
+                      <Text style={{ fontWeight: 'bold' }}>Imported Payee</Text>
+                      <Text style={{ fontWeight: 'normal' }}>
+                        {importedPayee}
+                      </Text>
+                    </View>
+                  }
+                  style={{ ...styles.tooltip, borderRadius: '0px 5px 5px 0px' }}
+                  placement="bottom"
+                  triggerProps={{ delay: 750 }}
+                >
+                  {payeeName}
+                </Tooltip>
+              ) : (
+                payeeName
+              )}
+            </div>
           </>
         );
       }}
@@ -744,6 +768,16 @@ function PayeeCell({
   );
 }
 
+const payeeIconButtonStyle = {
+  marginLeft: -5,
+  marginRight: 2,
+  width: 23,
+  height: 23,
+  color: 'inherit',
+};
+const scheduleIconStyle = { width: 13, height: 13 };
+const transferIconStyle = { width: 10, height: 10 };
+
 function PayeeIcons({
   transaction,
   transferAccount,
@@ -751,26 +785,13 @@ function PayeeIcons({
   onNavigateToSchedule,
 }) {
   const scheduleId = transaction.schedule;
-  const scheduleData = useCachedSchedules();
-  const schedule =
-    scheduleId && scheduleData
-      ? scheduleData.schedules.find(s => s.id === scheduleId)
-      : null;
+  const { isLoading, schedules = [] } = useCachedSchedules();
 
-  const buttonStyle = useMemo(
-    () => ({
-      marginLeft: -5,
-      marginRight: 2,
-      width: 23,
-      height: 23,
-      color: 'inherit',
-    }),
-    [],
-  );
+  if (isLoading) {
+    return null;
+  }
 
-  const scheduleIconStyle = useMemo(() => ({ width: 13, height: 13 }), []);
-
-  const transferIconStyle = useMemo(() => ({ width: 10, height: 10 }), []);
+  const schedule = scheduleId ? schedules.find(s => s.id === scheduleId) : null;
 
   if (schedule == null && transferAccount == null) {
     // Neither a valid scheduled transaction nor a transfer.
@@ -778,14 +799,16 @@ function PayeeIcons({
   }
 
   const recurring = schedule && schedule._date && !!schedule._date.frequency;
+  const isDeposit = transaction.amount > 0;
 
   return (
     <>
       {schedule && (
         <Button
           variant="bare"
+          data-testid="schedule-icon"
           aria-label="See schedule details"
-          style={buttonStyle}
+          style={payeeIconButtonStyle}
           onPress={() => {
             onNavigateToSchedule(scheduleId);
           }}
@@ -800,15 +823,16 @@ function PayeeIcons({
       {transferAccount && (
         <Button
           variant="bare"
+          data-testid="transfer-icon"
           aria-label="See transfer account"
-          style={buttonStyle}
+          style={payeeIconButtonStyle}
           onPress={() => {
             if (!isTemporaryId(transaction.id)) {
               onNavigateToTransferAccount(transferAccount.id);
             }
           }}
         >
-          {(transaction._inverse ? -1 : 1) * transaction.amount > 0 ? (
+          {isDeposit ? (
             <SvgLeftArrow2 style={transferIconStyle} />
           ) : (
             <SvgRightArrow2 style={transferIconStyle} />
@@ -845,6 +869,12 @@ const Transaction = memo(function Transaction({
   onSave,
   onEdit,
   onDelete,
+  onDuplicate,
+  onLinkSchedule,
+  onUnlinkSchedule,
+  onCreateRule,
+  onScheduleAction,
+  onMakeAsNonSplitTransactions,
   onSplit,
   onManagePayees,
   onCreatePayee,
@@ -854,6 +884,8 @@ const Transaction = memo(function Transaction({
   onNotesTagClick,
   splitError,
   listContainerRef,
+  showSelection,
+  allowSplitTransaction,
 }) {
   const dispatch = useDispatch();
   const dispatchSelected = useSelectedDispatch();
@@ -993,10 +1025,12 @@ const Transaction = memo(function Transaction({
     category: categoryId,
     cleared,
     reconciled,
+    forceUpcoming,
     is_parent: isParent,
     _unmatched = false,
-    _inverse = false,
   } = transaction;
+
+  const previewStatus = forceUpcoming ? 'upcoming' : categoryId;
 
   // Join in some data
   const payee = payees && payeeId && getPayeesById(payees)[payeeId];
@@ -1013,9 +1047,7 @@ const Transaction = memo(function Transaction({
   const backgroundFocus = focusedField === 'select';
   const amountStyle = hideFraction ? { letterSpacing: -0.5 } : null;
 
-  const runningBalance = !isTemporaryId(id)
-    ? balance
-    : balance + (_inverse ? -1 : 1) * amount;
+  const runningBalance = !isTemporaryId(id) ? balance : balance + amount;
 
   // Ok this entire logic is a dirty, dirty hack.. but let me explain.
   // Problem: the split-error Popover (which has the buttons to distribute/add split)
@@ -1038,6 +1070,9 @@ const Transaction = memo(function Transaction({
       setUpdateId(state => state + 1);
     }, 1);
   }, [splitError, allTransactions]);
+
+  const { setMenuOpen, menuOpen, handleContextMenu, position } =
+    useContextMenu();
 
   return (
     <Row
@@ -1067,7 +1102,34 @@ const Transaction = memo(function Transaction({
         }),
         ...(_unmatched && { opacity: 0.5 }),
       }}
+      onContextMenu={handleContextMenu}
     >
+      <Popover
+        triggerRef={triggerRef}
+        placement="bottom start"
+        isOpen={menuOpen}
+        onOpenChange={() => setMenuOpen(false)}
+        {...position}
+        style={{ width: 200, margin: 1 }}
+        isNonModal
+      >
+        <TransactionMenu
+          transaction={transaction}
+          onDelete={() => onDelete?.(transaction.id)}
+          onDuplicate={() => onDuplicate?.(transaction.id)}
+          onLinkSchedule={() => onLinkSchedule?.(transaction.id)}
+          onUnlinkSchedule={() => onUnlinkSchedule?.(transaction.id)}
+          onCreateRule={() => onCreateRule?.(transaction.id)}
+          onScheduleAction={action =>
+            onScheduleAction?.(action, transaction.id)
+          }
+          onMakeAsNonSplitTransactions={() =>
+            onMakeAsNonSplitTransactions?.(transaction.id)
+          }
+          closeMenu={() => setMenuOpen(false)}
+        />
+      </Popover>
+
       {splitError && listContainerRef.current && (
         <Popover
           arrowSize={updateId}
@@ -1118,7 +1180,7 @@ const Transaction = memo(function Transaction({
         ) : (
           <Cell width={20} />
         )
-      ) : isPreview && isChild ? (
+      ) : (isPreview && isChild) || !showSelection ? (
         <Cell width={20} />
       ) : (
         <SelectCell
@@ -1293,17 +1355,17 @@ const Transaction = memo(function Transaction({
             <View
               style={{
                 color:
-                  categoryId === 'missed'
+                  previewStatus === 'missed'
                     ? theme.errorText
-                    : categoryId === 'due'
+                    : previewStatus === 'due'
                       ? theme.warningText
                       : selected
                         ? theme.formLabelText
                         : theme.upcomingText,
                 backgroundColor:
-                  categoryId === 'missed'
+                  previewStatus === 'missed'
                     ? theme.errorBackground
-                    : categoryId === 'due'
+                    : previewStatus === 'due'
                       ? theme.warningBackground
                       : selected
                         ? theme.formLabelBackground
@@ -1311,9 +1373,12 @@ const Transaction = memo(function Transaction({
                 margin: '0 5px',
                 padding: '3px 7px',
                 borderRadius: 4,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: 'inline-block',
               }}
             >
-              {titleFirst(categoryId)}
+              {titleFirst(previewStatus)}
             </View>
           )}
           <CellButton
@@ -1367,7 +1432,7 @@ const Transaction = memo(function Transaction({
         </Cell>
       ) : isBudgetTransfer || isOffBudget ? (
         <InputCell
-          /* Category field for transfer and off-budget transactions
+          /* Category field for transfer and off budget transactions
      (NOT preview, it is covered first) */
           name="category"
           width="flex"
@@ -1378,9 +1443,11 @@ const Transaction = memo(function Transaction({
             isParent
               ? 'Split'
               : isOffBudget
-                ? 'Off Budget'
+                ? 'Off budget'
                 : isBudgetTransfer
-                  ? 'Transfer'
+                  ? categoryId != null
+                    ? 'Needs Repair'
+                    : 'Transfer'
                   : ''
           }
           valueStyle={valueStyle}
@@ -1449,7 +1516,7 @@ const Transaction = memo(function Transaction({
                 value={categoryId}
                 focused={true}
                 clearOnBlur={false}
-                showSplitOption={!isChild && !isParent}
+                showSplitOption={!isChild && !isParent && allowSplitTransaction}
                 shouldSaveFromKey={shouldSaveFromKey}
                 inputProps={{ onBlur, onKeyDown, style: inputStyle }}
                 onUpdate={onUpdate}
@@ -1542,7 +1609,7 @@ const Transaction = memo(function Transaction({
           isPreview={isPreview}
           status={
             isPreview
-              ? categoryId
+              ? previewStatus
               : reconciled
                 ? 'reconciled'
                 : cleared
@@ -1670,6 +1737,11 @@ function NewTransaction({
   );
   const emptyChildTransactions = childTransactions.filter(t => t.amount === 0);
 
+  const addButtonRef = useRef(null);
+  useProperFocus(addButtonRef, focusedField === 'add');
+  const cancelButtonRef = useRef(null);
+  useProperFocus(cancelButtonRef, focusedField === 'cancel');
+
   return (
     <View
       style={{
@@ -1716,6 +1788,8 @@ function NewTransaction({
           onNavigateToSchedule={onNavigateToSchedule}
           onNotesTagClick={onNotesTagClick}
           balance={balance}
+          showSelection={true}
+          allowSplitTransaction={true}
         />
       ))}
       <View
@@ -1731,6 +1805,7 @@ function NewTransaction({
           style={{ marginRight: 10, padding: '4px 10px' }}
           onPress={() => onClose()}
           data-testid="cancel-button"
+          ref={cancelButtonRef}
         >
           Cancel
         </Button>
@@ -1750,6 +1825,7 @@ function NewTransaction({
             style={{ padding: '4px 10px' }}
             onPress={onAdd}
             data-testid="add-button"
+            ref={addButtonRef}
           >
             Add
           </Button>
@@ -1809,6 +1885,15 @@ function TransactionTableInner({
     }
   }, [isAddingPrev, props.isAdding, newNavigator]);
 
+  // Don't render reconciled transactions if we're hiding them.
+  const transactionsToRender = useMemo(
+    () =>
+      props.showReconciled
+        ? props.transactions
+        : props.transactions.filter(t => !t.reconciled),
+    [props.transactions, props.showReconciled],
+  );
+
   const renderRow = ({ item, index, editing }) => {
     const {
       transactions,
@@ -1825,6 +1910,8 @@ function TransactionTableInner({
       isNew,
       isMatched,
       isExpanded,
+      showSelection,
+      allowSplitTransaction,
     } = props;
 
     const trans = item;
@@ -1880,6 +1967,12 @@ function TransactionTableInner({
         onEdit={tableNavigator.onEdit}
         onSave={props.onSave}
         onDelete={props.onDelete}
+        onDuplicate={props.onDuplicate}
+        onLinkSchedule={props.onLinkSchedule}
+        onUnlinkSchedule={props.onUnlinkSchedule}
+        onCreateRule={props.onCreateRule}
+        onScheduleAction={props.onScheduleAction}
+        onMakeAsNonSplitTransactions={props.onMakeAsNonSplitTransactions}
         onSplit={props.onSplit}
         onManagePayees={props.onManagePayees}
         onCreatePayee={props.onCreatePayee}
@@ -1901,6 +1994,8 @@ function TransactionTableInner({
           )
         }
         listContainerRef={listContainerRef}
+        showSelection={showSelection}
+        allowSplitTransaction={allowSplitTransaction}
       />
     );
   };
@@ -1925,6 +2020,7 @@ function TransactionTableInner({
           onSort={props.onSort}
           ascDesc={props.ascDesc}
           field={props.sortField}
+          showSelection={props.showSelection}
         />
 
         {props.isAdding && (
@@ -1982,7 +2078,7 @@ function TransactionTableInner({
           navigator={tableNavigator}
           ref={tableRef}
           listContainerRef={listContainerRef}
-          items={props.transactions}
+          items={transactionsToRender}
           renderItem={renderRow}
           renderEmpty={renderEmpty}
           loadMore={props.loadMoreTransactions}
@@ -2012,6 +2108,7 @@ function TransactionTableInner({
 }
 
 export const TransactionTable = forwardRef((props, ref) => {
+  const dispatch = useDispatch();
   const [newTransactions, setNewTransactions] = useState(null);
   const [prevIsAdding, setPrevIsAdding] = useState(false);
   const splitsExpanded = useSplitsExpanded();
@@ -2030,9 +2127,9 @@ export const TransactionTable = forwardRef((props, ref) => {
       result = props.transactions.filter((t, idx) => {
         if (t.parent_id) {
           if (idx >= index) {
-            return splitsExpanded.expanded(t.parent_id);
+            return splitsExpanded.isExpanded(t.parent_id);
           } else if (prevSplitsExpanded.current) {
-            return prevSplitsExpanded.current.expanded(t.parent_id);
+            return prevSplitsExpanded.current.isExpanded(t.parent_id);
           }
         }
         return true;
@@ -2049,7 +2146,7 @@ export const TransactionTable = forwardRef((props, ref) => {
 
       result = props.transactions.filter(t => {
         if (t.parent_id) {
-          return splitsExpanded.expanded(t.parent_id);
+          return splitsExpanded.isExpanded(t.parent_id);
         }
         return true;
       });
@@ -2086,13 +2183,8 @@ export const TransactionTable = forwardRef((props, ref) => {
         }
 
         const payee = t.payee && payees[t.payee];
-        let transferAccount;
-        if (t._inverse) {
-          transferAccount = t.account && accounts[t.account];
-        } else {
-          transferAccount =
-            payee?.transfer_acct && accounts[payee.transfer_acct];
-        }
+        const transferAccount =
+          payee?.transfer_acct && accounts[payee.transfer_acct];
         return [t.id, transferAccount || null];
       }),
     );
@@ -2108,10 +2200,14 @@ export const TransactionTable = forwardRef((props, ref) => {
     }
   }, [prevSplitsExpanded.current]);
 
-  const newNavigator = useTableNavigator(newTransactions, getFields);
+  const newNavigator = useTableNavigator(
+    newTransactions,
+    getFieldsNewTransaction,
+  );
+
   const tableNavigator = useTableNavigator(
     transactionsWithExpandedSplits,
-    getFields,
+    getFieldsTableTransaction,
   );
   const shouldAdd = useRef(false);
   const latestState = useRef({ newTransactions, newNavigator, tableNavigator });
@@ -2145,10 +2241,12 @@ export const TransactionTable = forwardRef((props, ref) => {
   useEffect(() => {
     if (shouldAdd.current) {
       if (newTransactions[0].account == null) {
-        props.addNotification({
-          type: 'error',
-          message: 'Account is a required field',
-        });
+        dispatch(
+          addNotification({
+            type: 'error',
+            message: 'Account is a required field',
+          }),
+        );
         newNavigator.onEdit('temp', 'account');
       } else {
         const transactions = latestState.current.newTransactions;
@@ -2176,8 +2274,26 @@ export const TransactionTable = forwardRef((props, ref) => {
     savePending.current = false;
   }, [newTransactions, props.transactions]);
 
-  function getFields(item) {
-    let fields = [
+  function getFieldsNewTransaction(item) {
+    const fields = [
+      'select',
+      'date',
+      'account',
+      'payee',
+      'notes',
+      'category',
+      'debit',
+      'credit',
+      'cleared',
+      'cancel',
+      'add',
+    ];
+
+    return getFields(item, fields);
+  }
+
+  function getFieldsTableTransaction(item) {
+    const fields = [
       'select',
       'date',
       'account',
@@ -2189,6 +2305,10 @@ export const TransactionTable = forwardRef((props, ref) => {
       'cleared',
     ];
 
+    return getFields(item, fields);
+  }
+
+  function getFields(item, fields) {
     fields = item.is_child
       ? ['select', 'payee', 'notes', 'category', 'debit', 'credit']
       : fields.filter(
@@ -2334,7 +2454,29 @@ export const TransactionTable = forwardRef((props, ref) => {
       }
 
       setNewTransactions(deleteTransaction(newTrans, id).data);
+    } else {
+      props.onBatchDelete([id]);
     }
+  }, []);
+
+  const onDuplicate = useCallback(id => {
+    props.onBatchDuplicate([id]);
+  }, []);
+
+  const onLinkSchedule = useCallback(id => {
+    props.onBatchLinkSchedule([id]);
+  }, []);
+  const onUnlinkSchedule = useCallback(id => {
+    props.onBatchUnlinkSchedule([id]);
+  }, []);
+  const onCreateRule = useCallback(id => {
+    props.onCreateRule([id]);
+  }, []);
+  const onScheduleAction = useCallback((action, id) => {
+    props.onScheduleAction(action, [id]);
+  }, []);
+  const onMakeAsNonSplitTransactions = useCallback(id => {
+    props.onMakeAsNonSplitTransactions([id]);
   }, []);
 
   const onSplit = useMemo(() => {
@@ -2477,9 +2619,15 @@ export const TransactionTable = forwardRef((props, ref) => {
       transactionsByParent={transactionsByParent}
       transferAccountsByTransaction={transferAccountsByTransaction}
       selectedItems={selectedItems}
-      isExpanded={splitsExpanded.expanded}
+      isExpanded={splitsExpanded.isExpanded}
       onSave={onSave}
       onDelete={onDelete}
+      onDuplicate={onDuplicate}
+      onLinkSchedule={onLinkSchedule}
+      onUnlinkSchedule={onUnlinkSchedule}
+      onCreateRule={onCreateRule}
+      onScheduleAction={onScheduleAction}
+      onMakeAsNonSplitTransactions={onMakeAsNonSplitTransactions}
       onSplit={onSplit}
       onCheckNewEnter={onCheckNewEnter}
       onCheckEnter={onCheckEnter}
@@ -2491,6 +2639,8 @@ export const TransactionTable = forwardRef((props, ref) => {
       newTransactions={newTransactions}
       tableNavigator={tableNavigator}
       newNavigator={newNavigator}
+      showSelection={props.showSelection}
+      allowSplitTransaction={props.allowSplitTransaction}
     />
   );
 });
@@ -2529,20 +2679,18 @@ function notesTagFormatter(notes, onNotesTagClick) {
                 <Button
                   variant="bare"
                   key={i}
-                  className={String(
-                    css({
-                      display: 'inline-flex',
-                      padding: '3px 7px',
-                      borderRadius: 16,
-                      userSelect: 'none',
-                      backgroundColor: theme.noteTagBackground,
-                      color: theme.noteTagText,
-                      cursor: 'pointer',
-                      '&[data-hovered]': {
-                        backgroundColor: theme.noteTagBackgroundHover,
-                      },
-                    }),
-                  )}
+                  className={css({
+                    display: 'inline-flex',
+                    padding: '3px 7px',
+                    borderRadius: 16,
+                    userSelect: 'none',
+                    backgroundColor: theme.noteTagBackground,
+                    color: theme.noteTagText,
+                    cursor: 'pointer',
+                    '&[data-hovered]': {
+                      backgroundColor: theme.noteTagBackgroundHover,
+                    },
+                  })}
                   onPress={() => {
                     onNotesTagClick?.(validTag);
                   }}

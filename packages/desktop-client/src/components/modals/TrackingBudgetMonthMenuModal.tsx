@@ -1,7 +1,8 @@
 // @ts-strict-ignore
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { css } from 'glamor';
+import { css } from '@emotion/css';
 
 import * as monthUtils from 'loot-core/src/shared/months';
 
@@ -27,6 +28,7 @@ export function TrackingBudgetMonthMenuModal({
   onBudgetAction,
   onEditNotes,
 }: TrackingBudgetMonthMenuModalProps) {
+  const { t } = useTranslation();
   const originalNotes = useNotes(`budget-${month}`);
   const { showUndoNotification } = useUndo();
 
@@ -84,7 +86,9 @@ export function TrackingBudgetMonthMenuModal({
               }}
             >
               <Notes
-                notes={originalNotes?.length > 0 ? originalNotes : 'No notes'}
+                notes={
+                  originalNotes?.length > 0 ? originalNotes : t('No notes')
+                }
                 editable={false}
                 focused={false}
                 getStyle={() => ({
@@ -113,21 +117,21 @@ export function TrackingBudgetMonthMenuModal({
                     height={20}
                     style={{ paddingRight: 5 }}
                   />
-                  Edit notes
+                  {t('Edit notes')}
                 </Button>
               </View>
               <View>
                 <Button
                   variant="bare"
-                  className={String(
-                    css({
-                      ...buttonStyle,
+                  className={css([
+                    buttonStyle,
+                    {
                       '&[data-pressed], &[data-hovered]': {
                         backgroundColor: 'transparent',
                         color: buttonStyle.color,
                       },
-                    }),
-                  )}
+                    },
+                  ])}
                   onPress={onShowMore}
                 >
                   {!showMore ? (
@@ -143,7 +147,7 @@ export function TrackingBudgetMonthMenuModal({
                       style={{ paddingRight: 5 }}
                     />
                   )}
-                  Actions
+                  {t('Actions')}
                 </Button>
               </View>
             </View>
@@ -155,14 +159,20 @@ export function TrackingBudgetMonthMenuModal({
                   onBudgetAction(month, 'copy-last');
                   close();
                   showUndoNotification({
-                    message: `${displayMonth} budgets have all been set to last month’s budgeted amounts.`,
+                    message: t(
+                      '{{displayMonth}} budgets have all been set to last month’s budgeted amounts.',
+                      { displayMonth },
+                    ),
                   });
                 }}
                 onSetBudgetsToZero={() => {
                   onBudgetAction(month, 'set-zero');
                   close();
                   showUndoNotification({
-                    message: `${displayMonth} budgets have all been set to zero.`,
+                    message: t(
+                      '{{displayMonth}} budgets have all been set to zero.',
+                      { displayMonth },
+                    ),
                   });
                 }}
                 onSetMonthsAverage={numberOfMonths => {
@@ -180,14 +190,20 @@ export function TrackingBudgetMonthMenuModal({
                   onBudgetAction(month, 'apply-goal-template');
                   close();
                   showUndoNotification({
-                    message: `${displayMonth} budget templates have been applied.`,
+                    message: t(
+                      '{{displayMonth}} budget templates have been applied.',
+                      { displayMonth },
+                    ),
                   });
                 }}
                 onOverwriteWithBudgetTemplates={() => {
                   onBudgetAction(month, 'overwrite-goal-template');
                   close();
                   showUndoNotification({
-                    message: `${displayMonth} budget templates have been overwritten.`,
+                    message: t(
+                      '{{displayMonth}} budget templates have been overwritten.',
+                      { displayMonth },
+                    ),
                   });
                 }}
               />

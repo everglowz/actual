@@ -1,28 +1,27 @@
 import React, {
   useRef,
-  useState,
   type ComponentProps,
   type ReactNode,
+  type CSSProperties,
 } from 'react';
 
-import { type CustomReportEntity } from 'loot-core/src/types/models';
-
+import { useContextMenu } from '../../hooks/useContextMenu';
 import { useIsInViewport } from '../../hooks/useIsInViewport';
 import { useNavigate } from '../../hooks/useNavigate';
-import { useResponsive } from '../../ResponsiveProvider';
-import { type CSSProperties, theme } from '../../style';
+import { theme } from '../../style';
 import { Menu } from '../common/Menu';
 import { MenuButton } from '../common/MenuButton';
 import { Popover } from '../common/Popover';
 import { View } from '../common/View';
+import { useResponsive } from '../responsive/ResponsiveProvider';
 
 import { NON_DRAGGABLE_AREA_CLASS_NAME } from './constants';
 
 type ReportCardProps = {
   isEditing?: boolean;
+  disableClick?: boolean;
   to?: string;
   children: ReactNode;
-  report?: CustomReportEntity;
   menuItems?: ComponentProps<typeof Menu>['items'];
   onMenuSelect?: ComponentProps<typeof Menu>['onMenuSelect'];
   size?: number;
@@ -31,8 +30,8 @@ type ReportCardProps = {
 
 export function ReportCard({
   isEditing,
+  disableClick,
   to,
-  report,
   menuItems,
   onMenuSelect,
   children,
@@ -98,9 +97,7 @@ export function ReportCard({
       <Layout {...layoutProps}>
         <View
           role="button"
-          onClick={
-            isEditing ? undefined : () => navigate(to, { state: { report } })
-          }
+          onClick={isEditing || disableClick ? undefined : () => navigate(to)}
           style={{
             height: '100%',
             width: '100%',
@@ -124,10 +121,21 @@ type LayoutProps = {
 
 function Layout({ children, isEditing, menuItems, onMenuSelect }: LayoutProps) {
   const triggerRef = useRef(null);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const viewRef = useRef(null);
+
+  const {
+    setMenuOpen,
+    menuOpen,
+    handleContextMenu,
+    resetPosition,
+    position,
+    asContextMenu,
+  } = useContextMenu();
 
   return (
     <View
+      ref={viewRef}
+      onContextMenu={handleContextMenu}
       style={{
         display: 'block',
         height: '100%',
@@ -140,24 +148,38 @@ function Layout({ children, isEditing, menuItems, onMenuSelect }: LayoutProps) {
         },
       }}
     >
-      {menuItems && isEditing && (
-        <View
-          className={[
-            menuOpen ? undefined : 'hover-visible',
-            NON_DRAGGABLE_AREA_CLASS_NAME,
-          ].join(' ')}
-          style={{
-            position: 'absolute',
-            top: 7,
-            right: 3,
-            zIndex: 1,
-          }}
-        >
-          <MenuButton ref={triggerRef} onPress={() => setMenuOpen(true)} />
+      {menuItems && (
+        <>
+          {isEditing && (
+            <View
+              className={[
+                menuOpen ? undefined : 'hover-visible',
+                NON_DRAGGABLE_AREA_CLASS_NAME,
+              ].join(' ')}
+              style={{
+                position: 'absolute',
+                top: 7,
+                right: 3,
+                zIndex: 1,
+              }}
+            >
+              <MenuButton
+                ref={triggerRef}
+                onPress={() => {
+                  resetPosition();
+                  setMenuOpen(true);
+                }}
+              />
+            </View>
+          )}
+
           <Popover
-            triggerRef={triggerRef}
-            isOpen={menuOpen}
+            triggerRef={asContextMenu ? viewRef : triggerRef}
+            isOpen={Boolean(menuOpen)}
             onOpenChange={() => setMenuOpen(false)}
+            isNonModal
+            placement={asContextMenu ? 'bottom start' : 'bottom end'}
+            {...position}
           >
             <Menu
               className={NON_DRAGGABLE_AREA_CLASS_NAME}
@@ -165,7 +187,7 @@ function Layout({ children, isEditing, menuItems, onMenuSelect }: LayoutProps) {
               items={menuItems}
             />
           </Popover>
-        </View>
+        </>
       )}
 
       {children}

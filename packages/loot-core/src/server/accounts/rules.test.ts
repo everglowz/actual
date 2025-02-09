@@ -47,6 +47,9 @@ describe('Condition', () => {
 
     cond = new Condition('is', 'payee', null, null);
     expect(cond.eval({ payee: null })).toBe(true);
+
+    cond = new Condition('is', 'notes', '', null);
+    expect(cond.eval({ notes: null })).toBe(true);
   });
 
   test('ops handles undefined fields', () => {
@@ -316,6 +319,152 @@ describe('Action', () => {
       new Action('set', 'account', '', null);
     }).toThrow(/Field cannot be empty/i);
   });
+
+  describe('templating', () => {
+    test('should use available fields', () => {
+      const action = new Action('set', 'notes', '', {
+        template: 'Hey {{notes}}! You just payed {{amount}}',
+      });
+      const item = { notes: 'Sarah', amount: 10 };
+      action.exec(item);
+      expect(item.notes).toBe('Hey Sarah! You just payed 10');
+    });
+
+    test('should not escape text', () => {
+      const action = new Action('set', 'notes', '', {
+        template: '{{notes}}',
+      });
+      const note = 'Sarah !@#$%^&*()<> Special';
+      const item = { notes: note };
+      action.exec(item);
+      expect(item.notes).toBe(note);
+    });
+
+    describe('regex helper', () => {
+      function testHelper(template: string, expected: unknown) {
+        test(template, () => {
+          const action = new Action('set', 'notes', '', { template });
+          const item = { notes: 'Sarah Condition' };
+          action.exec(item);
+          expect(item.notes).toBe(expected);
+        });
+      }
+
+      testHelper('{{regex notes "/[aeuio]/g" "a"}}', 'Sarah Candataan');
+      testHelper('{{regex notes "/[aeuio]/" ""}}', 'Srah Condition');
+      // capture groups
+      testHelper('{{regex notes "/^.+ (.+)$/" "$1"}}', 'Condition');
+      // no match
+      testHelper('{{regex notes "/Klaas/" "Jantje"}}', 'Sarah Condition');
+      // no regex format (/.../flags)
+      testHelper('{{regex notes "Sarah" "Jantje"}}', 'Jantje Condition');
+
+      // should not use regex when not in regex format
+      testHelper('{{replace notes "[a-z]" "a"}}', 'Sarah Condition');
+      // should use regex when in regex format
+      testHelper('{{replace notes "/[a-z]/g" "a"}}', 'Saaaa Caaaaaaaa');
+      // should replace once with non regex
+      testHelper('{{replace notes "a" "b"}}', 'Sbrah Condition');
+
+      // should not use regex when not in regex format
+      testHelper('{{replaceAll notes "[a-z]" "a"}}', 'Sarah Condition');
+      // should use regex when in regex format
+      testHelper('{{replaceAll notes "/[a-z]/g" "a"}}', 'Saaaa Caaaaaaaa');
+      // should replace all with non regex
+      testHelper('{{replaceAll notes "a" "b"}}', 'Sbrbh Condition');
+    });
+
+    describe('math helpers', () => {
+      function testHelper(
+        template: string,
+        expected: unknown,
+        field = 'amount',
+      ) {
+        test(template, () => {
+          const action = new Action('set', field, '', { template });
+          const item = { [field]: 10 };
+          action.exec(item);
+          expect(item[field]).toBe(expected);
+        });
+      }
+
+      testHelper('{{add amount 5}}', 15);
+      testHelper('{{add amount 5 10}}', 25);
+      testHelper('{{sub amount 5}}', 5);
+      testHelper('{{sub amount 5 10}}', -5);
+      testHelper('{{mul amount 5}}', 50);
+      testHelper('{{mul amount 5 10}}', 500);
+      testHelper('{{div amount 5}}', 2);
+      testHelper('{{div amount 5 10}}', 0.2);
+      testHelper('{{mod amount 3}}', 1);
+      testHelper('{{mod amount 6 5}}', 4);
+      testHelper('{{floor (div amount 3)}}', 3);
+      testHelper('{{ceil (div amount 3)}}', 4);
+      testHelper('{{round (div amount 3)}}', 3);
+      testHelper('{{round (div amount 4)}}', 3);
+      testHelper('{{abs -5}}', 5);
+      testHelper('{{abs 5}}', 5);
+      testHelper('{{min amount 5 500}}', 5);
+      testHelper('{{max amount 5 500}}', 500);
+      testHelper('{{fixed (div 10 4) 2}}', '2.50', 'notes');
+    });
+
+    describe('date helpers', () => {
+      function testHelper(template: string, expected: unknown) {
+        test(template, () => {
+          const action = new Action('set', 'notes', '', { template });
+          const item = { notes: '' };
+          action.exec(item);
+          expect(item.notes).toBe(expected);
+        });
+      }
+
+      testHelper('{{day "2002-07-25"}}', '25');
+      testHelper('{{month "2002-07-25"}}', '7');
+      testHelper('{{year "2002-07-25"}}', '2002');
+      testHelper('{{format "2002-07-25" "MM yyyy d"}}', '07 2002 25');
+      testHelper('{{day undefined}}', '');
+      testHelper('{{month undefined}}', '');
+      testHelper('{{year undefined}}', '');
+      testHelper('{{format undefined undefined}}', '');
+      testHelper('{{addDays "2002-07-25" 5}}', '2002-07-30');
+      testHelper('{{subDays "2002-07-25" 5}}', '2002-07-20');
+      testHelper('{{addMonths "2002-07-25" 5}}', '2002-12-25');
+      testHelper('{{subMonths "2002-07-25" 5}}', '2002-02-25');
+      testHelper('{{addYears "2002-07-25" 5}}', '2007-07-25');
+      testHelper('{{subYears "2002-07-25" 5}}', '1997-07-25');
+      testHelper('{{addWeeks "2002-07-25" 1}}', '2002-08-01');
+      testHelper('{{subWeeks "2002-07-25" 1}}', '2002-07-18');
+      testHelper('{{setDay "2002-07-25" 1}}', '2002-07-01');
+      testHelper('{{setDay "2002-07-25" 32}}', '2002-08-01');
+      testHelper('{{setDay "2002-07-25" 0}}', '2002-06-30');
+    });
+
+    describe('other helpers', () => {
+      function testHelper(template: string, expected: unknown) {
+        test(template, () => {
+          const action = new Action('set', 'notes', '', { template });
+          const item = { notes: '' };
+          action.exec(item);
+          expect(item.notes).toBe(expected);
+        });
+      }
+
+      testHelper('{{concat "Sarah" "Trops"}}', 'SarahTrops');
+      testHelper('{{concat "Sarah" "Trops" 12 "Wow"}}', 'SarahTrops12Wow');
+    });
+
+    test('{{debug}} should log the item', () => {
+      const action = new Action('set', 'notes', '', {
+        template: '{{debug notes}}',
+      });
+      const item = { notes: 'Sarah' };
+      const spy = jest.spyOn(console, 'log').mockImplementation();
+      action.exec(item);
+      expect(spy).toHaveBeenCalledWith('Sarah');
+      spy.mockRestore();
+    });
+  });
 });
 
 describe('Rule', () => {
@@ -410,6 +559,249 @@ describe('Rule', () => {
     });
     expect(rule.exec({ notes: 'James', date: '2018-01-15' })).toEqual({
       notes: 'Sarah',
+    });
+  });
+
+  describe('split actions', () => {
+    test('splits can change the payee', () => {
+      const rule = new Rule({
+        conditionsOp: 'and',
+        conditions: [{ op: 'is', field: 'payee', value: '123' }],
+        actions: [
+          {
+            op: 'set-split-amount',
+            field: 'amount',
+            value: 100,
+            options: { splitIndex: 1, method: 'fixed-amount' },
+          },
+          {
+            op: 'set',
+            field: 'payee',
+            value: '456',
+            options: { splitIndex: 1 },
+          },
+        ],
+      });
+
+      expect(rule.exec({ payee: '123' })).toMatchObject({
+        subtransactions: [{ payee: '456' }],
+      });
+    });
+
+    const fixedAmountRule = new Rule({
+      conditionsOp: 'and',
+      conditions: [{ op: 'is', field: 'imported_payee', value: 'James' }],
+      actions: [
+        {
+          op: 'set-split-amount',
+          field: 'amount',
+          value: 100,
+          options: { splitIndex: 1, method: 'fixed-amount' },
+        },
+        {
+          op: 'set-split-amount',
+          field: 'amount',
+          value: 100,
+          options: { splitIndex: 2, method: 'fixed-amount' },
+        },
+      ],
+    });
+
+    test('basic fixed-amount', () => {
+      expect(
+        fixedAmountRule.exec({ imported_payee: 'James', amount: 200 }),
+      ).toMatchObject({
+        subtransactions: [{ amount: 100 }, { amount: 100 }],
+      });
+    });
+
+    test('basic fixed-percent', () => {
+      const rule = new Rule({
+        conditionsOp: 'and',
+        conditions: [{ op: 'is', field: 'imported_payee', value: 'James' }],
+        actions: [
+          {
+            op: 'set-split-amount',
+            field: 'amount',
+            value: 50,
+            options: { splitIndex: 1, method: 'fixed-percent' },
+          },
+          {
+            op: 'set-split-amount',
+            field: 'amount',
+            value: 50,
+            options: { splitIndex: 2, method: 'fixed-percent' },
+          },
+        ],
+      });
+
+      expect(rule.exec({ imported_payee: 'James', amount: 200 })).toMatchObject(
+        {
+          subtransactions: [{ amount: 100 }, { amount: 100 }],
+        },
+      );
+    });
+
+    test('basic remainder', () => {
+      const rule = new Rule({
+        conditionsOp: 'and',
+        conditions: [{ op: 'is', field: 'imported_payee', value: 'James' }],
+        actions: [
+          {
+            op: 'set-split-amount',
+            field: 'amount',
+            options: { splitIndex: 1, method: 'remainder' },
+          },
+          {
+            op: 'set-split-amount',
+            field: 'amount',
+            options: { splitIndex: 2, method: 'remainder' },
+          },
+        ],
+      });
+
+      expect(rule.exec({ imported_payee: 'James', amount: 200 })).toMatchObject(
+        {
+          subtransactions: [{ amount: 100 }, { amount: 100 }],
+        },
+      );
+    });
+
+    const prioritizationRule = new Rule({
+      conditionsOp: 'and',
+      conditions: [{ op: 'is', field: 'imported_payee', value: 'James' }],
+      actions: [
+        {
+          op: 'set-split-amount',
+          field: 'amount',
+          value: 100,
+          options: { splitIndex: 1, method: 'fixed-amount' },
+        },
+        {
+          op: 'set-split-amount',
+          field: 'amount',
+          value: 50,
+          options: { splitIndex: 2, method: 'fixed-percent' },
+        },
+        {
+          op: 'set-split-amount',
+          field: 'amount',
+          options: { splitIndex: 3, method: 'remainder' },
+        },
+      ],
+    });
+
+    test('percent is of the post-fixed-amount total', () => {
+      // Percent is a percent of the amount pre-remainder
+      expect(
+        prioritizationRule.exec({ imported_payee: 'James', amount: 200 }),
+      ).toMatchObject({
+        subtransactions: [{ amount: 100 }, { amount: 50 }, { amount: 50 }],
+      });
+    });
+
+    test('remainder/percent goes negative if less than expected after fixed amounts', () => {
+      // Remainder/percent goes negative if less than expected after fixed amounts
+      expect(
+        prioritizationRule.exec({ imported_payee: 'James', amount: 50 }),
+      ).toMatchObject({
+        subtransactions: [{ amount: 100 }, { amount: -25 }, { amount: -25 }],
+      });
+    });
+
+    test('remainder zeroes out if nothing left', () => {
+      const rule = new Rule({
+        conditionsOp: 'and',
+        conditions: [{ op: 'is', field: 'imported_payee', value: 'James' }],
+        actions: [
+          {
+            op: 'set-split-amount',
+            field: 'amount',
+            value: 100,
+            options: { splitIndex: 1, method: 'fixed-amount' },
+          },
+          {
+            op: 'set-split-amount',
+            field: 'amount',
+            value: 100,
+            options: { splitIndex: 2, method: 'fixed-percent' },
+          },
+          {
+            op: 'set-split-amount',
+            field: 'amount',
+            options: { splitIndex: 3, method: 'remainder' },
+          },
+        ],
+      });
+
+      expect(rule.exec({ imported_payee: 'James', amount: 150 })).toMatchObject(
+        {
+          subtransactions: [{ amount: 100 }, { amount: 50 }, { amount: 0 }],
+        },
+      );
+    });
+
+    test('remainder rounds correctly and only if necessary', () => {
+      const rule = new Rule({
+        conditionsOp: 'and',
+        conditions: [{ op: 'is', field: 'imported_payee', value: 'James' }],
+        actions: [
+          {
+            op: 'set-split-amount',
+            field: 'amount',
+            options: { splitIndex: 1, method: 'remainder' },
+          },
+          {
+            op: 'set-split-amount',
+            field: 'amount',
+            options: { splitIndex: 2, method: 'remainder' },
+          },
+        ],
+      });
+
+      expect(
+        rule.exec({ imported_payee: 'James', amount: -2397 }),
+      ).toMatchObject({
+        subtransactions: [{ amount: -1198 }, { amount: -1199 }],
+      });
+
+      expect(rule.exec({ imported_payee: 'James', amount: 123 })).toMatchObject(
+        {
+          subtransactions: [{ amount: 62 }, { amount: 61 }],
+        },
+      );
+
+      expect(rule.exec({ imported_payee: 'James', amount: 100 })).toMatchObject(
+        {
+          subtransactions: [{ amount: 50 }, { amount: 50 }],
+        },
+      );
+    });
+
+    test('generate errors when fixed amounts exceed the total', () => {
+      expect(
+        fixedAmountRule.exec({ imported_payee: 'James', amount: 100 }),
+      ).toMatchObject({
+        error: {
+          difference: -100,
+          type: 'SplitTransactionError',
+          version: 1,
+        },
+        subtransactions: [{ amount: 100 }, { amount: 100 }],
+      });
+    });
+
+    test('generate errors when fixed amounts undershoot the total', () => {
+      expect(
+        fixedAmountRule.exec({ imported_payee: 'James', amount: 300 }),
+      ).toMatchObject({
+        error: {
+          difference: 100,
+          type: 'SplitTransactionError',
+          version: 1,
+        },
+        subtransactions: [{ amount: 100 }, { amount: 100 }],
+      });
     });
   });
 

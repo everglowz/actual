@@ -1,13 +1,15 @@
 import React from 'react';
-import { useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 
 import { useMetadataPref } from '../../hooks/useMetadataPref';
+import { useSelector } from '../../redux';
 import { Modal, ModalHeader, ModalCloseButton } from '../common/Modal';
 import { Text } from '../common/Text';
 import { View } from '../common/View';
 import { BudgetList } from '../manager/BudgetList';
 
 export function BudgetListModal() {
+  const { t } = useTranslation();
   const [id] = useMetadataPref('id');
   const currentFile = useSelector(state =>
     state.budgets.allFiles?.find(f => 'id' in f && f.id === id),
@@ -18,7 +20,7 @@ export function BudgetListModal() {
       {({ state: { close } }) => (
         <>
           <ModalHeader
-            title="Switch Budget File"
+            title={t('Switch Budget File')}
             rightContent={<ModalCloseButton onPress={close} />}
           />
           <View
@@ -29,7 +31,7 @@ export function BudgetListModal() {
             }}
           >
             <Text style={{ fontSize: 17, fontWeight: 400 }}>
-              Switching from:
+              {t('Switching from:')}
             </Text>
             <Text style={{ fontSize: 17, fontWeight: 700 }}>
               {currentFile?.name}

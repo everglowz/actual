@@ -1,4 +1,7 @@
 import React, { type ReactNode } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
+
+import { css } from '@emotion/css';
 
 import { type DarkTheme, type Theme } from 'loot-core/types/prefs';
 
@@ -34,6 +37,7 @@ function Column({ title, children }: { title: string; children: ReactNode }) {
 }
 
 export function ThemeSettings() {
+  const { t } = useTranslation();
   const sidebar = useSidebar();
   const [theme, switchTheme] = useTheme();
   const [darkTheme, switchDarkTheme] = usePreferredDarkTheme();
@@ -55,33 +59,33 @@ export function ThemeSettings() {
             },
           }}
         >
-          <Column title="Theme">
+          <Column title={t('Theme')}>
             <Select<Theme>
               onChange={value => {
                 switchTheme(value);
               }}
               value={theme}
               options={themeOptions}
-              style={{
+              className={css({
                 '&[data-hovered]': {
                   backgroundColor: themeStyle.buttonNormalBackgroundHover,
                 },
-              }}
+              })}
             />
           </Column>
           {theme === 'auto' && (
-            <Column title="Dark theme">
+            <Column title={t('Dark theme')}>
               <Select<DarkTheme>
                 onChange={value => {
                   switchDarkTheme(value);
                 }}
                 value={darkTheme}
                 options={darkThemeOptions}
-                style={{
+                className={css({
                   '&[data-hovered]': {
                     backgroundColor: themeStyle.buttonNormalBackgroundHover,
                   },
-                }}
+                })}
               />
             </Column>
           )}
@@ -89,7 +93,9 @@ export function ThemeSettings() {
       }
     >
       <Text>
-        <strong>Themes</strong> change the user interface colors.
+        <Trans>
+          <strong>Themes</strong> change the user interface colors.
+        </Trans>
       </Text>
     </Setting>
   );

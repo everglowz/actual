@@ -1,6 +1,6 @@
 // @ts-strict-ignore
 import React, { useEffect } from 'react';
-import { useDispatch } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { closeModal } from 'loot-core/client/actions';
@@ -9,6 +9,7 @@ import * as monthUtils from 'loot-core/src/shared/months';
 
 import { useMetadataPref } from '../hooks/useMetadataPref';
 import { useModalState } from '../hooks/useModalState';
+import { useDispatch } from '../redux';
 
 import { ModalTitle, ModalHeader } from './common/Modal';
 import { AccountAutocompleteModal } from './modals/AccountAutocompleteModal';
@@ -27,21 +28,27 @@ import { CoverModal } from './modals/CoverModal';
 import { CreateAccountModal } from './modals/CreateAccountModal';
 import { CreateEncryptionKeyModal } from './modals/CreateEncryptionKeyModal';
 import { CreateLocalAccountModal } from './modals/CreateLocalAccountModal';
+import { EditUserAccess } from './modals/EditAccess';
 import { EditFieldModal } from './modals/EditFieldModal';
 import { EditRuleModal } from './modals/EditRuleModal';
+import { EditUserFinanceApp } from './modals/EditUser';
 import { EnvelopeBalanceMenuModal } from './modals/EnvelopeBalanceMenuModal';
 import { EnvelopeBudgetMenuModal } from './modals/EnvelopeBudgetMenuModal';
 import { EnvelopeBudgetMonthMenuModal } from './modals/EnvelopeBudgetMonthMenuModal';
 import { EnvelopeBudgetSummaryModal } from './modals/EnvelopeBudgetSummaryModal';
 import { EnvelopeToBudgetMenuModal } from './modals/EnvelopeToBudgetMenuModal';
 import { FixEncryptionKeyModal } from './modals/FixEncryptionKeyModal';
+import { GoalTemplateModal } from './modals/GoalTemplateModal';
 import { GoCardlessExternalMsgModal } from './modals/GoCardlessExternalMsgModal';
 import { GoCardlessInitialiseModal } from './modals/GoCardlessInitialiseModal';
 import { HoldBufferModal } from './modals/HoldBufferModal';
 import { ImportTransactionsModal } from './modals/ImportTransactionsModal';
 import { KeyboardShortcutModal } from './modals/KeyboardShortcutModal';
 import { LoadBackupModal } from './modals/LoadBackupModal';
+import { ConfirmChangeDocumentDirModal } from './modals/manager/ConfirmChangeDocumentDir';
 import { DeleteFileModal } from './modals/manager/DeleteFileModal';
+import { DuplicateFileModal } from './modals/manager/DuplicateFileModal';
+import { FilesSettingsModal } from './modals/manager/FilesSettingsModal';
 import { ImportActualModal } from './modals/manager/ImportActualModal';
 import { ImportModal } from './modals/manager/ImportModal';
 import { ImportYNAB4Modal } from './modals/manager/ImportYNAB4Modal';
@@ -49,6 +56,9 @@ import { ImportYNAB5Modal } from './modals/manager/ImportYNAB5Modal';
 import { ManageRulesModal } from './modals/ManageRulesModal';
 import { MergeUnusedPayeesModal } from './modals/MergeUnusedPayeesModal';
 import { NotesModal } from './modals/NotesModal';
+import { OpenIDEnableModal } from './modals/OpenIDEnableModal';
+import { OutOfSyncMigrationsModal } from './modals/OutOfSyncMigrationsModal';
+import { PasswordEnableModal } from './modals/PasswordEnableModal';
 import { PayeeAutocompleteModal } from './modals/PayeeAutocompleteModal';
 import { ScheduledTransactionMenuModal } from './modals/ScheduledTransactionMenuModal';
 import { SelectLinkedAccountsModal } from './modals/SelectLinkedAccountsModal';
@@ -59,10 +69,13 @@ import { TrackingBudgetMenuModal } from './modals/TrackingBudgetMenuModal';
 import { TrackingBudgetMonthMenuModal } from './modals/TrackingBudgetMonthMenuModal';
 import { TrackingBudgetSummaryModal } from './modals/TrackingBudgetSummaryModal';
 import { TransferModal } from './modals/TransferModal';
+import { TransferOwnership } from './modals/TransferOwnership';
+import { CategoryLearning } from './payees/CategoryLearning';
 import { DiscoverSchedules } from './schedules/DiscoverSchedules';
 import { PostsOfflineNotification } from './schedules/PostsOfflineNotification';
 import { ScheduleDetails } from './schedules/ScheduleDetails';
 import { ScheduleLink } from './schedules/ScheduleLink';
+import { UpcomingLength } from './schedules/UpcomingLength';
 import { NamespaceContext } from './spreadsheet/NamespaceContext';
 
 export function Modals() {
@@ -77,9 +90,14 @@ export function Modals() {
     }
   }, [location]);
 
+  const { t } = useTranslation();
+
   const modals = modalStack
     .map(({ name, options }) => {
       switch (name) {
+        case 'goal-templates':
+          return budgetId ? <GoalTemplateModal key={name} /> : null;
+
         case 'keyboard-shortcuts':
           // don't show the hotkey help modal when a budget is not open
           return budgetId ? <KeyboardShortcutModal key={name} /> : null;
@@ -272,6 +290,9 @@ export function Modals() {
             />
           );
 
+        case 'payee-category-learning':
+          return <CategoryLearning key={name} />;
+
         case 'new-category':
           return (
             <SingleInputModal
@@ -280,11 +301,13 @@ export function Modals() {
               Header={props => (
                 <ModalHeader
                   {...props}
-                  title={<ModalTitle title="New Category" shrinkOnOverflow />}
+                  title={
+                    <ModalTitle title={t('New Category')} shrinkOnOverflow />
+                  }
                 />
               )}
-              inputPlaceholder="Category name"
-              buttonText="Add"
+              inputPlaceholder={t('Category name')}
+              buttonText={t('Add')}
               onValidate={options.onValidate}
               onSubmit={options.onSubmit}
             />
@@ -299,12 +322,15 @@ export function Modals() {
                 <ModalHeader
                   {...props}
                   title={
-                    <ModalTitle title="New Category Group" shrinkOnOverflow />
+                    <ModalTitle
+                      title={t('New Category Group')}
+                      shrinkOnOverflow
+                    />
                   }
                 />
               )}
-              inputPlaceholder="Category group name"
-              buttonText="Add"
+              inputPlaceholder={t('Category group name')}
+              buttonText={t('Add')}
               onValidate={options.onValidate}
               onSubmit={options.onSubmit}
             />
@@ -351,6 +377,9 @@ export function Modals() {
 
         case 'schedules-discover':
           return <DiscoverSchedules key={name} />;
+
+        case 'schedules-upcoming-length':
+          return <UpcomingLength key={name} />;
 
         case 'schedule-posts-offline-notification':
           return <PostsOfflineNotification key={name} />;
@@ -526,6 +555,7 @@ export function Modals() {
               transactionId={options.transactionId}
               onPost={options.onPost}
               onSkip={options.onSkip}
+              onComplete={options.onComplete}
             />
           );
 
@@ -571,8 +601,28 @@ export function Modals() {
           return <BudgetListModal key={name} />;
         case 'delete-budget':
           return <DeleteFileModal key={name} file={options.file} />;
+        case 'duplicate-budget':
+          return (
+            <DuplicateFileModal
+              key={name}
+              file={options.file}
+              managePage={options?.managePage}
+              loadBudget={options?.loadBudget}
+              onComplete={options?.onComplete}
+            />
+          );
         case 'import':
           return <ImportModal key={name} />;
+        case 'files-settings':
+          return <FilesSettingsModal key={name} />;
+        case 'confirm-change-document-dir':
+          return (
+            <ConfirmChangeDocumentDirModal
+              key={name}
+              currentBudgetDirectory={options.currentBudgetDirectory}
+              newDirectory={options.newDirectory}
+            />
+          );
         case 'import-ynab4':
           return <ImportYNAB4Modal key={name} />;
         case 'import-ynab5':
@@ -588,6 +638,35 @@ export function Modals() {
               watchUpdates={false}
             />
           );
+        case 'out-of-sync-migrations':
+          return <OutOfSyncMigrationsModal key={name} />;
+
+        case 'edit-access':
+          return (
+            <EditUserAccess
+              key={name}
+              defaultUserAccess={options.access}
+              onSave={options.onSave}
+            />
+          );
+
+        case 'edit-user':
+          return (
+            <EditUserFinanceApp
+              key={name}
+              defaultUser={options.user}
+              onSave={options.onSave}
+            />
+          );
+
+        case 'transfer-ownership':
+          return <TransferOwnership key={name} onSave={options.onSave} />;
+
+        case 'enable-openid':
+          return <OpenIDEnableModal key={name} onSave={options.onSave} />;
+
+        case 'enable-password-auth':
+          return <PasswordEnableModal key={name} onSave={options.onSave} />;
 
         default:
           throw new Error('Unknown modal');

@@ -1,9 +1,11 @@
 // @ts-strict-ignore
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { importBudget } from 'loot-core/src/client/actions/budgets';
 
+import { useNavigate } from '../../../hooks/useNavigate';
+import { useDispatch } from '../../../redux';
 import { styles, theme } from '../../../style';
 import { Block } from '../../common/Block';
 import { ButtonWithLoading } from '../../common/Button2';
@@ -19,17 +21,19 @@ function getErrorMessage(error: string): string {
     case 'not-ynab5':
       return 'This file is not valid. Please select a JSON file exported from nYNAB.';
     default:
-      return 'An unknown error occurred while importing. Please report this as a new issue on Github.';
+      return 'An unknown error occurred while importing. Please report this as a new issue on GitHub.';
   }
 }
 
 export function ImportYNAB5Modal() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const [error, setError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
 
   async function onImport() {
-    const res = await window.Actual?.openFileDialog({
+    const res = await window.Actual.openFileDialog({
       properties: ['openFile'],
       filters: [{ name: 'ynab', extensions: ['json'] }],
     });
@@ -38,6 +42,7 @@ export function ImportYNAB5Modal() {
       setError(null);
       try {
         await dispatch(importBudget(res[0], 'ynab5'));
+        navigate('/budget');
       } catch (err) {
         setError(err.message);
       } finally {
@@ -51,7 +56,7 @@ export function ImportYNAB5Modal() {
       {({ state: { close } }) => (
         <>
           <ModalHeader
-            title="Import from nYNAB"
+            title={t('Import from nYNAB')}
             rightContent={<ModalCloseButton onPress={close} />}
           />
           <View style={{ ...styles.smallText, lineHeight: 1.5, marginTop: 20 }}>
@@ -68,21 +73,25 @@ export function ImportYNAB5Modal() {
               }}
             >
               <Paragraph>
-                <Link
-                  variant="external"
-                  to="https://actualbudget.org/docs/migration/nynab"
-                >
-                  Read here
-                </Link>{' '}
-                for instructions on how to migrate your data from YNAB. You need
-                to export your data as JSON, and that page explains how to do
-                that.
+                <Trans>
+                  <Link
+                    variant="external"
+                    to="https://actualbudget.org/docs/migration/nynab"
+                  >
+                    Read here
+                  </Link>{' '}
+                  for instructions on how to migrate your data from YNAB. You
+                  need to export your data as JSON, and that page explains how
+                  to do that.
+                </Trans>
               </Paragraph>
               <Paragraph>
-                Once you have exported your data, select the file and Actual
-                will import it. Budgets may not match up exactly because things
-                work slightly differently, but you should be able to fix up any
-                problems.
+                <Trans>
+                  Once you have exported your data, select the file and Actual
+                  will import it. Budgets may not match up exactly because
+                  things work slightly differently, but you should be able to
+                  fix up any problems.
+                </Trans>
               </Paragraph>
               <View>
                 <ButtonWithLoading
@@ -91,7 +100,7 @@ export function ImportYNAB5Modal() {
                   isLoading={importing}
                   onPress={onImport}
                 >
-                  Select file...
+                  <Trans>Select file...</Trans>
                 </ButtonWithLoading>
               </View>
             </View>

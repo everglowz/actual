@@ -13,7 +13,6 @@ contextBridge.exposeInMainWorld('Actual', {
   IS_DEV,
   ACTUAL_VERSION: VERSION,
   logToTerminal: console.log,
-
   ipcConnect: (
     func: (payload: {
       on: IpcRenderer['on'];
@@ -29,6 +28,8 @@ contextBridge.exposeInMainWorld('Actual', {
       },
     });
   },
+
+  startOAuthServer: () => ipcRenderer.invoke('start-oauth-server'),
 
   relaunch: () => {
     ipcRenderer.invoke('relaunch');
@@ -66,11 +67,34 @@ contextBridge.exposeInMainWorld('Actual', {
     ipcRenderer.send('update-menu', budgetId);
   },
 
-  getServerSocket: () => {
+  // No auto-updates in the desktop app
+  isUpdateReadyForDownload: () => false,
+  waitForUpdateReadyForDownload: () => new Promise<void>(() => {}),
+
+  getServerSocket: async () => {
     return null;
   },
 
   setTheme: (theme: string) => {
     ipcRenderer.send('set-theme', theme);
   },
-});
+
+  moveBudgetDirectory: (
+    currentBudgetDirectory: string,
+    newDirectory: string,
+  ) => {
+    return ipcRenderer.invoke(
+      'move-budget-directory',
+      currentBudgetDirectory,
+      newDirectory,
+    );
+  },
+
+  reload: async () => {
+    throw new Error('Reload not implemented in electron app');
+  },
+
+  applyAppUpdate: async () => {
+    throw new Error('applyAppUpdate not implemented in electron app');
+  },
+} satisfies typeof global.Actual);

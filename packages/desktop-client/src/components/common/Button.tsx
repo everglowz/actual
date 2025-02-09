@@ -1,9 +1,9 @@
 import React, { forwardRef, type ElementType, type HTMLProps } from 'react';
 
-import { css } from 'glamor';
+import { css } from '@emotion/css';
 
 import { AnimatedLoading } from '../../icons/AnimatedLoading';
-import { type CSSProperties, styles, theme } from '../../style';
+import { styles, theme, type CSSProperties } from '../../style';
 
 import { View } from './View';
 
@@ -134,7 +134,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       bounce = true,
       as = 'button',
       ...nativeProps
-    },
+    }: ButtonProps,
     ref,
   ) => {
     const typeWithDisabled: ButtonType | `${ButtonType}Disabled` = disabled
@@ -153,7 +153,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     const Component = as;
-    const buttonStyle = {
+    const buttonStyle: CSSProperties = {
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
@@ -168,8 +168,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       transition: 'box-shadow .25s',
       WebkitAppRegion: 'no-drag',
       ...styles.smallText,
-      ':hover': !disabled && hoveredStyle,
-      ':active': !disabled && activeStyle,
+      ':hover': !disabled ? hoveredStyle : {},
+      ':active': !disabled ? activeStyle : {},
       ...(hover && hoveredStyle),
       ...(pressed && activeStyle),
       ...style,
@@ -179,8 +179,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <Component
         ref={ref}
         {...(typeof as === 'string'
-          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (css(buttonStyle) as any)
+          ? { className: css(buttonStyle) }
           : { style: buttonStyle })}
         disabled={disabled}
         type={isSubmit ? 'submit' : 'button'}

@@ -5,9 +5,7 @@ import React, {
 } from 'react';
 import { NavLink, useMatch } from 'react-router-dom';
 
-import { css } from 'glamor';
-
-import { type CustomReportEntity } from 'loot-core/types/models/reports';
+import { css } from '@emotion/css';
 
 import { useNavigate } from '../../hooks/useNavigate';
 import { type CSSProperties, styles } from '../../style';
@@ -33,7 +31,7 @@ type InternalLinkProps = {
   style?: CSSProperties;
   activeStyle?: CSSProperties;
   children?: ReactNode;
-  report?: CustomReportEntity;
+  isDisabled?: boolean;
 };
 
 const externalLinkColors = {
@@ -119,7 +117,7 @@ const InternalLink = ({
   style,
   activeStyle,
   children,
-  report,
+  isDisabled,
 }: InternalLinkProps) => {
   const path = to ?? '';
   const match = useMatch({ path });
@@ -127,12 +125,12 @@ const InternalLink = ({
   return (
     <NavLink
       to={path}
-      state={report ? { report } : {}}
-      className={`${css([
-        styles.smallText,
-        style,
-        match ? activeStyle : null,
-      ])}`}
+      className={css([styles.smallText, style, match ? activeStyle : null])}
+      onClick={e => {
+        if (isDisabled) {
+          e.preventDefault();
+        }
+      }}
     >
       {children}
     </NavLink>

@@ -473,6 +473,10 @@ export async function getPayee(id) {
   return first(`SELECT * FROM payees WHERE id = ?`, [id]);
 }
 
+export async function getAccount(id) {
+  return first(`SELECT * FROM accounts WHERE id = ?`, [id]);
+}
+
 export async function insertPayee(payee) {
   payee = payeeModel.validate(payee);
   let id;
@@ -580,22 +584,32 @@ export function getCommonPayees() {
   `);
 }
 
+/* eslint-disable rulesdir/typography */
+const orphanedPayeesQuery = `
+  SELECT p.id
+  FROM payees p
+    LEFT JOIN payee_mapping pm ON pm.id = p.id
+    LEFT JOIN v_transactions_internal_alive t ON t.payee = pm.targetId
+  WHERE p.tombstone = 0
+    AND p.transfer_acct IS NULL
+    AND t.id IS NULL
+    AND NOT EXISTS (
+      SELECT 1
+      FROM rules r,
+      json_each(r.conditions) as cond
+      WHERE r.tombstone = 0
+        AND json_extract(cond.value, '$.field') = 'description'
+        AND json_extract(cond.value, '$.value') = pm.targetId
+    );
+`;
+/* eslint-enable rulesdir/typography */
+
 export function syncGetOrphanedPayees() {
-  return all(`
-  SELECT p.id FROM payees p
-  LEFT JOIN payee_mapping pm ON pm.id = p.id
-  LEFT JOIN v_transactions_internal_alive t ON t.payee = pm.targetId
-  WHERE p.tombstone = 0 AND p.transfer_acct IS NULL AND t.id IS NULL
-`);
+  return all(orphanedPayeesQuery);
 }
 
 export async function getOrphanedPayees() {
-  const rows = await all(`
-    SELECT p.id FROM payees p
-    LEFT JOIN payee_mapping pm ON pm.id = p.id
-    LEFT JOIN v_transactions_internal_alive t ON t.payee = pm.targetId
-    WHERE p.tombstone = 0 AND p.transfer_acct IS NULL AND t.id IS NULL
-  `);
+  const rows = await all(orphanedPayeesQuery);
   return rows.map(row => row.id);
 }
 

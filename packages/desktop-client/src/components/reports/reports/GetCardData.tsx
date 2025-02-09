@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
+import { useTranslation } from 'react-i18next';
 
 import * as monthUtils from 'loot-core/src/shared/months';
 import { type AccountEntity } from 'loot-core/types/models/account';
@@ -9,10 +10,10 @@ import { type PayeeEntity } from 'loot-core/types/models/payee';
 import { type CustomReportEntity } from 'loot-core/types/models/reports';
 import { type SyncedPrefs } from 'loot-core/types/prefs';
 
-import { useResponsive } from '../../../ResponsiveProvider';
 import { styles } from '../../../style/styles';
 import { theme } from '../../../style/theme';
 import { Text } from '../../common/Text';
+import { useResponsive } from '../../responsive/ResponsiveProvider';
 import { ChooseGraph } from '../ChooseGraph';
 import { getLiveRange } from '../getLiveRange';
 import { LoadingIndicator } from '../LoadingIndicator';
@@ -22,13 +23,14 @@ import { createGroupedSpreadsheet } from '../spreadsheets/grouped-spreadsheet';
 import { useReport } from '../useReport';
 
 function ErrorFallback() {
+  const { t } = useTranslation();
   return (
     <>
       <div>
         <br />
       </div>
       <Text style={{ ...styles.mediumText, color: theme.errorText }}>
-        There was a problem loading your report
+        {t('There was a problem loading your report')}
       </Text>
     </>
   );
@@ -127,6 +129,7 @@ export function GetCardData({
       showUncategorized: report.showUncategorized,
       balanceTypeOp: ReportOptions.balanceTypeMap.get(report.balanceType),
       firstDayOfWeekIdx,
+      sortByOp: report.sortBy,
     });
   }, [report, categories, startDate, endDate, firstDayOfWeekIdx]);
   const getGraphData = useMemo(() => {
@@ -147,6 +150,7 @@ export function GetCardData({
       accounts,
       graphType: report.graphType,
       firstDayOfWeekIdx,
+      sortByOp: report.sortBy,
     });
   }, [
     report,

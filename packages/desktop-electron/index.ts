@@ -1,5 +1,5 @@
 import fs from 'fs';
-import Module from 'module';
+import { createServer, Server } from 'http';
 import path from 'path';
 
 import {
@@ -16,8 +16,10 @@ import {
   UtilityProcess,
   OpenDialogSyncOptions,
   SaveDialogOptions,
+  Env,
+  ForkOptions,
 } from 'electron';
-import isDev from 'electron-is-dev';
+import { copy, exists, remove } from 'fs-extra';
 import promiseRetry from 'promise-retry';
 
 import { getMenu } from './menu';
@@ -28,7 +30,11 @@ import {
 
 import './security';
 
-Module.globalPaths.push(__dirname + '/..');
+const isDev = !app.isPackaged; // dev mode if not packaged
+
+process.env.lootCoreScript = isDev
+  ? 'loot-core/lib-dist/electron/bundle.desktop.js' // serve from local output in development (provides hot-reloading)
+  : path.resolve(__dirname, 'loot-core/lib-dist/electron/bundle.desktop.js'); // serve from build in production
 
 // This allows relative URLs to be resolved to app:// which makes
 // local assets load correctly
@@ -49,15 +55,94 @@ if (!isDev || !process.env.ACTUAL_DATA_DIR) {
 let clientWin: BrowserWindow | null;
 let serverProcess: UtilityProcess | null;
 
+let oAuthServer: ReturnType<typeof createServer> | null;
+
+const createOAuthServer = async () => {
+  const port = 3010;
+  console.log(`OAuth server running on port: ${port}`);
+
+  if (oAuthServer) {
+    return { url: `http://localhost:${port}`, server: oAuthServer };
+  }
+
+  return new Promise<{ url: string; server: Server }>(resolve => {
+    const server = createServer((req, res) => {
+      const query = new URL(req.url || '', `http://localhost:${port}`)
+        .searchParams;
+
+      const code = query.get('token');
+      if (code && clientWin) {
+        if (isDev) {
+          clientWin.loadURL(`http://localhost:3001/openid-cb?token=${code}`);
+        } else {
+          clientWin.loadURL(`app://actual/openid-cb?token=${code}`);
+        }
+
+        // Respond to the browser
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end('OpenID login successful! You can close this tab.');
+
+        // Clean up the server after receiving the code
+        server.close();
+      } else {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('No token received.');
+      }
+    });
+
+    server.listen(port, '127.0.0.1', () => {
+      resolve({ url: `http://localhost:${port}`, server });
+    });
+  });
+};
+
 if (isDev) {
   process.traceProcessWarnings = true;
 }
 
-function createBackgroundProcess() {
+async function loadGlobalPrefs() {
+  let state: { [key: string]: unknown } | undefined = undefined;
+  try {
+    state = JSON.parse(
+      fs.readFileSync(
+        path.join(process.env.ACTUAL_DATA_DIR!, 'global-store.json'),
+        'utf8',
+      ),
+    );
+  } catch (e) {
+    console.info('Could not load global state - using defaults'); // This could be the first time running the app - no global-store.json
+    state = {};
+  }
+
+  return state;
+}
+
+async function createBackgroundProcess() {
+  const globalPrefs = await loadGlobalPrefs(); // ensures we have the latest settings - even when restarting the server
+  let envVariables: Env = {
+    ...process.env, // required
+  };
+
+  if (globalPrefs?.['server-self-signed-cert']) {
+    envVariables = {
+      ...envVariables,
+      NODE_EXTRA_CA_CERTS: globalPrefs?.['server-self-signed-cert'], // add self signed cert to env - fetch can pick it up
+    };
+  }
+
+  let forkOptions: ForkOptions = {
+    stdio: 'pipe',
+    env: envVariables,
+  };
+
+  if (isDev) {
+    forkOptions = { ...forkOptions, execArgv: ['--inspect'] };
+  }
+
   serverProcess = utilityProcess.fork(
     __dirname + '/server.js',
     ['--subprocess', app.getVersion()],
-    isDev ? { execArgv: ['--inspect'], stdio: 'pipe' } : { stdio: 'pipe' },
+    forkOptions,
   );
 
   serverProcess.stdout?.on('data', (chunk: Buffer) => {
@@ -143,7 +228,9 @@ async function createWindow() {
     if (clientWin) {
       const url = clientWin.webContents.getURL();
       if (url.includes('app://') || url.includes('localhost:')) {
-        clientWin.webContents.executeJavaScript('__actionsForMenu.focused()');
+        clientWin.webContents.executeJavaScript(
+          'window.__actionsForMenu.appFocused()',
+        );
       }
     }
   });
@@ -310,6 +397,12 @@ ipcMain.on('get-bootstrap-data', event => {
   event.returnValue = payload;
 });
 
+ipcMain.handle('start-oauth-server', async () => {
+  const { url, server: newServer } = await createOAuthServer();
+  oAuthServer = newServer;
+  return url;
+});
+
 ipcMain.handle('restart-server', () => {
   if (serverProcess) {
     serverProcess.kill();
@@ -342,7 +435,7 @@ ipcMain.handle(
 export type SaveFileDialogPayload = {
   title: SaveDialogOptions['title'];
   defaultPath?: SaveDialogOptions['defaultPath'];
-  fileContents: string | NodeJS.ArrayBufferView;
+  fileContents: string | Buffer;
 };
 
 ipcMain.handle(
@@ -355,7 +448,11 @@ ipcMain.handle(
 
     return new Promise<void>((resolve, reject) => {
       if (fileLocation) {
-        fs.writeFile(fileLocation.filePath, fileContents, error => {
+        const contents =
+          typeof fileContents === 'string'
+            ? fileContents
+            : new Uint8Array(fileContents.buffer);
+        fs.writeFile(fileLocation.filePath, contents, error => {
           return reject(error);
         });
       }
@@ -399,3 +496,32 @@ ipcMain.on('set-theme', (_event, theme: string) => {
     );
   }
 });
+
+ipcMain.handle(
+  'move-budget-directory',
+  async (_event, currentBudgetDirectory: string, newDirectory: string) => {
+    try {
+      if (!currentBudgetDirectory || !newDirectory) {
+        throw new Error('The from and to directories must be provided');
+      }
+
+      if (newDirectory.startsWith(currentBudgetDirectory)) {
+        throw new Error(
+          'The destination must not be a subdirectory of the current directory',
+        );
+      }
+
+      if (!(await exists(newDirectory))) {
+        throw new Error('The destination directory does not exist');
+      }
+
+      await copy(currentBudgetDirectory, newDirectory, {
+        overwrite: true,
+      });
+      await remove(currentBudgetDirectory);
+    } catch (error) {
+      console.error('There was an error moving your directory', error);
+      throw error;
+    }
+  },
+);

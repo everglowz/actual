@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { envelopeBudget } from 'loot-core/client/queries';
 
@@ -17,6 +18,7 @@ type HoldBufferModalProps = {
 };
 
 export function HoldBufferModal({ onSubmit }: HoldBufferModalProps) {
+  const { t } = useTranslation(); // Initialize i18next
   const available = useEnvelopeSheetValue(envelopeBudget.toBudget) ?? 0;
   const [amount, setAmount] = useState<number>(0);
 
@@ -31,15 +33,16 @@ export function HoldBufferModal({ onSubmit }: HoldBufferModalProps) {
       {({ state: { close } }) => (
         <>
           <ModalHeader
-            title="Hold Buffer"
+            title={t('Hold for next month')}
             rightContent={<ModalCloseButton onPress={close} />}
           />
           <View>
-            <FieldLabel title="Hold this amount:" />
+            <FieldLabel title={t('Hold this amount:')} />{' '}
             <InitialFocus>
               <AmountInput
                 value={available}
                 autoDecimals={true}
+                zeroSign="+"
                 style={{
                   marginLeft: styles.mobileEditingPadding,
                   marginRight: styles.mobileEditingPadding,
@@ -71,7 +74,7 @@ export function HoldBufferModal({ onSubmit }: HoldBufferModalProps) {
               }}
               onPress={() => _onSubmit(amount)}
             >
-              Hold
+              {t('Hold')}
             </Button>
           </View>
         </>

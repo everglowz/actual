@@ -4,6 +4,7 @@ export interface PayeeEntity {
   id: string;
   name: string;
   transfer_acct?: AccountEntity['id'];
-  favorite?: boolean;
+  favorite?: 1 | 0;
+  learn_categories?: 1 | 0;
   tombstone?: boolean;
 }

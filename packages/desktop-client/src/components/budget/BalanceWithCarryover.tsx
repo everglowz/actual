@@ -2,18 +2,21 @@
 import React, {
   type ComponentType,
   type ComponentPropsWithoutRef,
+  type CSSProperties,
   useCallback,
 } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 
-import { css } from 'glamor';
+import { css } from '@emotion/css';
+
+import { type TransObjectLiteral } from 'loot-core/types/util';
 
 import { useFeatureFlag } from '../../hooks/useFeatureFlag';
 import { SvgArrowThinRight } from '../../icons/v1';
-import { useResponsive } from '../../ResponsiveProvider';
-import { type CSSProperties, theme, styles } from '../../style';
+import { theme, styles } from '../../style';
 import { Tooltip } from '../common/Tooltip';
 import { View } from '../common/View';
+import { useResponsive } from '../responsive/ResponsiveProvider';
 import { type Binding } from '../spreadsheet';
 import { CellValue, CellValueText } from '../spreadsheet/CellValue';
 import { useFormat } from '../spreadsheet/useFormat';
@@ -124,18 +127,16 @@ export function BalanceWithCarryover({
 
   const getDefaultClassName = useCallback(
     (balanceValue: number) =>
-      String(
-        css({
-          ...getBalanceAmountStyle(balanceValue),
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          textAlign: 'right',
-          ...(!isDisabled && {
-            cursor: 'pointer',
-          }),
-          ':hover': { textDecoration: 'underline' },
+      css({
+        ...getBalanceAmountStyle(balanceValue),
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        textAlign: 'right',
+        ...(!isDisabled && {
+          cursor: 'pointer',
         }),
-      ),
+        ':hover': { textDecoration: 'underline' },
+      }),
     [getBalanceAmountStyle, isDisabled],
   );
 
@@ -149,47 +150,86 @@ export function BalanceWithCarryover({
                 <span style={{ fontWeight: 'bold' }}>
                   {getDifferenceToGoal(balanceValue) === 0 ? (
                     <span style={{ color: theme.noticeText }}>
-                      {t('Fully funded')}
+                      <Trans>Fully funded</Trans>
                     </span>
                   ) : getDifferenceToGoal(balanceValue) > 0 ? (
                     <span style={{ color: theme.noticeText }}>
-                      {t('Overfunded ({{amount}})', {
-                        amount: format(
-                          getDifferenceToGoal(balanceValue),
-                          'financial',
-                        ),
-                      })}
+                      <Trans>
+                        Overfunded (
+                        {{
+                          amount: format(
+                            getDifferenceToGoal(balanceValue),
+                            'financial',
+                          ),
+                        }}
+                        )
+                      </Trans>
                     </span>
                   ) : (
                     <span style={{ color: theme.errorText }}>
-                      {t('Underfunded ({{amount}})', {
-                        amount: format(
-                          getDifferenceToGoal(balanceValue),
-                          'financial',
-                        ),
-                      })}
+                      <Trans>
+                        Underfunded (
+                        {{
+                          amount: format(
+                            getDifferenceToGoal(balanceValue),
+                            'financial',
+                          ),
+                        }}
+                        )
+                      </Trans>
                     </span>
                   )}
                 </span>
                 <GoalTooltipRow>
-                  <div>{t('Goal Type:')}</div>
-                  <div>{longGoalValue === 1 ? t('Long') : t('Template')}</div>
+                  <Trans>
+                    <div>Goal Type:</div>
+                    <div>
+                      {
+                        {
+                          type:
+                            longGoalValue === 1
+                              ? t('Long', { context: 'noun' })
+                              : t('Template'),
+                        } as TransObjectLiteral
+                      }
+                    </div>
+                  </Trans>
                 </GoalTooltipRow>
                 <GoalTooltipRow>
-                  <div>{t('Goal:')}</div>
-                  <div>{format(goalValue, 'financial')}</div>
+                  <Trans>
+                    <div>Goal:</div>
+                    <div>
+                      {
+                        {
+                          amount: format(goalValue, 'financial'),
+                        } as TransObjectLiteral
+                      }
+                    </div>
+                  </Trans>
                 </GoalTooltipRow>
                 <GoalTooltipRow>
                   {longGoalValue !== 1 ? (
-                    <>
-                      <div>{t('Budgeted:')}</div>
-                      <div>{format(budgetedValue, 'financial')}</div>
-                    </>
+                    <Trans>
+                      <div>Budgeted:</div>
+                      <div>
+                        {
+                          {
+                            amount: format(budgetedValue, 'financial'),
+                          } as TransObjectLiteral
+                        }
+                      </div>
+                    </Trans>
                   ) : (
-                    <>
-                      <div>{t('Balance:')}</div>
-                      <div>{format(balanceValue, type)}</div>
-                    </>
+                    <Trans>
+                      <div>Balance:</div>
+                      <div>
+                        {
+                          {
+                            amount: format(balanceValue, type),
+                          } as TransObjectLiteral
+                        }
+                      </div>
+                    </Trans>
                   )}
                 </GoalTooltipRow>
               </View>

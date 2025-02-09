@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useTranslation, Trans } from 'react-i18next';
 
 import {
-  closeModal,
   linkAccount,
   linkAccountSimpleFin,
   unlinkAccount,
-} from 'loot-core/client/actions';
+} from 'loot-core/client/accounts/accountsSlice';
+import { closeModal } from 'loot-core/client/actions';
 
 import { useAccounts } from '../../hooks/useAccounts';
+import { useDispatch } from '../../redux';
 import { theme } from '../../style';
 import { Autocomplete } from '../autocomplete/Autocomplete';
 import { Button } from '../common/Button2';
@@ -18,11 +19,20 @@ import { View } from '../common/View';
 import { PrivacyFilter } from '../PrivacyFilter';
 import { TableHeader, Table, Row, Field } from '../table';
 
-const addOnBudgetAccountOption = { id: 'new-on', name: 'Create new account' };
-const addOffBudgetAccountOption = {
-  id: 'new-off',
-  name: 'Create new account (off-budget)',
-};
+function useAddBudgetAccountOptions() {
+  const { t } = useTranslation();
+
+  const addOnBudgetAccountOption = {
+    id: 'new-on',
+    name: t('Create new account'),
+  };
+  const addOffBudgetAccountOption = {
+    id: 'new-off',
+    name: t('Create new account (off budget)'),
+  };
+
+  return { addOnBudgetAccountOption, addOffBudgetAccountOption };
+}
 
 export function SelectLinkedAccountsModal({
   requisitionId,
@@ -30,6 +40,7 @@ export function SelectLinkedAccountsModal({
   syncSource,
 }) {
   externalAccounts.sort((a, b) => a.name.localeCompare(b.name));
+  const { t } = useTranslation();
   const dispatch = useDispatch();
   const localAccounts = useAccounts().filter(a => a.closed === 0);
   const [chosenAccounts, setChosenAccounts] = useState(() => {
@@ -39,6 +50,8 @@ export function SelectLinkedAccountsModal({
         .map(acc => [acc.account_id, acc.id]),
     );
   });
+  const { addOnBudgetAccountOption, addOffBudgetAccountOption } =
+    useAddBudgetAccountOptions();
 
   async function onNext() {
     const chosenLocalAccountIds = Object.values(chosenAccounts);
@@ -48,7 +61,7 @@ export function SelectLinkedAccountsModal({
     localAccounts
       .filter(acc => acc.account_id)
       .filter(acc => !chosenLocalAccountIds.includes(acc.id))
-      .forEach(acc => dispatch(unlinkAccount(acc.id)));
+      .forEach(acc => dispatch(unlinkAccount({ id: acc.id })));
 
     // Link new accounts
     Object.entries(chosenAccounts).forEach(
@@ -67,26 +80,28 @@ export function SelectLinkedAccountsModal({
         // Finally link the matched account
         if (syncSource === 'simpleFin') {
           dispatch(
-            linkAccountSimpleFin(
+            linkAccountSimpleFin({
               externalAccount,
-              chosenLocalAccountId !== addOnBudgetAccountOption.id &&
+              upgradingId:
+                chosenLocalAccountId !== addOnBudgetAccountOption.id &&
                 chosenLocalAccountId !== addOffBudgetAccountOption.id
-                ? chosenLocalAccountId
-                : undefined,
+                  ? chosenLocalAccountId
+                  : undefined,
               offBudget,
-            ),
+            }),
           );
         } else {
           dispatch(
-            linkAccount(
+            linkAccount({
               requisitionId,
-              externalAccount,
-              chosenLocalAccountId !== addOnBudgetAccountOption.id &&
+              account: externalAccount,
+              upgradingId:
+                chosenLocalAccountId !== addOnBudgetAccountOption.id &&
                 chosenLocalAccountId !== addOffBudgetAccountOption.id
-                ? chosenLocalAccountId
-                : undefined,
+                  ? chosenLocalAccountId
+                  : undefined,
               offBudget,
-            ),
+            }),
           );
         }
       },
@@ -121,11 +136,14 @@ export function SelectLinkedAccountsModal({
       {({ state: { close } }) => (
         <>
           <ModalHeader
-            title="Link Accounts"
+            title={t('Link Accounts')}
             rightContent={<ModalCloseButton onPress={close} />}
           />
           <Text style={{ marginBottom: 10 }}>
-            We found the following accounts. Select which ones you want to add:
+            <Trans>
+              We found the following accounts. Select which ones you want to
+              add:
+            </Trans>
           </Text>
           <View
             style={{
@@ -136,10 +154,10 @@ export function SelectLinkedAccountsModal({
           >
             <TableHeader
               headers={[
-                { name: 'Bank Account To Sync', width: 200 },
-                { name: 'Balance', width: 80 },
-                { name: 'Account in Actual', width: 'flex' },
-                { name: 'Actions', width: 'flex' },
+                { name: t('Bank Account To Sync'), width: 200 },
+                { name: t('Balance'), width: 80 },
+                { name: t('Account in Actual'), width: 'flex' },
+                { name: t('Actions'), width: 'flex' },
               ]}
             />
 
@@ -182,7 +200,7 @@ export function SelectLinkedAccountsModal({
               onPress={onNext}
               isDisabled={!Object.keys(chosenAccounts).length}
             >
-              Link accounts
+              <Trans>Link accounts</Trans>
             </Button>
           </View>
         </>
@@ -198,6 +216,8 @@ function TableRow({
   onSetLinkedAccount,
 }) {
   const [focusedField, setFocusedField] = useState(null);
+  const { addOnBudgetAccountOption, addOffBudgetAccountOption } =
+    useAddBudgetAccountOptions();
 
   const availableAccountOptions = [
     ...unlinkedAccounts,
@@ -243,7 +263,7 @@ function TableRow({
             }}
             style={{ float: 'right' }}
           >
-            Remove bank-sync
+            <Trans>Remove bank-sync</Trans>
           </Button>
         ) : (
           <Button
@@ -253,7 +273,7 @@ function TableRow({
             }}
             style={{ float: 'right' }}
           >
-            Setup bank-sync
+            <Trans>Set up bank-sync</Trans>
           </Button>
         )}
       </Field>

@@ -1,15 +1,22 @@
-import React, { type ComponentProps, memo, useRef, useState } from 'react';
+import React, {
+  type ComponentProps,
+  type CSSProperties,
+  memo,
+  useRef,
+} from 'react';
+import { useTranslation, Trans } from 'react-i18next';
 
-import { css } from 'glamor';
+import { css } from '@emotion/css';
 
 import { envelopeBudget } from 'loot-core/src/client/queries';
 import { evalArithmetic } from 'loot-core/src/shared/arithmetic';
 import * as monthUtils from 'loot-core/src/shared/months';
 import { integerToCurrency, amountToInteger } from 'loot-core/src/shared/util';
 
+import { useContextMenu } from '../../../hooks/useContextMenu';
 import { useUndo } from '../../../hooks/useUndo';
 import { SvgCheveronDown } from '../../../icons/v1';
-import { styles, theme, type CSSProperties } from '../../../style';
+import { styles, theme } from '../../../style';
 import { Button } from '../../common/Button2';
 import { Popover } from '../../common/Popover';
 import { Text } from '../../common/Text';
@@ -74,7 +81,9 @@ export const BudgetTotalsMonth = memo(function BudgetTotalsMonth() {
       }}
     >
       <View style={headerLabelStyle}>
-        <Text style={{ color: theme.tableHeaderText }}>Budgeted</Text>
+        <Text style={{ color: theme.tableHeaderText }}>
+          <Trans>Budgeted</Trans>
+        </Text>
         <EnvelopeCellValue
           binding={envelopeBudget.totalBudgeted}
           type="financial"
@@ -112,7 +121,9 @@ export function IncomeHeaderMonth() {
         paddingRight: 10,
       }}
     >
-      <View style={{ flex: 1, textAlign: 'right' }}>Received</View>
+      <View style={{ flex: 1, textAlign: 'right' }}>
+        <Trans>Received</Trans>
+      </View>
     </Row>
   );
 }
@@ -191,10 +202,24 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
   onBudgetAction,
   onShowActivity,
 }: ExpenseCategoryMonthProps) {
+  const { t } = useTranslation();
+
   const budgetMenuTriggerRef = useRef(null);
   const balanceMenuTriggerRef = useRef(null);
-  const [budgetMenuOpen, setBudgetMenuOpen] = useState(false);
-  const [balanceMenuOpen, setBalanceMenuOpen] = useState(false);
+  const {
+    setMenuOpen: setBudgetMenuOpen,
+    menuOpen: budgetMenuOpen,
+    handleContextMenu: handleBudgetContextMenu,
+    resetPosition: resetBudgetPosition,
+    position: budgetPosition,
+  } = useContextMenu();
+  const {
+    setMenuOpen: setBalanceMenuOpen,
+    menuOpen: balanceMenuOpen,
+    handleContextMenu: handleBalanceContextMenu,
+    resetPosition: resetBalancePosition,
+    position: balancePosition,
+  } = useContextMenu();
 
   const onMenuAction = (...args: Parameters<typeof onBudgetAction>) => {
     onBudgetAction(...args);
@@ -221,9 +246,14 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
       }}
     >
       <View
+        ref={budgetMenuTriggerRef}
         style={{
           flex: 1,
           flexDirection: 'row',
+        }}
+        onContextMenu={e => {
+          if (editing) return;
+          handleBudgetContextMenu(e);
         }}
       >
         {!editing && (
@@ -240,9 +270,11 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
             }}
           >
             <Button
-              ref={budgetMenuTriggerRef}
               variant="bare"
-              onPress={() => setBudgetMenuOpen(true)}
+              onPress={() => {
+                resetBudgetPosition(2, -4);
+                setBudgetMenuOpen(true);
+              }}
               style={{
                 padding: 3,
               }}
@@ -257,10 +289,12 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
 
             <Popover
               triggerRef={budgetMenuTriggerRef}
-              placement="bottom start"
+              placement="bottom left"
               isOpen={budgetMenuOpen}
               onOpenChange={() => setBudgetMenuOpen(false)}
               style={{ width: 200 }}
+              isNonModal
+              {...budgetPosition}
             >
               <BudgetMenu
                 onCopyLastMonthAverage={() => {
@@ -268,7 +302,7 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
                     category: category.id,
                   });
                   showUndoNotification({
-                    message: `Budget set to last month’s budget.`,
+                    message: t(`Budget set to last month’s budget.`),
                   });
                 }}
                 onSetMonthsAverage={numberOfMonths => {
@@ -284,7 +318,10 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
                     category: category.id,
                   });
                   showUndoNotification({
-                    message: `Budget set to ${numberOfMonths}-month average.`,
+                    message: t(
+                      'Budget set to {{numberOfMonths}}-month average.',
+                      { numberOfMonths },
+                    ),
                   });
                 }}
                 onApplyBudgetTemplate={() => {
@@ -292,7 +329,7 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
                     category: category.id,
                   });
                   showUndoNotification({
-                    message: `Budget template applied.`,
+                    message: t(`Budget template applied.`),
                   });
                 }}
               />
@@ -356,26 +393,36 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
             {props => (
               <CellValueText
                 {...props}
-                className={String(
-                  css({
-                    cursor: 'pointer',
-                    ':hover': { textDecoration: 'underline' },
-                    ...makeAmountGrey(props.value),
-                  }),
-                )}
+                className={css({
+                  cursor: 'pointer',
+                  ':hover': { textDecoration: 'underline' },
+                  ...makeAmountGrey(props.value),
+                })}
               />
             )}
           </EnvelopeCellValue>
         </span>
       </Field>
       <Field
+        ref={balanceMenuTriggerRef}
         name="balance"
         width="flex"
         style={{ paddingRight: styles.monthRightPadding, textAlign: 'right' }}
       >
         <span
-          ref={balanceMenuTriggerRef}
-          onClick={() => setBalanceMenuOpen(true)}
+          onClick={() => {
+            resetBalancePosition(-6, -4);
+            setBalanceMenuOpen(true);
+          }}
+          onContextMenu={e => {
+            handleBalanceContextMenu(e);
+            // We need to calculate differently from the hook ue to being aligned to the right
+            const rect = e.currentTarget.getBoundingClientRect();
+            resetBalancePosition(
+              e.clientX - rect.right + 200 - 8,
+              e.clientY - rect.bottom - 8,
+            );
+          }}
         >
           <BalanceWithCarryover
             carryover={envelopeBudget.catCarryover(category.id)}
@@ -391,7 +438,9 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
           placement="bottom end"
           isOpen={balanceMenuOpen}
           onOpenChange={() => setBalanceMenuOpen(false)}
-          style={{ width: 200 }}
+          style={{ width: 200, margin: 1 }}
+          isNonModal
+          {...balancePosition}
         >
           <BalanceMovementMenu
             categoryId={category.id}
@@ -466,12 +515,10 @@ export function IncomeCategoryMonth({
             {props => (
               <CellValueText
                 {...props}
-                className={String(
-                  css({
-                    cursor: 'pointer',
-                    ':hover': { textDecoration: 'underline' },
-                  }),
-                )}
+                className={css({
+                  cursor: 'pointer',
+                  ':hover': { textDecoration: 'underline' },
+                })}
               />
             )}
           </EnvelopeCellValue>

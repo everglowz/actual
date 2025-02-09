@@ -1,6 +1,6 @@
 import { useState, type ComponentProps, type ReactNode } from 'react';
 
-import { type CSSProperties, theme } from '../../style';
+import { theme, type CSSProperties } from '../../style';
 
 import { Input, defaultInputStyle } from './Input';
 import { View } from './View';

@@ -1,6 +1,8 @@
 // @ts-strict-ignore
 import React, { useState } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
 
+import { getSecretsError } from 'loot-core/shared/errors';
 import { send } from 'loot-core/src/platform/client/fetch';
 
 import { Error } from '../alerts';
@@ -25,30 +27,52 @@ type GoCardlessInitialiseProps = {
 export const GoCardlessInitialiseModal = ({
   onSuccess,
 }: GoCardlessInitialiseProps) => {
+  const { t } = useTranslation();
   const [secretId, setSecretId] = useState('');
   const [secretKey, setSecretKey] = useState('');
   const [isValid, setIsValid] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(
+    t('It is required to provide both the secret id and secret key.'),
+  );
 
   const onSubmit = async (close: () => void) => {
     if (!secretId || !secretKey) {
       setIsValid(false);
+      setError(
+        t('It is required to provide both the secret id and secret key.'),
+      );
       return;
     }
 
     setIsLoading(true);
 
-    await Promise.all([
-      send('secret-set', {
+    let { error, reason } =
+      (await send('secret-set', {
         name: 'gocardless_secretId',
         value: secretId,
-      }),
-      send('secret-set', {
-        name: 'gocardless_secretKey',
-        value: secretKey,
-      }),
-    ]);
+      })) || {};
 
+    if (error) {
+      setIsLoading(false);
+      setIsValid(false);
+      setError(getSecretsError(error, reason));
+      return;
+    } else {
+      ({ error, reason } =
+        (await send('secret-set', {
+          name: 'gocardless_secretKey',
+          value: secretKey,
+        })) || {});
+      if (error) {
+        setIsLoading(false);
+        setIsValid(false);
+        setError(getSecretsError(error, reason));
+        return;
+      }
+    }
+
+    setIsValid(true);
     onSuccess();
     setIsLoading(false);
     close();
@@ -59,26 +83,28 @@ export const GoCardlessInitialiseModal = ({
       {({ state: { close } }) => (
         <>
           <ModalHeader
-            title="Set-up GoCardless"
+            title={t('Set up GoCardless')}
             rightContent={<ModalCloseButton onPress={close} />}
           />
           <View style={{ display: 'flex', gap: 10 }}>
             <Text>
-              In order to enable bank-sync via GoCardless (only for EU banks)
-              you will need to create access credentials. This can be done by
-              creating an account with{' '}
-              <Link
-                variant="external"
-                to="https://actualbudget.org/docs/advanced/bank-sync/"
-                linkColor="purple"
-              >
-                GoCardless
-              </Link>
-              .
+              <Trans>
+                In order to enable bank-sync via GoCardless (only for EU banks)
+                you will need to create access credentials. This can be done by
+                creating an account with{' '}
+                <Link
+                  variant="external"
+                  to="https://actualbudget.org/docs/advanced/bank-sync/"
+                  linkColor="purple"
+                >
+                  GoCardless
+                </Link>
+                .
+              </Trans>
             </Text>
 
             <FormField>
-              <FormLabel title="Secret ID:" htmlFor="secret-id-field" />
+              <FormLabel title={t('Secret ID:')} htmlFor="secret-id-field" />
               <InitialFocus>
                 <Input
                   id="secret-id-field"
@@ -93,7 +119,7 @@ export const GoCardlessInitialiseModal = ({
             </FormField>
 
             <FormField>
-              <FormLabel title="Secret Key:" htmlFor="secret-key-field" />
+              <FormLabel title={t('Secret Key:')} htmlFor="secret-key-field" />
               <Input
                 id="secret-key-field"
                 type="password"
@@ -105,11 +131,7 @@ export const GoCardlessInitialiseModal = ({
               />
             </FormField>
 
-            {!isValid && (
-              <Error>
-                It is required to provide both the secret id and secret key.
-              </Error>
-            )}
+            {!isValid && <Error>{error}</Error>}
           </View>
 
           <ModalButtons>
@@ -120,7 +142,7 @@ export const GoCardlessInitialiseModal = ({
                 onSubmit(close);
               }}
             >
-              Save and continue
+              <Trans>Save and continue</Trans>
             </ButtonWithLoading>
           </ModalButtons>
         </>

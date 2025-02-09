@@ -4,7 +4,6 @@ import React, {
   useState,
   useCallback,
   useRef,
-  useEffect,
   useLayoutEffect,
   useImperativeHandle,
   useMemo,
@@ -16,9 +15,9 @@ import React, {
   type Ref,
   type MutableRefObject,
 } from 'react';
-import { useStore } from 'react-redux';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
+import { useModalState } from '../hooks/useModalState';
 import {
   AvoidRefocusScrollProvider,
   useProperFocus,
@@ -810,19 +809,19 @@ export function TableHeader({
   );
 }
 
-type SelectedItemsButtonProps<T extends MenuItem = MenuItem> = {
+type SelectedItemsButtonProps<Name extends string> = {
   id: string;
   name: ((count: number) => string) | string;
-  items: Array<T | typeof Menu.line>;
-  onSelect: (name: string, items: Array<string>) => void;
+  items: MenuItem<Name>[];
+  onSelect: (name: Name, items: string[]) => void;
 };
 
-export function SelectedItemsButton<T extends MenuItem = MenuItem>({
+export function SelectedItemsButton<Name extends string>({
   id,
   name,
   items,
   onSelect,
-}: SelectedItemsButtonProps<T>) {
+}: SelectedItemsButtonProps<Name>) {
   const selectedItems = useSelectedItems();
   const [menuOpen, setMenuOpen] = useState(false);
   const triggerRef = useRef(null);
@@ -1074,7 +1073,6 @@ export const Table = forwardRef(
             zIndex: editing || selected ? 101 : 'auto',
             transform: 'translateY(var(--pos))',
           }}
-          // @ts-expect-error not a recognised style attribute
           nativeStyle={{ '--pos': `${style.top - 1}px` }}
           data-focus-key={item.id}
         >
@@ -1212,7 +1210,7 @@ export const Table = forwardRef(
 // @ts-expect-error fix me
 Table.displayName = 'Table';
 
-export type TableNavigator<T extends TableItem> = {
+type TableNavigator<T extends TableItem> = {
   onEdit: (id: T['id'], field?: string) => void;
   editingId: T['id'];
   focusedField: string;
@@ -1229,17 +1227,13 @@ export function useTableNavigator<T extends TableItem>(
   const containerRef = useRef<HTMLDivElement>();
 
   // See `onBlur` for why we need this
-  const store = useStore();
-  const modalStackLength = useRef(0);
+  const modalState = useModalState();
+  const modalStackLength = useRef(modalState.modalStack.length);
 
   // onEdit is passed to children, so make sure it maintains identity
   const onEdit = useCallback((id: T['id'], field?: string) => {
     setEditingId(id);
     setFocusedField(id ? field : null);
-  }, []);
-
-  useEffect(() => {
-    modalStackLength.current = store.getState().modals.modalStack.length;
   }, []);
 
   function flashInput() {
@@ -1396,7 +1390,7 @@ export function useTableNavigator<T extends TableItem>(
         // modal just opened. This way the field still shows an
         // input, and it will be refocused when the modal closes.
         const prevNumModals = modalStackLength.current;
-        const numModals = store.getState().modals.modalStack.length;
+        const numModals = modalState.modalStack.length;
 
         if (
           document.hasFocus() &&

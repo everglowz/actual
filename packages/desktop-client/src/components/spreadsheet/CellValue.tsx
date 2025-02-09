@@ -1,7 +1,11 @@
 // @ts-strict-ignore
-import React, { type ComponentPropsWithoutRef, type ReactNode } from 'react';
+import React, {
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+  type CSSProperties,
+} from 'react';
 
-import { type CSSProperties, styles } from '../../style';
+import { styles } from '../../style';
 import { Text } from '../common/Text';
 import { PrivacyFilter } from '../PrivacyFilter';
 
@@ -40,7 +44,7 @@ export function CellValue<
   const { fullSheetName } = useSheetName(binding);
   const sheetValue = useSheetValue(binding);
 
-  return children ? (
+  return typeof children === 'function' ? (
     <>{children({ type, name: fullSheetName, value: sheetValue })}</>
   ) : (
     <CellValueText

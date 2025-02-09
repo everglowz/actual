@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { type CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import {
   mapField,
@@ -14,7 +15,7 @@ import {
   type PrependNoteRuleActionEntity,
 } from 'loot-core/src/types/models';
 
-import { type CSSProperties, theme } from '../../style';
+import { theme } from '../../style';
 import { Text } from '../common/Text';
 import { View } from '../common/View';
 
@@ -66,12 +67,20 @@ function SetActionExpression({
   value,
   options,
 }: SetRuleActionEntity) {
+  const { t } = useTranslation();
   return (
     <>
       <Text>{friendlyOp(op)}</Text>{' '}
       <Text style={valueStyle}>{mapField(field, options)}</Text>{' '}
-      <Text>to </Text>
-      <Value style={valueStyle} value={value} field={field} />
+      <Text>{t('to ')}</Text>
+      {options?.template ? (
+        <>
+          <Text>{t('template ')}</Text>
+          <Text style={valueStyle}>{options.template}</Text>
+        </>
+      ) : (
+        <Value style={valueStyle} value={value} field={field} />
+      )}
     </>
   );
 }
