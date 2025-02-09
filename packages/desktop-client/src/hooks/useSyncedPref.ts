@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 
 import { saveSyncedPrefs } from 'loot-core/client/actions';
 import { type SyncedPrefs } from 'loot-core/src/types/prefs';
