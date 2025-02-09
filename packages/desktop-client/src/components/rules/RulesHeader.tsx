@@ -1,9 +1,11 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useSelectedItems, useSelectedDispatch } from '../../hooks/useSelected';
 import { SelectCell, Cell, TableHeader } from '../table';
 
 export function RulesHeader() {
+  const { t } = useTranslation();
   const selectedItems = useSelectedItems();
   const dispatchSelected = useSelectedDispatch();
 
@@ -17,8 +19,8 @@ export function RulesHeader() {
           dispatchSelected({ type: 'select-all', isRangeSelect: e.shiftKey })
         }
       />
-      <Cell value="Stage" width={50} />
-      <Cell value="Rule" width="flex" />
+      <Cell value={t('Stage')} width={50} />
+      <Cell value={t('Rule')} width="flex" />
     </TableHeader>
   );
 }

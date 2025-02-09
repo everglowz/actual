@@ -10,6 +10,7 @@ playwright-report
 
 # production
 build
+build-electron
 build-stats
 stats.json
 
@@ -24,3 +25,6 @@ public/kcab
 public/data
 public/data-file-index.txt
 public/*.wasm
+
+# translations
+locale/

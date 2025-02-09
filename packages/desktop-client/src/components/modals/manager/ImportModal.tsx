@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { pushModal } from 'loot-core/client/actions';
 
+import { useDispatch } from '../../../redux';
 import { styles, theme } from '../../../style';
 import { Block } from '../../common/Block';
 import { Button } from '../../common/Button2';
@@ -15,11 +16,13 @@ function getErrorMessage(error: 'not-ynab4' | boolean) {
     case 'not-ynab4':
       return 'This file is not valid. Please select a .ynab4 file';
     default:
-      return 'An unknown error occurred while importing. Please report this as a new issue on Github.';
+      return 'An unknown error occurred while importing. Please report this as a new issue on GitHub.';
   }
 }
 
 export function ImportModal() {
+  const { t } = useTranslation();
+
   const dispatch = useDispatch();
   const [error] = useState(false);
 
@@ -51,7 +54,7 @@ export function ImportModal() {
       {({ state: { close } }) => (
         <>
           <ModalHeader
-            title="Import From"
+            title={t('Import From')}
             rightContent={<ModalCloseButton onPress={close} />}
           />
           <View style={{ ...styles.smallText, lineHeight: 1.5 }}>
@@ -69,19 +72,23 @@ export function ImportModal() {
             <Button style={itemStyle} onPress={() => onSelectType('ynab4')}>
               <span style={{ fontWeight: 700 }}>YNAB4</span>
               <View style={{ color: theme.pageTextLight }}>
-                The old unsupported desktop app
+                <Trans>The old unsupported desktop app</Trans>
               </View>
             </Button>
             <Button style={itemStyle} onPress={() => onSelectType('ynab5')}>
               <span style={{ fontWeight: 700 }}>nYNAB</span>
               <View style={{ color: theme.pageTextLight }}>
-                <div>The newer web app</div>
+                <div>
+                  <Trans>The newer web app</Trans>
+                </div>
               </View>
             </Button>
             <Button style={itemStyle} onPress={() => onSelectType('actual')}>
               <span style={{ fontWeight: 700 }}>Actual</span>
               <View style={{ color: theme.pageTextLight }}>
-                <div>Import a file exported from Actual</div>
+                <div>
+                  <Trans>Import a file exported from Actual</Trans>
+                </div>
               </View>
             </Button>
           </View>

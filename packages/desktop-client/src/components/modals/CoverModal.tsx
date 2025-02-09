@@ -1,10 +1,11 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { pushModal } from 'loot-core/client/actions';
 import { type CategoryEntity } from 'loot-core/src/types/models';
 
 import { useCategories } from '../../hooks/useCategories';
+import { useDispatch } from '../../redux';
 import { styles } from '../../style';
 import {
   addToBeBudgetedGroup,
@@ -30,6 +31,8 @@ export function CoverModal({
   showToBeBudgeted = true,
   onSubmit,
 }: CoverModalProps) {
+  const { t } = useTranslation();
+
   const { grouped: originalCategoryGroups } = useCategories();
   const [categoryGroups, categories] = useMemo(() => {
     const expenseGroups = originalCategoryGroups.filter(g => !g.is_income);
@@ -77,7 +80,7 @@ export function CoverModal({
             rightContent={<ModalCloseButton onPress={close} />}
           />
           <View>
-            <FieldLabel title="Cover from category:" />
+            <FieldLabel title={t('Cover from a category:')} />
             <TapField value={fromCategory?.name} onClick={onCategoryClick} />
           </View>
 
@@ -100,7 +103,7 @@ export function CoverModal({
                 close();
               }}
             >
-              Transfer
+              <Trans>Transfer</Trans>
             </Button>
           </View>
         </>

@@ -13,6 +13,10 @@ export interface BudgetHandlers {
 
   'budget/set-3month-avg': (arg: { month: string }) => Promise<void>;
 
+  'budget/set-6month-avg': (arg: { month: string }) => Promise<void>;
+
+  'budget/set-12month-avg': (arg: { month: string }) => Promise<void>;
+
   'budget/check-templates': () => Promise<Notification>;
 
   'budget/apply-goal-template': (arg: {
@@ -79,4 +83,9 @@ export interface BudgetHandlers {
     month: string;
     category: string; //category id
   }) => Promise<void>;
+
+  'budget/apply-multiple-templates': (arg: {
+    month: string;
+    categoryIds: string[];
+  }) => Promise<Notification>;
 }

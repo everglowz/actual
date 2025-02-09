@@ -1,4 +1,7 @@
 import React from 'react';
+import { Trans } from 'react-i18next';
+
+import { type TransObjectLiteral } from 'loot-core/types/util';
 
 import { theme } from '../../style/theme';
 import { Button } from '../common/Button2';
@@ -21,9 +24,14 @@ export function SaveReportDelete({
     <>
       <View style={{ align: 'center' }}>
         <Text style={{ color: theme.errorText, marginBottom: 5 }}>
-          Are you sure you want to delete report:
+          <Trans>
+            Are you sure you want to delete the report named{' ‘'}
+            <Text style={{ display: 'inline' }}>
+              {{ name } as TransObjectLiteral}
+            </Text>
+            ’?
+          </Trans>
         </Text>
-        <View>{name}</View>
       </View>
 
       <Stack
@@ -34,10 +42,10 @@ export function SaveReportDelete({
       >
         <View style={{ flex: 1 }} />
         <Button variant="primary" autoFocus onPress={onDelete}>
-          Yes
+          <Trans>Yes</Trans>
         </Button>
         <Button variant="primary" onPress={onClose}>
-          No
+          <Trans>No</Trans>
         </Button>
       </Stack>
     </>

@@ -1,9 +1,11 @@
 // @ts-strict-ignore
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { importBudget } from 'loot-core/src/client/actions/budgets';
 
+import { useNavigate } from '../../../hooks/useNavigate';
+import { useDispatch } from '../../../redux';
 import { styles, theme } from '../../../style';
 import { Block } from '../../common/Block';
 import { ButtonWithLoading } from '../../common/Button2';
@@ -24,17 +26,19 @@ function getErrorMessage(error: string): string {
     case 'invalid-metadata-file':
       return 'The metadata file in the given archive is corrupted.';
     default:
-      return 'An unknown error occurred while importing. Please report this as a new issue on Github.';
+      return 'An unknown error occurred while importing. Please report this as a new issue on GitHub.';
   }
 }
 
 export function ImportActualModal() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const [error, setError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
 
   async function onImport() {
-    const res = await window.Actual?.openFileDialog({
+    const res = await window.Actual.openFileDialog({
       properties: ['openFile'],
       filters: [{ name: 'actual', extensions: ['zip', 'blob'] }],
     });
@@ -43,6 +47,7 @@ export function ImportActualModal() {
       setError(null);
       try {
         await dispatch(importBudget(res[0], 'actual'));
+        navigate('/budget');
       } catch (err) {
         setError(err.message);
       } finally {
@@ -56,7 +61,7 @@ export function ImportActualModal() {
       {({ state: { close } }) => (
         <>
           <ModalHeader
-            title="Import from Actual export"
+            title={t('Import from Actual export')}
             rightContent={<ModalCloseButton onPress={close} />}
           />
           <View style={{ ...styles.smallText, lineHeight: 1.5, marginTop: 20 }}>
@@ -68,15 +73,19 @@ export function ImportActualModal() {
 
             <View style={{ '& > div': { lineHeight: '1.7em' } }}>
               <Paragraph>
-                You can import data from another Actual account or instance.
-                First export your data from a different account, and it will
-                give you a compressed file. This file is a simple zip file that
-                contains the <code>db.sqlite</code> and{' '}
-                <code>metadata.json</code> files.
+                <Trans>
+                  You can import data from another Actual account or instance.
+                  First export your data from a different account, and it will
+                  give you a compressed file. This file is a simple zip file
+                  that contains the <code>db.sqlite</code> and{' '}
+                  <code>metadata.json</code> files.
+                </Trans>
               </Paragraph>
 
               <Paragraph>
-                Select one of these compressed files and import it here.
+                <Trans>
+                  Select one of these compressed files and import it here.
+                </Trans>
               </Paragraph>
 
               <View style={{ alignSelf: 'center' }}>
@@ -86,7 +95,7 @@ export function ImportActualModal() {
                   isLoading={importing}
                   onPress={onImport}
                 >
-                  Select file...
+                  <Trans>Select file...</Trans>
                 </ButtonWithLoading>
               </View>
             </View>

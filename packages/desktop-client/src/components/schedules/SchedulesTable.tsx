@@ -13,6 +13,7 @@ import { integerToCurrency } from 'loot-core/src/shared/util';
 import { type ScheduleEntity } from 'loot-core/src/types/models';
 
 import { useAccounts } from '../../hooks/useAccounts';
+import { useContextMenu } from '../../hooks/useContextMenu';
 import { useDateFormat } from '../../hooks/useDateFormat';
 import { usePayees } from '../../hooks/usePayees';
 import { SvgDotsHorizontalTriple } from '../../icons/v1';
@@ -30,7 +31,8 @@ import { DisplayId } from '../util/DisplayId';
 import { StatusBadge } from './StatusBadge';
 
 type SchedulesTableProps = {
-  schedules: ScheduleEntity[];
+  isLoading?: boolean;
+  schedules: readonly ScheduleEntity[];
   statuses: ScheduleStatuses;
   filter: string;
   allowCompleted: boolean;
@@ -64,15 +66,12 @@ function OverflowMenu({
 }) {
   const { t } = useTranslation();
 
-  const triggerRef = useRef(null);
-  const [open, setOpen] = useState(false);
-
   const getMenuItems = () => {
     const menuItems: { name: ScheduleItemAction; text: string }[] = [];
 
     menuItems.push({
       name: 'post-transaction',
-      text: t('Post transaction'),
+      text: t('Post transaction today'),
     });
 
     if (status === 'completed') {
@@ -84,7 +83,7 @@ function OverflowMenu({
       menuItems.push(
         {
           name: 'skip',
-          text: t('Skip next date'),
+          text: t('Skip next scheduled date'),
         },
         {
           name: 'complete',
@@ -99,36 +98,12 @@ function OverflowMenu({
   };
 
   return (
-    <View>
-      <Button
-        ref={triggerRef}
-        variant="bare"
-        aria-label={t('Menu')}
-        onPress={() => {
-          setOpen(true);
-        }}
-      >
-        <SvgDotsHorizontalTriple
-          width={15}
-          height={15}
-          style={{ transform: 'rotateZ(90deg)' }}
-        />
-      </Button>
-
-      <Popover
-        triggerRef={triggerRef}
-        isOpen={open}
-        onOpenChange={() => setOpen(false)}
-      >
-        <Menu
-          onMenuSelect={name => {
-            onAction(name, schedule.id);
-            setOpen(false);
-          }}
-          items={getMenuItems()}
-        />
-      </Popover>
-    </View>
+    <Menu
+      onMenuSelect={name => {
+        onAction(name, schedule.id);
+      }}
+      items={getMenuItems()}
+    />
   );
 }
 
@@ -196,7 +171,126 @@ export function ScheduleAmountCell({
   );
 }
 
+function ScheduleRow({
+  schedule,
+  onAction,
+  onSelect,
+  minimal,
+  statuses,
+  dateFormat,
+}: { schedule: ScheduleEntity; dateFormat: string } & Pick<
+  SchedulesTableProps,
+  'onSelect' | 'onAction' | 'minimal' | 'statuses'
+>) {
+  const { t } = useTranslation();
+
+  const rowRef = useRef(null);
+  const buttonRef = useRef(null);
+  const {
+    setMenuOpen,
+    menuOpen,
+    handleContextMenu,
+    resetPosition,
+    position,
+    asContextMenu,
+  } = useContextMenu();
+
+  return (
+    <Row
+      ref={rowRef}
+      height={ROW_HEIGHT}
+      inset={15}
+      onClick={() => onSelect(schedule.id)}
+      style={{
+        cursor: 'pointer',
+        backgroundColor: theme.tableBackground,
+        color: theme.tableText,
+        ':hover': { backgroundColor: theme.tableRowBackgroundHover },
+      }}
+      onContextMenu={handleContextMenu}
+    >
+      {!minimal && (
+        <Popover
+          triggerRef={asContextMenu ? rowRef : buttonRef}
+          isOpen={menuOpen}
+          onOpenChange={() => setMenuOpen(false)}
+          isNonModal
+          placement="bottom start"
+          {...position}
+          style={{ margin: 1 }}
+        >
+          <OverflowMenu
+            schedule={schedule}
+            status={statuses.get(schedule.id)}
+            onAction={(action, id) => {
+              onAction(action, id);
+              resetPosition();
+              setMenuOpen(false);
+            }}
+          />
+        </Popover>
+      )}
+      <Field width="flex" name="name">
+        <Text
+          style={
+            schedule.name == null
+              ? { color: theme.buttonNormalDisabledText }
+              : null
+          }
+          title={schedule.name ? schedule.name : ''}
+        >
+          {schedule.name ? schedule.name : t('None')}
+        </Text>
+      </Field>
+      <Field width="flex" name="payee">
+        <DisplayId type="payees" id={schedule._payee} />
+      </Field>
+      <Field width="flex" name="account">
+        <DisplayId type="accounts" id={schedule._account} />
+      </Field>
+      <Field width={110} name="date">
+        {schedule.next_date
+          ? monthUtilFormat(schedule.next_date, dateFormat)
+          : null}
+      </Field>
+      <Field width={120} name="status" style={{ alignItems: 'flex-start' }}>
+        <StatusBadge status={statuses.get(schedule.id)} />
+      </Field>
+      <ScheduleAmountCell amount={schedule._amount} op={schedule._amountOp} />
+      {!minimal && (
+        <Field width={80} style={{ textAlign: 'center' }}>
+          {schedule._date && schedule._date.frequency && (
+            <SvgCheck style={{ width: 13, height: 13 }} />
+          )}
+        </Field>
+      )}
+      {!minimal && (
+        <Field width={40} name="actions">
+          <View>
+            <Button
+              ref={buttonRef}
+              variant="bare"
+              aria-label={t('Menu')}
+              onPress={() => {
+                resetPosition();
+                setMenuOpen(true);
+              }}
+            >
+              <SvgDotsHorizontalTriple
+                width={15}
+                height={15}
+                style={{ transform: 'rotateZ(90deg)' }}
+              />
+            </Button>
+          </View>
+        </Field>
+      )}
+    </Row>
+  );
+}
+
 export function SchedulesTable({
+  isLoading,
   schedules,
   statuses,
   filter,
@@ -250,7 +344,7 @@ export function SchedulesTable({
     });
   }, [payees, accounts, schedules, filter, statuses]);
 
-  const items: SchedulesTableItem[] = useMemo(() => {
+  const items: readonly SchedulesTableItem[] = useMemo(() => {
     const unCompletedSchedules = filteredSchedules.filter(s => !s.completed);
 
     if (!allowCompleted) {
@@ -266,66 +360,6 @@ export function SchedulesTable({
 
     return [...unCompletedSchedules, { id: 'show-completed' }];
   }, [filteredSchedules, showCompleted, allowCompleted]);
-
-  function renderSchedule({ schedule }: { schedule: ScheduleEntity }) {
-    return (
-      <Row
-        height={ROW_HEIGHT}
-        inset={15}
-        onClick={() => onSelect(schedule.id)}
-        style={{
-          cursor: 'pointer',
-          backgroundColor: theme.tableBackground,
-          color: theme.tableText,
-          ':hover': { backgroundColor: theme.tableRowBackgroundHover },
-        }}
-      >
-        <Field width="flex" name="name">
-          <Text
-            style={
-              schedule.name == null
-                ? { color: theme.buttonNormalDisabledText }
-                : null
-            }
-            title={schedule.name ? schedule.name : ''}
-          >
-            {schedule.name ? schedule.name : t('None')}
-          </Text>
-        </Field>
-        <Field width="flex" name="payee">
-          <DisplayId type="payees" id={schedule._payee} />
-        </Field>
-        <Field width="flex" name="account">
-          <DisplayId type="accounts" id={schedule._account} />
-        </Field>
-        <Field width={110} name="date">
-          {schedule.next_date
-            ? monthUtilFormat(schedule.next_date, dateFormat)
-            : null}
-        </Field>
-        <Field width={120} name="status" style={{ alignItems: 'flex-start' }}>
-          <StatusBadge status={statuses.get(schedule.id)} />
-        </Field>
-        <ScheduleAmountCell amount={schedule._amount} op={schedule._amountOp} />
-        {!minimal && (
-          <Field width={80} style={{ textAlign: 'center' }}>
-            {schedule._date && schedule._date.frequency && (
-              <SvgCheck style={{ width: 13, height: 13 }} />
-            )}
-          </Field>
-        )}
-        {!minimal && (
-          <Field width={40} name="actions">
-            <OverflowMenu
-              schedule={schedule}
-              status={statuses.get(schedule.id)}
-              onAction={onAction}
-            />
-          </Field>
-        )}
-      </Row>
-    );
-  }
 
   function renderItem({ item }: { item: SchedulesTableItem }) {
     if (item.id === 'show-completed') {
@@ -353,7 +387,12 @@ export function SchedulesTable({
         </Row>
       );
     }
-    return renderSchedule({ schedule: item as ScheduleEntity });
+    return (
+      <ScheduleRow
+        schedule={item as ScheduleEntity}
+        {...{ statuses, dateFormat, onSelect, onAction, minimal }}
+      />
+    );
   }
 
   return (
@@ -385,6 +424,7 @@ export function SchedulesTable({
         {!minimal && <Field width={40} />}
       </TableHeader>
       <Table
+        loading={isLoading}
         rowHeight={ROW_HEIGHT}
         backgroundColor="transparent"
         style={{ flex: 1, backgroundColor: 'transparent', ...style }}

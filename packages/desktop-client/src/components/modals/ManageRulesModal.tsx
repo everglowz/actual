@@ -1,5 +1,6 @@
 // @ts-strict-ignore
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { isNonProductionEnvironment } from 'loot-core/src/shared/environment';
@@ -12,6 +13,7 @@ type ManageRulesModalProps = {
 };
 
 export function ManageRulesModal({ payeeId }: ManageRulesModalProps) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const location = useLocation();
   if (isNonProductionEnvironment()) {
@@ -27,7 +29,7 @@ export function ManageRulesModal({ payeeId }: ManageRulesModalProps) {
       {({ state: { close } }) => (
         <>
           <ModalHeader
-            title="Rules"
+            title={t('Rules')}
             rightContent={<ModalCloseButton onPress={close} />}
           />
           <ManageRules isModal payeeId={payeeId} setLoading={setLoading} />

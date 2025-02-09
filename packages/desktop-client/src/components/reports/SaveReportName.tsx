@@ -1,5 +1,6 @@
 import React, { type RefObject, useEffect } from 'react';
 import { Form } from 'react-aria-components';
+import { useTranslation } from 'react-i18next';
 
 import { type CustomReportEntity } from 'loot-core/types/models/reports';
 
@@ -36,6 +37,8 @@ export function SaveReportName({
   err,
   report,
 }: SaveReportNameProps) {
+  const { t } = useTranslation();
+
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.focus();
@@ -62,7 +65,7 @@ export function SaveReportName({
           >
             <FormField style={{ flex: 1 }}>
               <FormLabel
-                title="Report Name"
+                title={t('Report Name')}
                 htmlFor="name-field"
                 style={{ userSelect: 'none' }}
               />

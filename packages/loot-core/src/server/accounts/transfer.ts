@@ -26,11 +26,16 @@ async function clearCategory(transaction, transferAcct) {
     [transferAcct],
   );
 
-  // We should clear the category to make sure it's not being
-  // accounted for in the budget, unless it should be in the case of
-  // transferring from an on-budget to off-budget account
+  // If the transfer is between two on budget or two off budget accounts,
+  // we should clear the category, because the category is not relevant
   if (fromOffBudget === toOffBudget) {
     await db.updateTransaction({ id: transaction.id, category: null });
+    if (transaction.transfer_id) {
+      await db.updateTransaction({
+        id: transaction.transfer_id,
+        category: null,
+      });
+    }
     return true;
   }
   return false;
@@ -49,29 +54,6 @@ export async function addTransfer(transaction, transferredAccount) {
     'SELECT id FROM payees WHERE transfer_acct = ?',
     [transaction.account],
   );
-
-  // We need to enforce certain constraints with child transaction transfers
-  if (transaction.parent_id) {
-    const row = await db.first(
-      `
-        SELECT p.id, p.transfer_acct FROM v_transactions t
-        LEFT JOIN payees p ON p.id = t.payee
-        WHERE t.id = ?
-      `,
-      [transaction.parent_id],
-    );
-
-    if (row.transfer_acct) {
-      if (row.id !== transaction.payee) {
-        // This child transaction is trying to use a transfer payee,
-        // but the parent is already using a different transfer payee.
-        // This is not allowed, so not only do we do nothing, we clear
-        // the payee of the child transaction to make it clear
-        await db.updateTransaction({ id: transaction.id, payee: null });
-        return { id: transaction.id, payee: null };
-      }
-    }
-  }
 
   const id = await db.insertTransaction({
     account: transferredAccount,

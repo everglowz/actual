@@ -1,8 +1,10 @@
 // @ts-strict-ignore
-import React, { type CSSProperties, useRef, useState } from 'react';
+import React, { type CSSProperties, useRef } from 'react';
 import { type ConnectDragSource } from 'react-dnd';
 import { useTranslation } from 'react-i18next';
 
+import { useContextMenu } from '../../hooks/useContextMenu';
+import { useFeatureFlag } from '../../hooks/useFeatureFlag';
 import { SvgExpandArrow } from '../../icons/v0';
 import { SvgCheveronDown } from '../../icons/v1';
 import { theme } from '../../style';
@@ -32,6 +34,7 @@ type SidebarGroupProps = {
   onEdit?: (id: string) => void;
   onSave?: (group: object) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
+  onApplyBudgetTemplatesInGroup?: (categories: object[]) => void;
   onShowNewCategory?: (groupId: string) => void;
   onHideNewGroup?: () => void;
   onToggleCollapse?: (id: string) => void;
@@ -47,14 +50,17 @@ export function SidebarGroup({
   onEdit,
   onSave,
   onDelete,
+  onApplyBudgetTemplatesInGroup,
   onShowNewCategory,
   onHideNewGroup,
   onToggleCollapse,
 }: SidebarGroupProps) {
   const { t } = useTranslation();
+  const isGoalTemplatesEnabled = useFeatureFlag('goalTemplatesEnabled');
 
   const temporary = group.id === 'new';
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { setMenuOpen, menuOpen, handleContextMenu, resetPosition, position } =
+    useContextMenu();
   const triggerRef = useRef(null);
 
   const displayed = (
@@ -64,10 +70,13 @@ export function SidebarGroup({
         alignItems: 'center',
         userSelect: 'none',
         WebkitUserSelect: 'none',
+        height: 20,
       }}
+      ref={triggerRef}
       onClick={() => {
         onToggleCollapse(group.id);
       }}
+      onContextMenu={handleContextMenu}
     >
       {!dragPreview && (
         <SvgExpandArrow
@@ -95,11 +104,14 @@ export function SidebarGroup({
       </div>
       {!dragPreview && (
         <>
-          <View style={{ marginLeft: 5, flexShrink: 0 }} ref={triggerRef}>
+          <View style={{ marginLeft: 5, flexShrink: 0 }}>
             <Button
               variant="bare"
               className="hover-visible"
-              onPress={() => setMenuOpen(true)}
+              onPress={() => {
+                resetPosition();
+                setMenuOpen(true);
+              }}
               style={{ padding: 3 }}
             >
               <SvgCheveronDown width={14} height={14} />
@@ -110,7 +122,9 @@ export function SidebarGroup({
               placement="bottom start"
               isOpen={menuOpen}
               onOpenChange={() => setMenuOpen(false)}
-              style={{ width: 200 }}
+              style={{ width: 200, margin: 1 }}
+              isNonModal
+              {...position}
             >
               <Menu
                 onMenuSelect={type => {
@@ -122,6 +136,12 @@ export function SidebarGroup({
                     onDelete(group.id);
                   } else if (type === 'toggle-visibility') {
                     onSave({ ...group, hidden: !group.hidden });
+                  } else if (type === 'apply-multiple-category-template') {
+                    onApplyBudgetTemplatesInGroup?.(
+                      group.categories
+                        .filter(c => !c['hidden'])
+                        .map(c => c['id']),
+                    );
                   }
                   setMenuOpen(false);
                 }}
@@ -130,9 +150,17 @@ export function SidebarGroup({
                   { name: 'rename', text: t('Rename') },
                   !group.is_income && {
                     name: 'toggle-visibility',
-                    text: group.hidden ? t('Show') : t('Hide'),
+                    text: group.hidden ? 'Show' : 'Hide',
                   },
                   onDelete && { name: 'delete', text: t('Delete') },
+                  ...(isGoalTemplatesEnabled
+                    ? [
+                        {
+                          name: 'apply-multiple-category-template',
+                          text: t('Apply budget templates'),
+                        },
+                      ]
+                    : []),
                 ]}
               />
             </Popover>
@@ -200,7 +228,7 @@ export function SidebarGroup({
         style={{ fontWeight: 600 }}
         inputProps={{
           style: { marginLeft: 20 },
-          placeholder: temporary ? t('New Group Name') : '',
+          placeholder: temporary ? t('New group name') : '',
         }}
       />
     </View>

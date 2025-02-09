@@ -1,16 +1,16 @@
 import React, { type ReactNode, useEffect } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
 
-import { media } from 'glamor';
+import { css } from '@emotion/css';
 
+import { closeBudget, loadPrefs } from 'loot-core/client/actions';
+import { isElectron } from 'loot-core/shared/environment';
 import { listen } from 'loot-core/src/platform/client/fetch';
-import { isElectron } from 'loot-core/src/shared/environment';
 
-import { useActions } from '../../hooks/useActions';
-import { useFeatureFlag } from '../../hooks/useFeatureFlag';
 import { useGlobalPref } from '../../hooks/useGlobalPref';
-import { useLatestVersion, useIsOutdated } from '../../hooks/useLatestVersion';
+import { useIsOutdated, useLatestVersion } from '../../hooks/useLatestVersion';
 import { useMetadataPref } from '../../hooks/useMetadataPref';
-import { useResponsive } from '../../ResponsiveProvider';
+import { useDispatch } from '../../redux';
 import { theme } from '../../style';
 import { tokens } from '../../tokens';
 import { Button } from '../common/Button2';
@@ -21,15 +21,18 @@ import { View } from '../common/View';
 import { FormField, FormLabel } from '../forms';
 import { MOBILE_NAV_HEIGHT } from '../mobile/MobileNavTabs';
 import { Page } from '../Page';
+import { useResponsive } from '../responsive/ResponsiveProvider';
 import { useServerVersion } from '../ServerContext';
 
+import { AuthSettings } from './AuthSettings';
+import { Backups } from './Backups';
 import { BudgetTypeSettings } from './BudgetTypeSettings';
 import { EncryptionSettings } from './Encryption';
 import { ExperimentalFeatures } from './Experimental';
 import { ExportBudget } from './Export';
-import { FixSplits } from './FixSplits';
 import { FormatSettings } from './Format';
-import { GlobalSettings } from './Global';
+import { LanguageSettings } from './LanguageSettings';
+import { RepairTransactions } from './RepairTransactions';
 import { ResetCache, ResetSync } from './Reset';
 import { ThemeSettings } from './Themes';
 import { AdvancedToggle, Setting } from './UI';
@@ -42,36 +45,46 @@ function About() {
   return (
     <Setting>
       <Text>
-        <strong>Actual</strong> is a super fast privacy-focused app for managing
-        your finances.
+        <Trans>
+          <strong>Actual</strong> is a super fast privacy-focused app for
+          managing your finances.
+        </Trans>
       </Text>
       <View
         style={{
           flexDirection: 'column',
           gap: 10,
         }}
-        className={`${media(`(min-width: ${tokens.breakpoint_small})`, {
-          display: 'grid',
-          gridTemplateRows: '1fr 1fr',
-          gridTemplateColumns: '50% 50%',
-          columnGap: '2em',
-          gridAutoFlow: 'column',
-        })}`}
+        className={css({
+          [`@media (min-width: ${tokens.breakpoint_small})`]: {
+            display: 'grid',
+            gridTemplateRows: '1fr 1fr',
+            gridTemplateColumns: '50% 50%',
+            columnGap: '2em',
+            gridAutoFlow: 'column',
+          },
+        })}
         data-vrt-mask
       >
-        <Text>Client version: v{window.Actual?.ACTUAL_VERSION}</Text>
-        <Text>Server version: {version}</Text>
+        <Text>
+          <Trans>
+            Client version: {{ version: `v${window.Actual?.ACTUAL_VERSION}` }}
+          </Trans>
+        </Text>
+        <Text>
+          <Trans>Server version: {{ version }}</Trans>
+        </Text>
         {isOutdated ? (
           <Link
             variant="external"
             to="https://actualbudget.org/docs/releases"
             linkColor="purple"
           >
-            New version available: {latestVersion}
+            <Trans>New version available: {{ latestVersion }}</Trans>
           </Link>
         ) : (
           <Text style={{ color: theme.noticeText, fontWeight: 600 }}>
-            You’re up to date!
+            <Trans>You’re up to date!</Trans>
           </Text>
         )}
         <Text>
@@ -80,7 +93,7 @@ function About() {
             to="https://actualbudget.org/docs/releases"
             linkColor="purple"
           >
-            Release Notes
+            <Trans>Release Notes</Trans>
           </Link>
         </Text>
       </View>
@@ -99,16 +112,22 @@ function AdvancedAbout() {
   return (
     <Setting>
       <Text>
-        <strong>IDs</strong> are the names Actual uses to identify your budget
-        internally. There are several different IDs associated with your budget.
-        The Budget ID is used to identify your budget file. The Sync ID is used
-        to access the budget on the server.
+        <Trans>
+          <strong>IDs</strong> are the names Actual uses to identify your budget
+          internally. There are several different IDs associated with your
+          budget. The Budget ID is used to identify your budget file. The Sync
+          ID is used to access the budget on the server.
+        </Trans>
       </Text>
       <Text>
-        <IDName>Budget ID:</IDName> {budgetId}
+        <Trans>
+          <IDName>Budget ID:</IDName> {{ budgetId }}
+        </Trans>
       </Text>
       <Text style={{ color: theme.pageText }}>
-        <IDName>Sync ID:</IDName> {groupId || '(none)'}
+        <Trans>
+          <IDName>Sync ID:</IDName> {{ syncId: groupId || '(none)' }}
+        </Trans>
       </Text>
       {/* low priority todo: eliminate some or all of these, or decide when/if to show them */}
       {/* <Text>
@@ -122,31 +141,36 @@ function AdvancedAbout() {
 }
 
 export function Settings() {
+  const { t } = useTranslation();
   const [floatingSidebar] = useGlobalPref('floatingSidebar');
   const [budgetName] = useMetadataPref('budgetName');
+  const dispatch = useDispatch();
 
-  const { loadPrefs, closeBudget } = useActions();
+  const onCloseBudget = () => {
+    dispatch(closeBudget());
+  };
 
   useEffect(() => {
     const unlisten = listen('prefs-updated', () => {
-      loadPrefs();
+      dispatch(loadPrefs());
     });
 
-    loadPrefs();
+    dispatch(loadPrefs());
     return () => unlisten();
-  }, [loadPrefs]);
+  }, [dispatch]);
 
   const { isNarrowWidth } = useResponsive();
 
   return (
     <Page
-      header="Settings"
+      header={t('Settings')}
       style={{
         marginInline: floatingSidebar && !isNarrowWidth ? 'auto' : 0,
         paddingBottom: MOBILE_NAV_HEIGHT,
       }}
     >
       <View
+        data-testid="settings"
         style={{
           marginTop: 10,
           flexShrink: 0,
@@ -160,28 +184,32 @@ export function Settings() {
           >
             {/* The only spot to close a budget on mobile */}
             <FormField>
-              <FormLabel title="Budget Name" />
+              <FormLabel title={t('Budget name')} />
               <Input
                 value={budgetName}
                 disabled
                 style={{ color: theme.buttonNormalDisabledText }}
               />
             </FormField>
-            <Button onPress={closeBudget}>Close Budget</Button>
+            <Button onPress={onCloseBudget}>
+              <Trans>Close budget</Trans>
+            </Button>
           </View>
         )}
         <About />
-        {isElectron() && <GlobalSettings />}
         <ThemeSettings />
         <FormatSettings />
+        <LanguageSettings />
+        <AuthSettings />
         <EncryptionSettings />
-        {useFeatureFlag('reportBudget') && <BudgetTypeSettings />}
+        <BudgetTypeSettings />
+        {isElectron() && <Backups />}
         <ExportBudget />
         <AdvancedToggle>
           <AdvancedAbout />
           <ResetCache />
           <ResetSync />
-          <FixSplits />
+          <RepairTransactions />
           <ExperimentalFeatures />
         </AdvancedToggle>
       </View>

@@ -45,6 +45,16 @@ export function createSpendingSpreadsheet({
     const { filters } = await send('make-filters-from-conditions', {
       conditions: conditions.filter(cond => !cond.customName),
     });
+
+    const { filters: budgetFilters } = await send(
+      'make-filters-from-conditions',
+      {
+        conditions: conditions.filter(
+          cond => !cond.customName && cond.field === 'category',
+        ),
+      },
+    );
+
     const conditionsOpKey = conditionsOp === 'or' ? '$or' : '$and';
 
     const [assets, debts] = await Promise.all([
@@ -109,7 +119,7 @@ export function createSpendingSpreadsheet({
             $and: [{ month: { $eq: budgetMonth } }],
           })
           .filter({
-            [conditionsOpKey]: filters.filter(filter => filter.category),
+            [conditionsOpKey]: budgetFilters,
           })
           .groupBy([{ $id: '$category' }])
           .select([
@@ -194,7 +204,11 @@ export function createSpendingSpreadsheet({
               }
               return null;
             });
-            if (month.month >= startDate && month.month < compare) {
+
+            if (
+              month.month >= monthUtils.monthFromDate(startDate) &&
+              month.month < compare
+            ) {
               if (day === '28') {
                 if (monthUtils.getMonthEnd(intervalItem) === intervalItem) {
                   averageSum += cumulativeAssets + cumulativeDebts;
@@ -223,7 +237,7 @@ export function createSpendingSpreadsheet({
           return arr;
         }, []);
         const maxCumulative = data.reduce((a, b) =>
-          a.cumulative < b.cumulative ? a : b,
+          b.cumulative === null ? a : b,
         ).cumulative;
 
         const totalDaily = data.reduce((a, v) => (a = a + v.totalTotals), 0);

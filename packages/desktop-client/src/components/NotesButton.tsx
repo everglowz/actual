@@ -1,10 +1,17 @@
-import React, { useEffect, useRef, useState, type ComponentProps } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type CSSProperties,
+} from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { send } from 'loot-core/src/platform/client/fetch';
 
 import { useNotes } from '../hooks/useNotes';
 import { SvgCustomNotesPaper } from '../icons/v2';
-import { type CSSProperties, theme } from '../style';
+import { theme } from '../style';
 
 import { Button } from './common/Button2';
 import { Popover } from './common/Popover';
@@ -28,6 +35,7 @@ export function NotesButton({
   tooltipPosition = 'bottom start',
   style,
 }: NotesButtonProps) {
+  const { t } = useTranslation();
   const triggerRef = useRef(null);
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const note = useNotes(id) || '';
@@ -53,7 +61,7 @@ export function NotesButton({
         <Button
           ref={triggerRef}
           variant="bare"
-          aria-label="View notes"
+          aria-label={t('View notes')}
           className={!hasNotes && !isOpen ? 'hover-visible' : ''}
           style={{
             color: defaultColor,

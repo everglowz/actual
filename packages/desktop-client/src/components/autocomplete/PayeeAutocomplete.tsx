@@ -9,14 +9,16 @@ import React, {
   type SVGProps,
   type ComponentPropsWithoutRef,
   type ReactElement,
+  type CSSProperties,
 } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
-import { useDispatch } from 'react-redux';
 
-import { css } from 'glamor';
+import { css, cx } from '@emotion/css';
 
-import { createPayee } from 'loot-core/src/client/actions/queries';
-import { getActivePayees } from 'loot-core/src/client/reducers/queries';
+import {
+  createPayee,
+  getActivePayees,
+} from 'loot-core/client/queries/queriesSlice';
 import { getNormalisedString } from 'loot-core/src/shared/normalisation';
 import {
   type AccountEntity,
@@ -26,11 +28,12 @@ import {
 import { useAccounts } from '../../hooks/useAccounts';
 import { useCommonPayees, usePayees } from '../../hooks/usePayees';
 import { SvgAdd, SvgBookmark } from '../../icons/v1';
-import { useResponsive } from '../../ResponsiveProvider';
-import { type CSSProperties, theme, styles } from '../../style';
+import { useDispatch } from '../../redux';
+import { theme, styles } from '../../style';
 import { Button } from '../common/Button';
 import { TextOneLine } from '../common/TextOneLine';
 import { View } from '../common/View';
+import { useResponsive } from '../responsive/ResponsiveProvider';
 
 import {
   Autocomplete,
@@ -316,7 +319,7 @@ export function PayeeAutocomplete({
       return filteredSuggestions;
     }
 
-    return [{ id: 'new', favorite: false, name: '' }, ...filteredSuggestions];
+    return [{ id: 'new', favorite: 0, name: '' }, ...filteredSuggestions];
   }, [commonPayees, payees, focusTransferPayees, accounts, hasPayeeInput]);
 
   const dispatch = useDispatch();
@@ -325,7 +328,8 @@ export function PayeeAutocomplete({
     if (!clearOnBlur) {
       onSelect?.(makeNew(idOrIds, rawInputValue), rawInputValue);
     } else {
-      const create = payeeName => dispatch(createPayee(payeeName));
+      const create = payeeName =>
+        dispatch(createPayee({ name: payeeName })).unwrap();
 
       if (Array.isArray(idOrIds)) {
         idOrIds = await Promise.all(
@@ -453,12 +457,12 @@ export function PayeeAutocomplete({
                     setFocusTransferPayees(!focusTransferPayees);
                   }}
                 >
-                  <Trans>Make Transfer</Trans>
+                  <Trans>Make transfer</Trans>
                 </Button>
               )}
               {showManagePayees && (
                 <Button type="menu" onClick={() => onManagePayees()}>
-                  <Trans>Manage Payees</Trans>
+                  <Trans>Manage payees</Trans>
                 </Button>
               )}
             </AutocompleteFooter>
@@ -478,7 +482,6 @@ type CreatePayeeButtonProps = {
   style?: CSSProperties;
 };
 
-// eslint-disable-next-line import/no-unused-modules
 export function CreatePayeeButton({
   Icon,
   payeeName,
@@ -528,7 +531,7 @@ export function CreatePayeeButton({
           style={{ marginRight: 5, display: 'inline-block' }}
         />
       )}
-      <Trans>Create Payee “{{ payeeName }}”</Trans>
+      <Trans>Create payee “{{ payeeName }}”</Trans>
     </View>
   );
 }
@@ -605,8 +608,9 @@ function PayeeItem({
       // * https://github.com/WebKit/WebKit/blob/58956cf59ba01267644b5e8fe766efa7aa6f0c5c/Source/WebCore/page/ios/ContentChangeObserver.cpp
       // * https://github.com/WebKit/WebKit/blob/58956cf59ba01267644b5e8fe766efa7aa6f0c5c/Source/WebKit/WebProcess/WebPage/ios/WebPageIOS.mm#L783
       role="button"
-      className={`${className} ${css([
-        {
+      className={cx(
+        className,
+        css({
           backgroundColor: highlighted
             ? theme.menuAutoCompleteBackgroundHover
             : 'transparent',
@@ -617,8 +621,8 @@ function PayeeItem({
           padding: 4,
           paddingLeft: paddingLeftOverFromIcon,
           ...narrowStyle,
-        },
-      ])}`}
+        }),
+      )}
       data-testid={`${item.name}-payee-item`}
       data-highlighted={highlighted || undefined}
       {...props}

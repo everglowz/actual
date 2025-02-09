@@ -1,4 +1,5 @@
 import React, { type ComponentPropsWithoutRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useNavigate } from '../../hooks/useNavigate';
 import { SvgCheveronLeft } from '../../icons/v1';
@@ -13,6 +14,7 @@ export function MobileBackButton({
   style,
   ...props
 }: MobileBackButtonProps) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   return (
     <Button
@@ -35,7 +37,7 @@ export function MobileBackButton({
           marginRight: 5,
         }}
       >
-        Back
+        {t('Back')}
       </Text>
     </Button>
   );

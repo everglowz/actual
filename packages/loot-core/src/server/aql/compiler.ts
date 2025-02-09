@@ -1,4 +1,5 @@
 import { getNormalisedString } from '../../shared/normalisation';
+import { QueryState } from '../../shared/query';
 
 // @ts-strict-ignore
 let _uid = 0;
@@ -694,7 +695,7 @@ const compileOp = saveStack('op', (state, fieldRef, opData) => {
     }
     case '$ne': {
       if (castInput(state, rhs, lhs.type).type === 'null') {
-        return `${val(state, lhs)} IS NULL`;
+        return `${val(state, lhs)} IS NOT NULL`;
       }
 
       const [left, right] = valArray(state, [lhs, rhs], [null, lhs.type]);
@@ -706,12 +707,12 @@ const compileOp = saveStack('op', (state, fieldRef, opData) => {
         state.namedParameters = [].concat.apply([], orders);
 
         return `CASE
-          WHEN ${left} IS NULL THEN ${right} IS NULL
-          ELSE ${left} != ${right}
+          WHEN ${left} IS NULL THEN ${right} IS NOT NULL
+          ELSE ${left} IS NOT ${right}
         END`;
       }
 
-      return `${left} != ${right}`;
+      return `(${left} != ${right} OR ${left} IS NULL)`;
     }
     case '$oneof': {
       const [left, right] = valArray(state, [lhs, rhs], [null, 'array']);
@@ -757,7 +758,7 @@ function compileConditions(state, conds) {
           }
           return compileAnd(state, cond);
         } else if (field === '$or') {
-          if (!cond) {
+          if (!cond || (Array.isArray(cond) && cond.length === 0)) {
             return null;
           }
           return compileOr(state, cond);
@@ -1005,9 +1006,7 @@ export type SchemaConfig = {
     | Record<string, unknown>
     | ((name: string, config: { withDead; isJoin; tableOptions }) => unknown);
   tableFilters?: (name: string) => unknown[];
-  customizeQuery?: <T extends { table: string; orderExpressions: unknown[] }>(
-    queryString: T,
-  ) => T;
+  customizeQuery?: (queryString: QueryState) => QueryState;
   views?: Record<
     string,
     {

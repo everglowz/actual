@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { css } from 'glamor';
+import { css } from '@emotion/css';
 import {
   AreaChart,
   Area,
@@ -23,7 +23,7 @@ import {
 } from 'loot-core/src/types/models/reports';
 
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode';
-import { theme, type CSSProperties } from '../../../style';
+import { theme } from '../../../style';
 import { AlignedText } from '../../common/AlignedText';
 import { Container } from '../Container';
 
@@ -33,11 +33,11 @@ import { renderCustomLabel } from './renderCustomLabel';
 type PayloadItem = {
   payload: {
     date: string;
-    totalAssets: number | string;
-    totalDebts: number | string;
-    netAssets: number | string;
-    netDebts: number | string;
-    totalTotals: number | string;
+    totalAssets: number;
+    totalDebts: number;
+    netAssets: number;
+    netDebts: number;
+    totalTotals: number;
   };
 };
 
@@ -57,7 +57,7 @@ const CustomTooltip = ({
   if (active && payload && payload.length) {
     return (
       <div
-        className={`${css({
+        className={css({
           zIndex: 1000,
           pointerEvents: 'none',
           borderRadius: 2,
@@ -65,7 +65,7 @@ const CustomTooltip = ({
           backgroundColor: theme.menuBackground,
           color: theme.menuItemText,
           padding: 10,
-        })}`}
+        })}
       >
         <div>
           <div style={{ marginBottom: 10 }}>
@@ -141,7 +141,9 @@ const customLabel = ({
     ((typeof props.value === 'number' ? props.value : 0) > 0 ? 10 : -10);
   const textAnchor = props.index === 0 ? 'left' : 'middle';
   const display =
-    props.value !== 0 ? `${amountToCurrencyNoDecimal(props.value)}` : '';
+    typeof props.value !== 'string' && props.value !== 0
+      ? `${amountToCurrencyNoDecimal(props.value || 0)}`
+      : '';
   const textSize = adjustTextSize({ sized: width, type: 'area' });
 
   return renderCustomLabel(calcX, calcY, textAnchor, display, textSize);

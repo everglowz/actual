@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { type CSSProperties } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
-import { css } from 'glamor';
+import { css } from '@emotion/css';
 
 import { trackingBudget } from 'loot-core/src/client/queries';
 
-import { theme, type CSSProperties, styles } from '../../../../style';
+import { theme, styles } from '../../../../style';
 import { AlignedText } from '../../../common/AlignedText';
 import { Text } from '../../../common/Text';
 import { Tooltip } from '../../../common/Tooltip';
@@ -33,7 +33,7 @@ export function Saved({ projected, style }: SavedProps) {
     <View style={{ alignItems: 'center', fontSize: 14, ...style }}>
       {projected ? (
         <Text style={{ color: theme.pageTextLight }}>
-          <Trans>Projected Savings:</Trans>
+          <Trans>Projected savings:</Trans>
         </Text>
       ) : (
         <View style={{ color: theme.pageTextLight }}>
@@ -46,7 +46,7 @@ export function Saved({ projected, style }: SavedProps) {
         content={
           <>
             <AlignedText
-              left={t('Projected Savings:')}
+              left={t('Projected savings:')}
               right={
                 <Text
                   style={{
@@ -74,16 +74,14 @@ export function Saved({ projected, style }: SavedProps) {
         }}
       >
         <View
-          className={`${css([
-            {
-              fontSize: 25,
-              color: projected
-                ? theme.warningText
-                : isNegative
-                  ? theme.errorTextDark
-                  : theme.upcomingText,
-            },
-          ])}`}
+          className={css({
+            fontSize: 25,
+            color: projected
+              ? theme.warningText
+              : isNegative
+                ? theme.errorTextDark
+                : theme.upcomingText,
+          })}
         >
           <PrivacyFilter>{format(saved, 'financial')}</PrivacyFilter>
         </View>

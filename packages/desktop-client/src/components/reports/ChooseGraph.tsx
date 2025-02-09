@@ -1,9 +1,8 @@
-import React, { type UIEvent, useRef } from 'react';
+import React, { type UIEvent, useRef, type CSSProperties } from 'react';
 
 import { type DataEntity } from 'loot-core/src/types/models/reports';
 import { type RuleConditionEntity } from 'loot-core/types/models/rule';
 
-import { type CSSProperties } from '../../style';
 import { styles } from '../../style/styles';
 
 import { AreaGraph } from './graphs/AreaGraph';
@@ -138,7 +137,6 @@ export function ChooseGraph({
     return (
       <DonutGraph
         style={graphStyle}
-        compact={compact}
         data={data}
         filters={filters}
         groupBy={groupBy}

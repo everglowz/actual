@@ -4,25 +4,26 @@ import React, {
   useEffect,
   useMemo,
   type SetStateAction,
+  type CSSProperties,
 } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 
-import { css } from 'glamor';
+import { css } from '@emotion/css';
 
 import { removeNotification } from 'loot-core/client/actions';
-import { type State } from 'loot-core/src/client/state-types';
 import type { NotificationWithId } from 'loot-core/src/client/state-types/notifications';
 
 import { AnimatedLoading } from '../icons/AnimatedLoading';
 import { SvgDelete } from '../icons/v0';
-import { useResponsive } from '../ResponsiveProvider';
-import { styles, theme, type CSSProperties } from '../style';
+import { useSelector, useDispatch } from '../redux';
+import { styles, theme } from '../style';
 
 import { Button, ButtonWithLoading } from './common/Button2';
 import { Link } from './common/Link';
 import { Stack } from './common/Stack';
 import { Text } from './common/Text';
 import { View } from './common/View';
+import { useResponsive } from './responsive/ResponsiveProvider';
 
 function compileMessage(
   message: string,
@@ -89,6 +90,7 @@ function Notification({
   notification: NotificationWithId;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation();
   const {
     type,
     title,
@@ -129,6 +131,7 @@ function Notification({
 
   return (
     <View
+      role="alert"
       style={{
         marginTop: 10,
         color: positive
@@ -202,29 +205,27 @@ function Notification({
                 onRemove();
                 setLoading(false);
               }}
-              className={String(
-                css({
-                  backgroundColor: 'transparent',
-                  border: `1px solid ${
-                    positive
-                      ? theme.noticeBorder
-                      : error
-                        ? theme.errorBorder
-                        : theme.warningBorder
-                  }`,
-                  color: 'currentColor',
-                  ...styles.mediumText,
-                  flexShrink: 0,
-                  '&[data-hovered], &[data-pressed]': {
-                    backgroundColor: positive
-                      ? theme.noticeBackground
-                      : error
-                        ? theme.errorBackground
-                        : theme.warningBackground,
-                  },
-                  ...narrowStyle,
-                }),
-              )}
+              className={css({
+                backgroundColor: 'transparent',
+                border: `1px solid ${
+                  positive
+                    ? theme.noticeBorder
+                    : error
+                      ? theme.errorBorder
+                      : theme.warningBorder
+                }`,
+                color: 'currentColor',
+                ...styles.mediumText,
+                flexShrink: 0,
+                '&[data-hovered], &[data-pressed]': {
+                  backgroundColor: positive
+                    ? theme.noticeBackground
+                    : error
+                      ? theme.errorBackground
+                      : theme.warningBackground,
+                },
+                ...narrowStyle,
+              })}
             >
               {button.title}
             </ButtonWithLoading>
@@ -232,7 +233,7 @@ function Notification({
         </Stack>
         <Button
           variant="bare"
-          aria-label="Close"
+          aria-label={t('Close')}
           style={{ flexShrink: 0, color: 'currentColor' }}
           onPress={onRemove}
         >
@@ -264,12 +265,8 @@ function Notification({
 export function Notifications({ style }: { style?: CSSProperties }) {
   const dispatch = useDispatch();
   const { isNarrowWidth } = useResponsive();
-  const notifications = useSelector(
-    (state: State) => state.notifications.notifications,
-  );
-  const notificationInset = useSelector(
-    (state: State) => state.notifications.inset,
-  );
+  const notifications = useSelector(state => state.notifications.notifications);
+  const notificationInset = useSelector(state => state.notifications.inset);
   return (
     <View
       style={{
