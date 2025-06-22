@@ -9,21 +9,21 @@ import React, {
   type CSSProperties,
 } from 'react';
 
+import { Button } from '@actual-app/components/button';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { View } from '@actual-app/components/view';
 import { css } from '@emotion/css';
 
 import {
   amountToCurrency,
   appendDecimals,
   currencyToAmount,
-} from 'loot-core/src/shared/util';
+} from 'loot-core/shared/util';
 
-import { useMergedRefs } from '../../../hooks/useMergedRefs';
-import { useSyncedPref } from '../../../hooks/useSyncedPref';
-import { theme } from '../../../style';
-import { makeAmountFullStyle } from '../../budget/util';
-import { Button } from '../../common/Button2';
-import { Text } from '../../common/Text';
-import { View } from '../../common/View';
+import { makeAmountFullStyle } from '@desktop-client/components/budget/util';
+import { useMergedRefs } from '@desktop-client/hooks/useMergedRefs';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
 
 type AmountInputProps = {
   value: number;
@@ -48,7 +48,7 @@ const AmountInput = memo(function AmountInput({
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState('');
   const [value, setValue] = useState(0);
-  const inputRef = useRef<HTMLInputElement>();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [hideFraction] = useSyncedPref('hideFraction');
 
   const mergedInputRef = useMergedRefs<HTMLInputElement>(

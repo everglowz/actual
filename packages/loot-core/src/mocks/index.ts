@@ -6,7 +6,6 @@ import type {
   AccountEntity,
   CategoryEntity,
   CategoryGroupEntity,
-  NewCategoryGroupEntity,
   TransactionEntity,
 } from '../types/models';
 
@@ -16,17 +15,13 @@ export function generateAccount(
   name: AccountEntity['name'],
   isConnected?: boolean,
   offbudget?: boolean,
-): AccountEntity & { bankId: number | null; bankName: string | null } {
-  const offlineAccount: AccountEntity & {
-    bankId: number | null;
-    bankName: string | null;
-  } = {
+): AccountEntity {
+  const offlineAccount: AccountEntity = {
     id: uuidv4(),
     name,
-    bankId: null,
-    bankName: null,
     offbudget: offbudget ? 1 : 0,
     sort_order: 0,
+    last_reconciled: null,
     tombstone: 0,
     closed: 0,
     ...emptySyncFields(),
@@ -45,6 +40,7 @@ export function generateAccount(
       balance_available: 0,
       balance_limit: 0,
       account_sync_source: 'goCardless',
+      last_sync: new Date().getTime().toString(),
     };
   }
 
@@ -55,12 +51,15 @@ function emptySyncFields(): _SyncFields<false> {
   return {
     account_id: null,
     bank: null,
+    bankId: null,
+    bankName: null,
     mask: null,
     official_name: null,
     balance_current: null,
     balance_available: null,
     balance_limit: null,
     account_sync_source: null,
+    last_sync: null,
   };
 }
 
@@ -73,7 +72,7 @@ export function generateCategory(
   return {
     id: uuidv4(),
     name,
-    cat_group: group,
+    group,
     is_income: isIncome,
     sort_order: sortOrder++,
   };
@@ -92,15 +91,26 @@ export function generateCategoryGroup(
   };
 }
 
+export type CategoryGroupDefinition = Omit<
+  CategoryGroupEntity,
+  'id' | 'categories'
+> & {
+  categories: Omit<CategoryEntity, 'id' | 'group'>[];
+};
+
 export function generateCategoryGroups(
-  definition: Partial<NewCategoryGroupEntity>[],
+  definition: Partial<CategoryGroupDefinition>[],
 ): CategoryGroupEntity[] {
   return definition.map(group => {
     const g = generateCategoryGroup(group.name ?? '', group.is_income);
 
+    if (!group.categories) {
+      return g;
+    }
+
     return {
       ...g,
-      categories: group.categories?.map(cat =>
+      categories: group.categories.map(cat =>
         generateCategory(cat.name, g.id, cat.is_income),
       ),
     };
@@ -117,9 +127,9 @@ function _generateTransaction(
     notes: 'Notes',
     account: data.account,
     date: data.date || monthUtils.currentDay(),
-    category: data.category,
     sort_order: data.sort_order != null ? data.sort_order : 1,
     cleared: false,
+    ...(data.category && { category: data.category }),
   };
 }
 
@@ -186,7 +196,7 @@ export function generateTransactions(
         {
           account: accountId,
           category: groupId,
-          amount: isSplit ? 50 : undefined,
+          ...(isSplit && { amount: 50 }),
           sort_order: i,
         },
         isSplit ? 30 : undefined,

@@ -1,28 +1,17 @@
 import React, { type ReactNode, useEffect } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 
+import { Button } from '@actual-app/components/button';
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
+import { Input } from '@actual-app/components/input';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { tokens } from '@actual-app/components/tokens';
+import { View } from '@actual-app/components/view';
 import { css } from '@emotion/css';
 
-import { closeBudget, loadPrefs } from 'loot-core/client/actions';
+import { listen } from 'loot-core/platform/client/fetch';
 import { isElectron } from 'loot-core/shared/environment';
-import { listen } from 'loot-core/src/platform/client/fetch';
-
-import { useGlobalPref } from '../../hooks/useGlobalPref';
-import { useIsOutdated, useLatestVersion } from '../../hooks/useLatestVersion';
-import { useMetadataPref } from '../../hooks/useMetadataPref';
-import { useDispatch } from '../../redux';
-import { theme } from '../../style';
-import { tokens } from '../../tokens';
-import { Button } from '../common/Button2';
-import { Input } from '../common/Input';
-import { Link } from '../common/Link';
-import { Text } from '../common/Text';
-import { View } from '../common/View';
-import { FormField, FormLabel } from '../forms';
-import { MOBILE_NAV_HEIGHT } from '../mobile/MobileNavTabs';
-import { Page } from '../Page';
-import { useResponsive } from '../responsive/ResponsiveProvider';
-import { useServerVersion } from '../ServerContext';
 
 import { AuthSettings } from './AuthSettings';
 import { Backups } from './Backups';
@@ -36,6 +25,21 @@ import { RepairTransactions } from './RepairTransactions';
 import { ResetCache, ResetSync } from './Reset';
 import { ThemeSettings } from './Themes';
 import { AdvancedToggle, Setting } from './UI';
+
+import { closeBudget } from '@desktop-client/budgets/budgetsSlice';
+import { Link } from '@desktop-client/components/common/Link';
+import { FormField, FormLabel } from '@desktop-client/components/forms';
+import { MOBILE_NAV_HEIGHT } from '@desktop-client/components/mobile/MobileNavTabs';
+import { Page } from '@desktop-client/components/Page';
+import { useServerVersion } from '@desktop-client/components/ServerContext';
+import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
+import {
+  useIsOutdated,
+  useLatestVersion,
+} from '@desktop-client/hooks/useLatestVersion';
+import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
+import { loadPrefs } from '@desktop-client/prefs/prefsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 function About() {
   const version = useServerVersion();
@@ -192,7 +196,7 @@ export function Settings() {
               />
             </FormField>
             <Button onPress={onCloseBudget}>
-              <Trans>Close budget</Trans>
+              <Trans>Switch file</Trans>
             </Button>
           </View>
         )}

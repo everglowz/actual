@@ -1,29 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { send, sendCatch } from 'loot-core/platform/client/fetch/index';
-import { addNotification } from 'loot-core/src/client/actions';
-import { calculateHasWarning } from 'loot-core/src/client/reports';
-import * as monthUtils from 'loot-core/src/shared/months';
-import { type CustomReportEntity } from 'loot-core/types/models/reports';
+import { SvgExclamationSolid } from '@actual-app/components/icons/v1';
+import { styles } from '@actual-app/components/styles';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { Tooltip } from '@actual-app/components/tooltip';
+import { View } from '@actual-app/components/view';
 
-import { useAccounts } from '../../../hooks/useAccounts';
-import { useCategories } from '../../../hooks/useCategories';
-import { usePayees } from '../../../hooks/usePayees';
-import { useSyncedPref } from '../../../hooks/useSyncedPref';
-import { SvgExclamationSolid } from '../../../icons/v1';
-import { useDispatch } from '../../../redux';
-import { styles } from '../../../style/index';
-import { theme } from '../../../style/theme';
-import { Text } from '../../common/Text';
-import { Tooltip } from '../../common/Tooltip';
-import { View } from '../../common/View';
-import { DateRange } from '../DateRange';
-import { ReportCard } from '../ReportCard';
-import { ReportCardName } from '../ReportCardName';
+import { send, sendCatch } from 'loot-core/platform/client/fetch';
+import * as monthUtils from 'loot-core/shared/months';
+import { type CustomReportEntity } from 'loot-core/types/models';
 
 import { GetCardData } from './GetCardData';
 import { MissingReportCard } from './MissingReportCard';
+
+import { DateRange } from '@desktop-client/components/reports/DateRange';
+import { ReportCard } from '@desktop-client/components/reports/ReportCard';
+import { ReportCardName } from '@desktop-client/components/reports/ReportCardName';
+import { calculateHasWarning } from '@desktop-client/components/reports/util';
+import { useAccounts } from '@desktop-client/hooks/useAccounts';
+import { useCategories } from '@desktop-client/hooks/useCategories';
+import { usePayees } from '@desktop-client/hooks/usePayees';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
+import { addNotification } from '@desktop-client/notifications/notificationsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 type CustomReportListCardsProps = {
   isEditing?: boolean;
@@ -101,8 +102,10 @@ function CustomReportListCardsInner({
     if (response.error) {
       dispatch(
         addNotification({
-          type: 'error',
-          message: `Failed saving report name: ${response.error.message}`,
+          notification: {
+            type: 'error',
+            message: `Failed saving report name: ${response.error.message}`,
+          },
         }),
       );
       setNameMenuOpen(true);

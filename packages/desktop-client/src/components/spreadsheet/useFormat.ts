@@ -5,9 +5,9 @@ import {
   integerToCurrency,
   parseNumberFormat,
   setNumberFormat,
-} from 'loot-core/src/shared/util';
+} from 'loot-core/shared/util';
 
-import { useSyncedPref } from '../../hooks/useSyncedPref';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
 
 export type FormatType =
   | 'string'

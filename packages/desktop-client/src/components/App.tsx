@@ -11,39 +11,39 @@ import { HotkeysProvider } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
 import { BrowserRouter } from 'react-router-dom';
 
-import {
-  addNotification,
-  closeBudget,
-  loadBudget,
-  loadGlobalPrefs,
-  signOut,
-} from 'loot-core/client/actions';
-import { setAppState, sync } from 'loot-core/client/app/appSlice';
-import { SpreadsheetProvider } from 'loot-core/client/SpreadsheetProvider';
-import * as Platform from 'loot-core/src/client/platform';
-import {
-  init as initConnection,
-  send,
-} from 'loot-core/src/platform/client/fetch';
+import { styles } from '@actual-app/components/styles';
+import { View } from '@actual-app/components/view';
 
-import { handleGlobalEvents } from '../global-events';
-import { useMetadataPref } from '../hooks/useMetadataPref';
-import { installPolyfills } from '../polyfills';
-import { useDispatch, useSelector, useStore } from '../redux';
-import { styles, hasHiddenScrollbars, ThemeStyle, useTheme } from '../style';
-import { ExposeNavigate } from '../util/router-tools';
+import { init as initConnection, send } from 'loot-core/platform/client/fetch';
+import * as Platform from 'loot-core/shared/platform';
 
 import { AppBackground } from './AppBackground';
 import { BudgetMonthCountProvider } from './budget/BudgetMonthCountContext';
-import { View } from './common/View';
 import { DevelopmentTopBar } from './DevelopmentTopBar';
 import { FatalError } from './FatalError';
 import { FinancesApp } from './FinancesApp';
 import { ManagementApp } from './manager/ManagementApp';
 import { Modals } from './Modals';
-import { ResponsiveProvider } from './responsive/ResponsiveProvider';
 import { SidebarProvider } from './sidebar/SidebarProvider';
 import { UpdateNotification } from './UpdateNotification';
+
+import { setAppState, sync } from '@desktop-client/app/appSlice';
+import { closeBudget, loadBudget } from '@desktop-client/budgets/budgetsSlice';
+import { handleGlobalEvents } from '@desktop-client/global-events';
+import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
+import { SpreadsheetProvider } from '@desktop-client/hooks/useSpreadsheet';
+import { setI18NextLanguage } from '@desktop-client/i18n';
+import { addNotification } from '@desktop-client/notifications/notificationsSlice';
+import { installPolyfills } from '@desktop-client/polyfills';
+import { loadGlobalPrefs } from '@desktop-client/prefs/prefsSlice';
+import { useDispatch, useSelector, useStore } from '@desktop-client/redux';
+import {
+  hasHiddenScrollbars,
+  ThemeStyle,
+  useTheme,
+} from '@desktop-client/style';
+import { signOut } from '@desktop-client/users/usersSlice';
+import { ExposeNavigate } from '@desktop-client/util/router-tools';
 
 function AppInner() {
   const [budgetId] = useMetadataPref('id');
@@ -52,6 +52,10 @@ function AppInner() {
   const { showBoundary: showErrorBoundary } = useErrorBoundary();
   const dispatch = useDispatch();
   const userData = useSelector(state => state.user.data);
+
+  useEffect(() => {
+    setI18NextLanguage(null);
+  }, []);
 
   useEffect(() => {
     const maybeUpdate = async <T,>(cb?: () => T): Promise<T> => {
@@ -96,7 +100,7 @@ function AppInner() {
       );
       const budgetId = await send('get-last-opened-backup');
       if (budgetId) {
-        await dispatch(loadBudget(budgetId));
+        await dispatch(loadBudget({ id: budgetId }));
 
         // Check to see if this file has been remotely deleted (but
         // don't block on this in case they are offline or something)
@@ -124,7 +128,9 @@ function AppInner() {
     }
 
     initAll().catch(showErrorBoundary);
-  }, [cloudFileId, dispatch, showErrorBoundary, t]);
+    // Removed cloudFileId & t from dependencies to prevent hard crash when closing budget in Electron
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, showErrorBoundary]);
 
   useEffect(() => {
     global.Actual.updateAppMenu(budgetId);
@@ -134,14 +140,18 @@ function AppInner() {
     if (userData?.tokenExpired) {
       dispatch(
         addNotification({
-          type: 'error',
-          id: 'login-expired',
-          title: t('Login expired'),
-          sticky: true,
-          message: t('Login expired, please log in again.'),
-          button: {
-            title: t('Go to log in'),
-            action: () => dispatch(signOut()),
+          notification: {
+            type: 'error',
+            id: 'login-expired',
+            title: t('Login expired'),
+            sticky: true,
+            message: t('Login expired, please log in again.'),
+            button: {
+              title: t('Go to log in'),
+              action: () => {
+                dispatch(signOut());
+              },
+            },
           },
         }),
       );
@@ -203,44 +213,40 @@ export function App() {
     <BrowserRouter>
       <ExposeNavigate />
       <HotkeysProvider initiallyActiveScopes={['*']}>
-        <ResponsiveProvider>
-          <SpreadsheetProvider>
-            <SidebarProvider>
-              <BudgetMonthCountProvider>
-                <DndProvider backend={HTML5Backend}>
+        <SpreadsheetProvider>
+          <SidebarProvider>
+            <BudgetMonthCountProvider>
+              <DndProvider backend={HTML5Backend}>
+                <View
+                  data-theme={theme}
+                  style={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
                   <View
-                    data-theme={theme}
+                    key={hiddenScrollbars ? 'hidden-scrollbars' : 'scrollbars'}
                     style={{
-                      height: '100%',
-                      display: 'flex',
-                      flexDirection: 'column',
+                      flexGrow: 1,
+                      overflow: 'hidden',
+                      ...styles.lightScrollbar,
                     }}
                   >
-                    <View
-                      key={
-                        hiddenScrollbars ? 'hidden-scrollbars' : 'scrollbars'
-                      }
-                      style={{
-                        flexGrow: 1,
-                        overflow: 'hidden',
-                        ...styles.lightScrollbar,
-                      }}
-                    >
-                      <ErrorBoundary FallbackComponent={ErrorFallback}>
-                        {process.env.REACT_APP_REVIEW_ID &&
-                          !Platform.isPlaywright && <DevelopmentTopBar />}
-                        <AppInner />
-                      </ErrorBoundary>
-                      <ThemeStyle />
-                      <Modals />
-                      <UpdateNotification />
-                    </View>
+                    <ErrorBoundary FallbackComponent={ErrorFallback}>
+                      {process.env.REACT_APP_REVIEW_ID &&
+                        !Platform.isPlaywright && <DevelopmentTopBar />}
+                      <AppInner />
+                    </ErrorBoundary>
+                    <ThemeStyle />
+                    <Modals />
+                    <UpdateNotification />
                   </View>
-                </DndProvider>
-              </BudgetMonthCountProvider>
-            </SidebarProvider>
-          </SpreadsheetProvider>
-        </ResponsiveProvider>
+                </View>
+              </DndProvider>
+            </BudgetMonthCountProvider>
+          </SidebarProvider>
+        </SpreadsheetProvider>
       </HotkeysProvider>
     </BrowserRouter>
   );

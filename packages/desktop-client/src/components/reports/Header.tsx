@@ -1,20 +1,18 @@
 import { type ComponentProps, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import * as monthUtils from 'loot-core/src/shared/months';
+import { Button } from '@actual-app/components/button';
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
+import { Select } from '@actual-app/components/select';
+import { SpaceBetween } from '@actual-app/components/space-between';
+import { View } from '@actual-app/components/view';
+
+import * as monthUtils from 'loot-core/shared/months';
 import {
   type RuleConditionEntity,
   type TimeFrame,
 } from 'loot-core/types/models';
 import { type SyncedPrefs } from 'loot-core/types/prefs';
-
-import { Button } from '../common/Button2';
-import { Select } from '../common/Select';
-import { SpaceBetween } from '../common/SpaceBetween';
-import { View } from '../common/View';
-import { AppliedFilters } from '../filters/AppliedFilters';
-import { FilterButton } from '../filters/FiltersMenu';
-import { useResponsive } from '../responsive/ResponsiveProvider';
 
 import { getLiveRange } from './getLiveRange';
 import {
@@ -24,6 +22,10 @@ import {
   validateEnd,
   validateStart,
 } from './reportRanges';
+
+import { AppliedFilters } from '@desktop-client/components/filters/AppliedFilters';
+import { FilterButton } from '@desktop-client/components/filters/FiltersMenu';
+import { useLocale } from '@desktop-client/hooks/useLocale';
 
 type HeaderProps = {
   start: TimeFrame['start'];
@@ -66,6 +68,7 @@ export function Header({
   onConditionsOpChange,
   children,
 }: HeaderProps) {
+  const locale = useLocale();
   const { t } = useTranslation();
   const { isNarrowWidth } = useResponsive();
   function convertToMonth(
@@ -122,7 +125,7 @@ export function Header({
                 )
               }
               value={start}
-              defaultLabel={monthUtils.format(start, 'MMMM, yyyy')}
+              defaultLabel={monthUtils.format(start, 'MMMM, yyyy', locale)}
               options={allMonths.map(({ name, pretty }) => [name, pretty])}
             />
             <View>{t('to')}</View>

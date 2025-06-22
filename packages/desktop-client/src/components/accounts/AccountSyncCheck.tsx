@@ -2,19 +2,20 @@ import React, { useCallback, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
-import { unlinkAccount } from 'loot-core/client/accounts/accountsSlice';
+import { Button } from '@actual-app/components/button';
+import { SvgExclamationOutline } from '@actual-app/components/icons/v1';
+import { Popover } from '@actual-app/components/popover';
+import { theme } from '@actual-app/components/theme';
+import { View } from '@actual-app/components/view';
+
 import { type AccountEntity } from 'loot-core/types/models';
 
-import { authorizeBank } from '../../gocardless';
-import { useAccounts } from '../../hooks/useAccounts';
-import { useFailedAccounts } from '../../hooks/useFailedAccounts';
-import { SvgExclamationOutline } from '../../icons/v1';
-import { useDispatch } from '../../redux';
-import { theme } from '../../style';
-import { Button } from '../common/Button2';
-import { Link } from '../common/Link';
-import { Popover } from '../common/Popover';
-import { View } from '../common/View';
+import { unlinkAccount } from '@desktop-client/accounts/accountsSlice';
+import { Link } from '@desktop-client/components/common/Link';
+import { authorizeBank } from '@desktop-client/gocardless';
+import { useAccounts } from '@desktop-client/hooks/useAccounts';
+import { useFailedAccounts } from '@desktop-client/hooks/useFailedAccounts';
+import { useDispatch } from '@desktop-client/redux';
 
 function useErrorMessage() {
   const { t } = useTranslation();
@@ -44,6 +45,9 @@ function useErrorMessage() {
 
       case 'RATE_LIMIT_EXCEEDED':
         return t('Rate limit exceeded for this item. Please try again later.');
+
+      case 'TIMED_OUT':
+        return t('The request timed out. Please try again later.');
 
       case 'INVALID_ACCESS_TOKEN':
         return t(
@@ -95,7 +99,7 @@ export function AccountSyncCheck() {
       setOpen(false);
 
       if (acc.account_id) {
-        authorizeBank(dispatch, { upgradingAccountId: acc.account_id });
+        authorizeBank(dispatch);
       }
     },
     [dispatch],

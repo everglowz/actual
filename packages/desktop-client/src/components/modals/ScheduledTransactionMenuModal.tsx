@@ -5,7 +5,12 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useSchedules } from 'loot-core/client/data-hooks/schedules';
+import { Menu } from '@actual-app/components/menu';
+import { styles } from '@actual-app/components/styles';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { View } from '@actual-app/components/view';
+
 import { format } from 'loot-core/shared/months';
 import { q } from 'loot-core/shared/query';
 import {
@@ -13,18 +18,20 @@ import {
   extractScheduleConds,
 } from 'loot-core/shared/schedules';
 
-import { theme, styles } from '../../style';
-import { Menu } from '../common/Menu';
 import {
   Modal,
   ModalCloseButton,
   ModalHeader,
   ModalTitle,
-} from '../common/Modal';
-import { Text } from '../common/Text';
-import { View } from '../common/View';
+} from '@desktop-client/components/common/Modal';
+import { useLocale } from '@desktop-client/hooks/useLocale';
+import { useSchedules } from '@desktop-client/hooks/useSchedules';
+import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
 
-type ScheduledTransactionMenuModalProps = ScheduledTransactionMenuProps;
+type ScheduledTransactionMenuModalProps = Extract<
+  ModalType,
+  { name: 'scheduled-transaction-menu' }
+>['options'];
 
 export function ScheduledTransactionMenuModal({
   transactionId,
@@ -32,6 +39,7 @@ export function ScheduledTransactionMenuModal({
   onPost,
   onComplete,
 }: ScheduledTransactionMenuModalProps) {
+  const locale = useLocale();
   const { t } = useTranslation();
   const defaultMenuItemStyle: CSSProperties = {
     ...styles.mobileMenuItem,
@@ -77,7 +85,7 @@ export function ScheduledTransactionMenuModal({
               {t('Scheduled date')}
             </Text>
             <Text style={{ fontSize: 17, fontWeight: 700 }}>
-              {format(schedule?.next_date || '', 'MMMM dd, yyyy')}
+              {format(schedule?.next_date || '', 'MMMM dd, yyyy', locale)}
             </Text>
           </View>
           <ScheduledTransactionMenu

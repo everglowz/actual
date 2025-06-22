@@ -5,9 +5,8 @@ import React, {
   type CSSProperties,
 } from 'react';
 
-import { styles } from '../../style';
-import { Text } from '../common/Text';
-import { PrivacyFilter } from '../PrivacyFilter';
+import { styles } from '@actual-app/components/styles';
+import { Text } from '@actual-app/components/text';
 
 import { type FormatType, useFormat } from './useFormat';
 import { useSheetName } from './useSheetName';
@@ -19,6 +18,8 @@ import {
   type SheetFields,
   type Spreadsheets,
 } from '.';
+
+import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
 
 type CellValueProps<
   SheetName extends SheetNames,

@@ -2,22 +2,22 @@
 import React, { type ReactNode } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 
+import { Select } from '@actual-app/components/select';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { tokens } from '@actual-app/components/tokens';
+import { View } from '@actual-app/components/view';
 import { css } from '@emotion/css';
 
-import { numberFormats } from 'loot-core/src/shared/util';
-import { type SyncedPrefs } from 'loot-core/src/types/prefs';
-
-import { useDateFormat } from '../../hooks/useDateFormat';
-import { useSyncedPref } from '../../hooks/useSyncedPref';
-import { theme } from '../../style';
-import { tokens } from '../../tokens';
-import { Select } from '../common/Select';
-import { Text } from '../common/Text';
-import { View } from '../common/View';
-import { Checkbox } from '../forms';
-import { useSidebar } from '../sidebar/SidebarProvider';
+import { numberFormats } from 'loot-core/shared/util';
+import { type SyncedPrefs } from 'loot-core/types/prefs';
 
 import { Setting } from './UI';
+
+import { Checkbox } from '@desktop-client/components/forms';
+import { useSidebar } from '@desktop-client/components/sidebar/SidebarProvider';
+import { useDateFormat } from '@desktop-client/hooks/useDateFormat';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
 
 // Follows Pikaday 'firstDay' numbering
 // https://github.com/Pikaday/Pikaday

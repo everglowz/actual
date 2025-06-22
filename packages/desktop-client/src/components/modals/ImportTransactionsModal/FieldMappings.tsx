@@ -1,8 +1,7 @@
 import React from 'react';
 
-import { Stack } from '../../common/Stack';
-import { View } from '../../common/View';
-import { SectionLabel } from '../../forms';
+import { Stack } from '@actual-app/components/stack';
+import { View } from '@actual-app/components/view';
 
 import { SelectField } from './SelectField';
 import { SubLabel } from './SubLabel';
@@ -11,6 +10,8 @@ import {
   type FieldMapping,
   type ImportTransaction,
 } from './utils';
+
+import { SectionLabel } from '@desktop-client/components/forms';
 
 type FieldMappingsProps = {
   transactions: ImportTransaction[];
@@ -94,7 +95,7 @@ export function FieldMappings({
             firstTransaction={transactions[0]}
           />
         </View>
-        {splitMode ? (
+        {splitMode && !inOutMode ? (
           <>
             <View style={{ flex: 0.5 }}>
               <SubLabel title="Outflow" />

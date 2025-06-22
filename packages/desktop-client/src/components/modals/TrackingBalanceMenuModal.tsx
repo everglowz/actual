@@ -1,30 +1,30 @@
-import React, {
-  type ComponentPropsWithoutRef,
-  type CSSProperties,
-} from 'react';
+import React, { type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { trackingBudget } from 'loot-core/client/queries';
+import { styles } from '@actual-app/components/styles';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { View } from '@actual-app/components/view';
 
-import { useCategory } from '../../hooks/useCategory';
-import { theme, styles } from '../../style';
 import {
   BalanceWithCarryover,
   CarryoverIndicator,
-} from '../budget/BalanceWithCarryover';
-import { BalanceMenu } from '../budget/tracking/BalanceMenu';
+} from '@desktop-client/components/budget/BalanceWithCarryover';
+import { BalanceMenu } from '@desktop-client/components/budget/tracking/BalanceMenu';
 import {
   Modal,
   ModalCloseButton,
   ModalHeader,
   ModalTitle,
-} from '../common/Modal';
-import { Text } from '../common/Text';
-import { View } from '../common/View';
-import { CellValueText } from '../spreadsheet/CellValue';
+} from '@desktop-client/components/common/Modal';
+import { CellValueText } from '@desktop-client/components/spreadsheet/CellValue';
+import { useCategory } from '@desktop-client/hooks/useCategory';
+import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
+import { trackingBudget } from '@desktop-client/queries/queries';
 
-type TrackingBalanceMenuModalProps = ComponentPropsWithoutRef<
-  typeof BalanceMenu
+type TrackingBalanceMenuModalProps = Omit<
+  Extract<ModalType, { name: 'tracking-balance-menu' }>['options'],
+  'month'
 >;
 
 export function TrackingBalanceMenuModal({

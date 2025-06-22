@@ -16,14 +16,20 @@ interface WeekTemplate extends BaseTemplate {
   amount: number;
   weeks: number | null;
   starting: string;
-  limit?: { amount: number; hold: boolean };
+  limit?: {
+    amount: number;
+    hold: boolean;
+    period?: 'daily' | 'weekly' | 'monthly';
+    start?: string;
+  };
 }
 
 interface ByTemplate extends BaseTemplate {
   type: 'by';
   amount: number;
   month: string;
-  repeat?: { annual: boolean; repeat?: number };
+  annual?: boolean;
+  repeat?: number;
   from?: string;
 }
 
@@ -32,25 +38,37 @@ interface SpendTemplate extends BaseTemplate {
   amount: number;
   month: string;
   from: string;
-  repeat?: { annual: boolean; repeat?: number };
+  annual?: boolean;
+  repeat?: number;
 }
 
 interface SimpleTemplate extends BaseTemplate {
   type: 'simple';
   monthly?: number;
-  limit?: { amount: number; hold: boolean };
+  limit?: {
+    amount: number;
+    hold: boolean;
+    period?: 'daily' | 'weekly' | 'monthly';
+    start?: string;
+  };
 }
 
 interface ScheduleTemplate extends BaseTemplate {
   type: 'schedule';
   name: string;
   full?: boolean;
+  adjustment?: number;
 }
 
 interface RemainderTemplate extends BaseTemplate {
   type: 'remainder';
   weight: number;
-  limit?: { amount: number; hold: boolean };
+  limit?: {
+    amount: number;
+    hold: boolean;
+    period?: 'daily' | 'weekly' | 'monthly';
+    start?: string;
+  };
 }
 
 interface AverageTemplate extends BaseTemplate {
@@ -59,7 +77,7 @@ interface AverageTemplate extends BaseTemplate {
 }
 
 interface GoalTemplate extends BaseTemplate {
-  type: 'simple';
+  type: 'goal';
   amount: number;
 }
 

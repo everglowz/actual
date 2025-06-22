@@ -1,23 +1,34 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
+
+import { Button } from '@actual-app/components/button';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { Tooltip } from '@actual-app/components/tooltip';
+import { View } from '@actual-app/components/view';
 
 import {
   linkAccount,
+  linkAccountPluggyAi,
   linkAccountSimpleFin,
   unlinkAccount,
-} from 'loot-core/client/accounts/accountsSlice';
-import { closeModal } from 'loot-core/client/actions';
-
-import { useAccounts } from '../../hooks/useAccounts';
-import { useDispatch } from '../../redux';
-import { theme } from '../../style';
-import { Autocomplete } from '../autocomplete/Autocomplete';
-import { Button } from '../common/Button2';
-import { Modal, ModalCloseButton, ModalHeader } from '../common/Modal';
-import { Text } from '../common/Text';
-import { View } from '../common/View';
-import { PrivacyFilter } from '../PrivacyFilter';
-import { TableHeader, Table, Row, Field } from '../table';
+} from '@desktop-client/accounts/accountsSlice';
+import { Autocomplete } from '@desktop-client/components/autocomplete/Autocomplete';
+import {
+  Modal,
+  ModalCloseButton,
+  ModalHeader,
+} from '@desktop-client/components/common/Modal';
+import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
+import {
+  TableHeader,
+  Table,
+  Row,
+  Field,
+} from '@desktop-client/components/table';
+import { useAccounts } from '@desktop-client/hooks/useAccounts';
+import { closeModal } from '@desktop-client/modals/modalsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 function useAddBudgetAccountOptions() {
   const { t } = useTranslation();
@@ -35,11 +46,20 @@ function useAddBudgetAccountOptions() {
 }
 
 export function SelectLinkedAccountsModal({
-  requisitionId,
+  requisitionId = undefined,
   externalAccounts,
-  syncSource,
+  syncSource = undefined,
 }) {
-  externalAccounts.sort((a, b) => a.name.localeCompare(b.name));
+  const sortedExternalAccounts = useMemo(() => {
+    const toSort = externalAccounts ? [...externalAccounts] : [];
+    toSort.sort(
+      (a, b) =>
+        getInstitutionName(a)?.localeCompare(getInstitutionName(b)) ||
+        a.name.localeCompare(b.name),
+    );
+    return toSort;
+  }, [externalAccounts]);
+
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const localAccounts = useAccounts().filter(a => a.closed === 0);
@@ -66,7 +86,7 @@ export function SelectLinkedAccountsModal({
     // Link new accounts
     Object.entries(chosenAccounts).forEach(
       ([chosenExternalAccountId, chosenLocalAccountId]) => {
-        const externalAccount = externalAccounts.find(
+        const externalAccount = sortedExternalAccounts.find(
           account => account.account_id === chosenExternalAccountId,
         );
         const offBudget = chosenLocalAccountId === addOffBudgetAccountOption.id;
@@ -81,6 +101,18 @@ export function SelectLinkedAccountsModal({
         if (syncSource === 'simpleFin') {
           dispatch(
             linkAccountSimpleFin({
+              externalAccount,
+              upgradingId:
+                chosenLocalAccountId !== addOnBudgetAccountOption.id &&
+                chosenLocalAccountId !== addOffBudgetAccountOption.id
+                  ? chosenLocalAccountId
+                  : undefined,
+              offBudget,
+            }),
+          );
+        } else if (syncSource === 'pluggyai') {
+          dispatch(
+            linkAccountPluggyAi({
               externalAccount,
               upgradingId:
                 chosenLocalAccountId !== addOnBudgetAccountOption.id &&
@@ -131,7 +163,7 @@ export function SelectLinkedAccountsModal({
   return (
     <Modal
       name="select-linked-accounts"
-      containerProps={{ style: { width: 800 } }}
+      containerProps={{ style: { width: 1000 } }}
     >
       {({ state: { close } }) => (
         <>
@@ -154,15 +186,16 @@ export function SelectLinkedAccountsModal({
           >
             <TableHeader
               headers={[
-                { name: t('Bank Account To Sync'), width: 200 },
+                { name: t('Institution to Sync'), width: 175 },
+                { name: t('Bank Account To Sync'), width: 175 },
                 { name: t('Balance'), width: 80 },
                 { name: t('Account in Actual'), width: 'flex' },
-                { name: t('Actions'), width: 'flex' },
+                { name: t('Actions'), width: 150 },
               ]}
             />
 
             <Table
-              items={externalAccounts}
+              items={sortedExternalAccounts}
               style={{ backgroundColor: theme.tableHeaderBackground }}
               getItemKey={index => index}
               renderItem={({ key, item }) => (
@@ -209,6 +242,15 @@ export function SelectLinkedAccountsModal({
   );
 }
 
+function getInstitutionName(externalAccount) {
+  if (typeof externalAccount?.institution === 'string') {
+    return externalAccount?.institution ?? '';
+  } else if (typeof externalAccount.institution?.name === 'string') {
+    return externalAccount?.institution?.name ?? '';
+  }
+  return '';
+}
+
 function TableRow({
   externalAccount,
   chosenAccount,
@@ -228,12 +270,37 @@ function TableRow({
 
   return (
     <Row style={{ backgroundColor: theme.tableBackground }}>
-      <Field width={200}>{externalAccount.name}</Field>
+      <Field width={175}>
+        <Tooltip content={getInstitutionName(externalAccount)}>
+          <View
+            style={{
+              textOverflow: 'ellipsis',
+              overflow: 'hidden',
+              display: 'block',
+            }}
+          >
+            {getInstitutionName(externalAccount)}
+          </View>
+        </Tooltip>
+      </Field>
+      <Field width={175}>
+        <Tooltip content={externalAccount.name}>
+          <View
+            style={{
+              textOverflow: 'ellipsis',
+              overflow: 'hidden',
+              display: 'block',
+            }}
+          >
+            {externalAccount.name}
+          </View>
+        </Tooltip>
+      </Field>
       <Field width={80}>
         <PrivacyFilter>{externalAccount.balance}</PrivacyFilter>
       </Field>
       <Field
-        width="40%"
+        width="flex"
         truncate={focusedField !== 'account'}
         onClick={() => setFocusedField('account')}
       >
@@ -255,7 +322,7 @@ function TableRow({
           chosenAccount?.name
         )}
       </Field>
-      <Field width="20%">
+      <Field width={150}>
         {chosenAccount ? (
           <Button
             onPress={() => {
@@ -263,7 +330,7 @@ function TableRow({
             }}
             style={{ float: 'right' }}
           >
-            <Trans>Remove bank-sync</Trans>
+            <Trans>Remove bank sync</Trans>
           </Button>
         ) : (
           <Button
@@ -273,7 +340,7 @@ function TableRow({
             }}
             style={{ float: 'right' }}
           >
-            <Trans>Set up bank-sync</Trans>
+            <Trans>Set up bank sync</Trans>
           </Button>
         )}
       </Field>

@@ -6,16 +6,16 @@ import React, {
   type UIEventHandler,
 } from 'react';
 
+import { Block } from '@actual-app/components/block';
+import { type CSSProperties } from '@actual-app/components/styles';
+import { View } from '@actual-app/components/view';
+
 import {
   type GroupedEntity,
   type DataEntity,
   type balanceTypeOpType,
-} from 'loot-core/src/types/models/reports';
-import { type RuleConditionEntity } from 'loot-core/types/models/rule';
-
-import { type CSSProperties } from '../../../../style';
-import { Block } from '../../../common/Block';
-import { View } from '../../../common/View';
+  type RuleConditionEntity,
+} from 'loot-core/types/models';
 
 import { ReportTableHeader } from './ReportTableHeader';
 import { ReportTableList } from './ReportTableList';
@@ -24,9 +24,9 @@ import { ReportTableTotals } from './ReportTableTotals';
 
 type ReportTableProps = {
   saveScrollWidth: (value: number) => void;
-  headerScrollRef: RefObject<HTMLDivElement>;
-  listScrollRef: RefObject<HTMLDivElement>;
-  totalScrollRef: RefObject<HTMLDivElement>;
+  headerScrollRef: RefObject<HTMLDivElement | null>;
+  listScrollRef: RefObject<HTMLDivElement | null>;
+  totalScrollRef: RefObject<HTMLDivElement | null>;
   handleScroll: UIEventHandler<HTMLDivElement>;
   groupBy: string;
   balanceTypeOp: balanceTypeOpType;

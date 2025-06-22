@@ -2,65 +2,73 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { useLocation, useParams } from 'react-router-dom';
 
+import { AlignedText } from '@actual-app/components/aligned-text';
+import { Block } from '@actual-app/components/block';
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
+import { styles } from '@actual-app/components/styles';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { View } from '@actual-app/components/view';
 import * as d from 'date-fns';
 
-import { useReport as useCustomReport } from 'loot-core/src/client/data-hooks/reports';
-import { calculateHasWarning } from 'loot-core/src/client/reports';
-import { send } from 'loot-core/src/platform/client/fetch';
-import * as monthUtils from 'loot-core/src/shared/months';
-import { amountToCurrency } from 'loot-core/src/shared/util';
-import { type CategoryEntity } from 'loot-core/types/models/category';
+import { send } from 'loot-core/platform/client/fetch';
+import * as monthUtils from 'loot-core/shared/months';
+import { amountToCurrency } from 'loot-core/shared/util';
 import {
+  type CategoryEntity,
   type balanceTypeOpType,
-  type sortByOpType,
   type CustomReportEntity,
   type DataEntity,
-} from 'loot-core/types/models/reports';
-import { type RuleConditionEntity } from 'loot-core/types/models/rule';
+  type sortByOpType,
+  type RuleConditionEntity,
+} from 'loot-core/types/models';
 import { type TransObjectLiteral } from 'loot-core/types/util';
 
-import { useAccounts } from '../../../hooks/useAccounts';
-import { useCategories } from '../../../hooks/useCategories';
-import { useFilters } from '../../../hooks/useFilters';
-import { useLocalPref } from '../../../hooks/useLocalPref';
-import { useNavigate } from '../../../hooks/useNavigate';
-import { usePayees } from '../../../hooks/usePayees';
-import { useSyncedPref } from '../../../hooks/useSyncedPref';
-import { theme, styles } from '../../../style';
-import { Warning } from '../../alerts';
-import { AlignedText } from '../../common/AlignedText';
-import { Block } from '../../common/Block';
-import { Text } from '../../common/Text';
-import { View } from '../../common/View';
-import { AppliedFilters } from '../../filters/AppliedFilters';
-import { MobileBackButton } from '../../mobile/MobileBackButton';
-import { MobilePageHeader, Page, PageHeader } from '../../Page';
-import { PrivacyFilter } from '../../PrivacyFilter';
-import { useResponsive } from '../../responsive/ResponsiveProvider';
-import { ChooseGraph } from '../ChooseGraph';
+import { Warning } from '@desktop-client/components/alerts';
+import { AppliedFilters } from '@desktop-client/components/filters/AppliedFilters';
+import { MobileBackButton } from '@desktop-client/components/mobile/MobileBackButton';
+import {
+  MobilePageHeader,
+  Page,
+  PageHeader,
+} from '@desktop-client/components/Page';
+import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
+import { ChooseGraph } from '@desktop-client/components/reports/ChooseGraph';
 import {
   defaultsGraphList,
   defaultsList,
   disabledGraphList,
   disabledLegendLabel,
   disabledList,
-} from '../disabledList';
-import { getLiveRange } from '../getLiveRange';
-import { LoadingIndicator } from '../LoadingIndicator';
-import { ReportLegend } from '../ReportLegend';
+} from '@desktop-client/components/reports/disabledList';
+import { getLiveRange } from '@desktop-client/components/reports/getLiveRange';
+import { LoadingIndicator } from '@desktop-client/components/reports/LoadingIndicator';
+import { ReportLegend } from '@desktop-client/components/reports/ReportLegend';
 import {
   ReportOptions,
   defaultReport,
   type dateRangeProps,
-} from '../ReportOptions';
-import { ReportSidebar } from '../ReportSidebar';
-import { ReportSummary } from '../ReportSummary';
-import { ReportTopbar } from '../ReportTopbar';
-import { setSessionReport } from '../setSessionReport';
-import { createCustomSpreadsheet } from '../spreadsheets/custom-spreadsheet';
-import { createGroupedSpreadsheet } from '../spreadsheets/grouped-spreadsheet';
-import { useReport } from '../useReport';
-import { fromDateRepr } from '../util';
+} from '@desktop-client/components/reports/ReportOptions';
+import { ReportSidebar } from '@desktop-client/components/reports/ReportSidebar';
+import { ReportSummary } from '@desktop-client/components/reports/ReportSummary';
+import { ReportTopbar } from '@desktop-client/components/reports/ReportTopbar';
+import { setSessionReport } from '@desktop-client/components/reports/setSessionReport';
+import { createCustomSpreadsheet } from '@desktop-client/components/reports/spreadsheets/custom-spreadsheet';
+import { createGroupedSpreadsheet } from '@desktop-client/components/reports/spreadsheets/grouped-spreadsheet';
+import { useReport } from '@desktop-client/components/reports/useReport';
+import {
+  calculateHasWarning,
+  fromDateRepr,
+} from '@desktop-client/components/reports/util';
+import { useAccounts } from '@desktop-client/hooks/useAccounts';
+import { useCategories } from '@desktop-client/hooks/useCategories';
+import { useLocale } from '@desktop-client/hooks/useLocale';
+import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
+import { useNavigate } from '@desktop-client/hooks/useNavigate';
+import { usePayees } from '@desktop-client/hooks/usePayees';
+import { useReport as useCustomReport } from '@desktop-client/hooks/useReport';
+import { useRuleConditionFilters } from '@desktop-client/hooks/useRuleConditionFilters';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
 
 /**
  * Transform `selectedCategories` into `conditions`.
@@ -121,6 +129,7 @@ type CustomReportInnerProps = {
 };
 
 function CustomReportInner({ report: initialReport }: CustomReportInnerProps) {
+  const locale = useLocale();
   const { t } = useTranslation();
   const categories = useCategories();
   const { isNarrowWidth } = useResponsive();
@@ -141,7 +150,7 @@ function CustomReportInner({ report: initialReport }: CustomReportInnerProps) {
     onDelete: onDeleteFilter,
     onUpdate: onUpdateFilter,
     onConditionsOpChange,
-  } = useFilters();
+  } = useRuleConditionFilters();
 
   const location = useLocation();
 
@@ -267,11 +276,24 @@ function CustomReportInner({ report: initialReport }: CustomReportInnerProps) {
   useEffect(() => {
     async function run() {
       onApplyFilter(null);
-      report.conditions?.forEach((condition: RuleConditionEntity) =>
+
+      const filtersToApply =
+        savedStatus !== 'saved' ? conditions : report.conditions;
+      const conditionsOpToApply =
+        savedStatus !== 'saved' ? conditionsOp : report.conditionsOp;
+
+      filtersToApply?.forEach((condition: RuleConditionEntity) =>
         onApplyFilter(condition),
       );
-      const trans = await send('get-earliest-transaction');
-      setEarliestTransaction(trans ? trans.date : monthUtils.currentDay());
+      onConditionsOpChange(conditionsOpToApply);
+
+      const earliestTransaction = await send('get-earliest-transaction');
+      setEarliestTransaction(
+        earliestTransaction
+          ? earliestTransaction.date
+          : monthUtils.currentDay(),
+      );
+
       const fromDate =
         interval === 'Weekly'
           ? 'dayFromDate'
@@ -291,14 +313,23 @@ function CustomReportInner({ report: initialReport }: CustomReportInnerProps) {
         interval === 'Weekly'
           ? monthUtils.currentWeek(firstDayOfWeekIdx)
           : monthUtils[currentDate]();
+
       const earliestInterval =
         interval === 'Weekly'
           ? monthUtils.weekFromDate(
-              d.parseISO(fromDateRepr(trans.date || monthUtils.currentDay())),
+              d.parseISO(
+                fromDateRepr(
+                  earliestTransaction.date || monthUtils.currentDay(),
+                ),
+              ),
               firstDayOfWeekIdx,
             )
           : monthUtils[fromDate](
-              d.parseISO(fromDateRepr(trans.date || monthUtils.currentDay())),
+              d.parseISO(
+                fromDateRepr(
+                  earliestTransaction.date || monthUtils.currentDay(),
+                ),
+              ),
             );
 
       const allIntervals =
@@ -318,6 +349,7 @@ function CustomReportInner({ report: initialReport }: CustomReportInnerProps) {
           pretty: monthUtils.format(
             inter,
             ReportOptions.intervalFormat.get(interval) || '',
+            locale,
           ),
         }))
         .reverse();
@@ -327,7 +359,9 @@ function CustomReportInner({ report: initialReport }: CustomReportInnerProps) {
       if (!isDateStatic) {
         const [dateStart, dateEnd] = getLiveRange(
           dateRange,
-          trans ? trans.date : monthUtils.currentDay(),
+          earliestTransaction
+            ? earliestTransaction.date
+            : monthUtils.currentDay(),
           includeCurrentInterval,
           firstDayOfWeekIdx,
         );
@@ -335,15 +369,22 @@ function CustomReportInner({ report: initialReport }: CustomReportInnerProps) {
         setEndDate(dateEnd);
       }
     }
+
     run();
+    // omitted `conditions` and `conditionsOp` from dependencies to avoid infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     interval,
     dateRange,
     firstDayOfWeekIdx,
     isDateStatic,
     onApplyFilter,
+    onConditionsOpChange,
     report.conditions,
+    report.conditionsOp,
     includeCurrentInterval,
+    locale,
+    savedStatus,
   ]);
 
   useEffect(() => {
@@ -707,7 +748,9 @@ function CustomReportInner({ report: initialReport }: CustomReportInnerProps) {
           <PageHeader
             title={
               <Trans>
-                <Text>Custom Report:</Text>{' '}
+                <Text>
+                  <Trans>Custom Report:</Trans>
+                </Text>{' '}
                 <Text style={{ marginLeft: 5, color: theme.pageTextPositive }}>
                   {
                     {
@@ -838,6 +881,7 @@ function CustomReportInner({ report: initialReport }: CustomReportInnerProps) {
             </View>
           )}
           <View
+            id="custom-report-content"
             style={{
               backgroundColor: theme.tableBackground,
               flexDirection: 'row',
