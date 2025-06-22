@@ -3,15 +3,17 @@ import React, {
   useContext,
   type CSSProperties,
   type ComponentType,
+  type JSX,
 } from 'react';
 
-import * as monthUtils from 'loot-core/src/shared/months';
+import { theme } from '@actual-app/components/theme';
+import { View } from '@actual-app/components/view';
 
-import { theme } from '../../style';
-import { View } from '../common/View';
-import { NamespaceContext } from '../spreadsheet/NamespaceContext';
+import * as monthUtils from 'loot-core/shared/months';
 
 import { MonthsContext } from './MonthsContext';
+
+import { NamespaceContext } from '@desktop-client/components/spreadsheet/NamespaceContext';
 
 type RenderMonthsProps = {
   component?: ComponentType<{ month: string; editing: boolean }>;

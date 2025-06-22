@@ -1,15 +1,17 @@
 import React, { useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
-import { send, sendCatch } from 'loot-core/src/platform/client/fetch';
-import { type TransactionFilterEntity } from 'loot-core/types/models';
-import { type RuleConditionEntity } from 'loot-core/types/models/rule';
+import { Button } from '@actual-app/components/button';
+import { SvgExpandArrow } from '@actual-app/components/icons/v0';
+import { Popover } from '@actual-app/components/popover';
+import { Text } from '@actual-app/components/text';
+import { View } from '@actual-app/components/view';
 
-import { SvgExpandArrow } from '../../icons/v0';
-import { Button } from '../common/Button2';
-import { Popover } from '../common/Popover';
-import { Text } from '../common/Text';
-import { View } from '../common/View';
+import { send, sendCatch } from 'loot-core/platform/client/fetch';
+import {
+  type TransactionFilterEntity,
+  type RuleConditionEntity,
+} from 'loot-core/types/models';
 
 import { FilterMenu } from './FilterMenu';
 import { NameFilter } from './NameFilter';

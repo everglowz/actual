@@ -3,26 +3,35 @@ import React, { type FormEvent, useState, type CSSProperties } from 'react';
 import { Form } from 'react-aria-components';
 import { useTranslation, Trans } from 'react-i18next';
 
-import { pushModal } from 'loot-core/client/actions';
-import { closeAccount } from 'loot-core/client/queries/queriesSlice';
-import { integerToCurrency } from 'loot-core/src/shared/util';
-import { type AccountEntity } from 'loot-core/src/types/models';
+import { Button } from '@actual-app/components/button';
+import { FormError } from '@actual-app/components/form-error';
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
+import { Paragraph } from '@actual-app/components/paragraph';
+import { styles } from '@actual-app/components/styles';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { View } from '@actual-app/components/view';
+
+import { integerToCurrency } from 'loot-core/shared/util';
+import { type AccountEntity } from 'loot-core/types/models';
 import { type TransObjectLiteral } from 'loot-core/types/util';
 
-import { useAccounts } from '../../hooks/useAccounts';
-import { useCategories } from '../../hooks/useCategories';
-import { useDispatch } from '../../redux';
-import { styles, theme } from '../../style';
-import { AccountAutocomplete } from '../autocomplete/AccountAutocomplete';
-import { CategoryAutocomplete } from '../autocomplete/CategoryAutocomplete';
-import { Button } from '../common/Button2';
-import { FormError } from '../common/FormError';
-import { Link } from '../common/Link';
-import { Modal, ModalCloseButton, ModalHeader } from '../common/Modal';
-import { Paragraph } from '../common/Paragraph';
-import { Text } from '../common/Text';
-import { View } from '../common/View';
-import { useResponsive } from '../responsive/ResponsiveProvider';
+import { AccountAutocomplete } from '@desktop-client/components/autocomplete/AccountAutocomplete';
+import { CategoryAutocomplete } from '@desktop-client/components/autocomplete/CategoryAutocomplete';
+import { Link } from '@desktop-client/components/common/Link';
+import {
+  Modal,
+  ModalCloseButton,
+  ModalHeader,
+} from '@desktop-client/components/common/Modal';
+import { useAccounts } from '@desktop-client/hooks/useAccounts';
+import { useCategories } from '@desktop-client/hooks/useCategories';
+import {
+  type Modal as ModalType,
+  pushModal,
+} from '@desktop-client/modals/modalsSlice';
+import { closeAccount } from '@desktop-client/queries/queriesSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 function needsCategory(
   account: AccountEntity,
@@ -37,11 +46,10 @@ function needsCategory(
   return account.offbudget === 0 && isOffBudget;
 }
 
-type CloseAccountModalProps = {
-  account: AccountEntity;
-  balance: number;
-  canDelete: boolean;
-};
+type CloseAccountModalProps = Extract<
+  ModalType,
+  { name: 'close-account' }
+>['options'];
 
 export function CloseAccountModal({
   account,
@@ -87,24 +95,27 @@ export function CloseAccountModal({
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const transferError = balance !== 0 && transferAccountId === '';
+    const transferError = balance !== 0 && !transferAccountId;
     setTransferError(transferError);
 
     const categoryError =
-      needsCategory(account, transferAccountId, accounts) && categoryId === '';
+      needsCategory(account, transferAccountId, accounts) && !categoryId;
     setCategoryError(categoryError);
 
-    if (!transferError && !categoryError) {
-      setLoading(true);
-
-      dispatch(
-        closeAccount({
-          id: account.id,
-          transferAccountId: transferAccountId || null,
-          categoryId: categoryId || null,
-        }),
-      );
+    if (transferError || categoryError) {
+      return false;
     }
+
+    setLoading(true);
+
+    dispatch(
+      closeAccount({
+        id: account.id,
+        transferAccountId: transferAccountId || null,
+        categoryId: categoryId || null,
+      }),
+    );
+    return true;
   };
 
   return (
@@ -146,8 +157,9 @@ export function CloseAccountModal({
             </Paragraph>
             <Form
               onSubmit={e => {
-                onSubmit(e);
-                close();
+                if (onSubmit(e)) {
+                  close();
+                }
               }}
             >
               {balance !== 0 && (
@@ -181,9 +193,14 @@ export function CloseAccountModal({
                           },
                           onClick: () => {
                             dispatch(
-                              pushModal('account-autocomplete', {
-                                includeClosedAccounts: false,
-                                onSelect: onSelectAccount,
+                              pushModal({
+                                modal: {
+                                  name: 'account-autocomplete',
+                                  options: {
+                                    includeClosedAccounts: false,
+                                    onSelect: onSelectAccount,
+                                  },
+                                },
                               }),
                             );
                           },
@@ -221,10 +238,15 @@ export function CloseAccountModal({
                             },
                             onClick: () => {
                               dispatch(
-                                pushModal('category-autocomplete', {
-                                  categoryGroups,
-                                  showHiddenCategories: true,
-                                  onSelect: onSelectCategory,
+                                pushModal({
+                                  modal: {
+                                    name: 'category-autocomplete',
+                                    options: {
+                                      categoryGroups,
+                                      showHiddenCategories: true,
+                                      onSelect: onSelectCategory,
+                                    },
+                                  },
                                 }),
                               );
                             },

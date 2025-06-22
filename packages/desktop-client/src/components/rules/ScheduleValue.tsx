@@ -1,16 +1,17 @@
 import React, { useMemo } from 'react';
 
-import { useSchedules } from 'loot-core/client/data-hooks/schedules';
-import { q } from 'loot-core/shared/query';
-import { getPayeesById } from 'loot-core/src/client/queries/queriesSlice';
-import { describeSchedule } from 'loot-core/src/shared/schedules';
-import { type ScheduleEntity } from 'loot-core/src/types/models';
+import { AnimatedLoading } from '@actual-app/components/icons/AnimatedLoading';
+import { View } from '@actual-app/components/view';
 
-import { usePayees } from '../../hooks/usePayees';
-import { AnimatedLoading } from '../../icons/AnimatedLoading';
-import { View } from '../common/View';
+import { q } from 'loot-core/shared/query';
+import { describeSchedule } from 'loot-core/shared/schedules';
+import { type ScheduleEntity } from 'loot-core/types/models';
 
 import { Value } from './Value';
+
+import { usePayees } from '@desktop-client/hooks/usePayees';
+import { useSchedules } from '@desktop-client/hooks/useSchedules';
+import { getPayeesById } from '@desktop-client/queries/queriesSlice';
 
 type ScheduleValueProps = {
   value: ScheduleEntity;

@@ -1,16 +1,16 @@
 import React, { type Ref, useRef, useState } from 'react';
 
+import { View } from '@actual-app/components/view';
 import { debounce } from 'debounce';
 
 import { amountToCurrency } from 'loot-core/shared/util';
 
-import { useMergedRefs } from '../../hooks/useMergedRefs';
-import { useResizeObserver } from '../../hooks/useResizeObserver';
-import { View } from '../common/View';
-import { PrivacyFilter } from '../PrivacyFilter';
-
 import { chartTheme } from './chart-theme';
 import { LoadingIndicator } from './LoadingIndicator';
+
+import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
+import { useMergedRefs } from '@desktop-client/hooks/useMergedRefs';
+import { useResizeObserver } from '@desktop-client/hooks/useResizeObserver';
 
 const FONT_SIZE_SCALE_FACTOR = 1.6;
 const CONTAINER_MARGIN = 8;

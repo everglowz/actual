@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 
-import { send } from 'loot-core/src/platform/client/fetch';
-import { type Handlers } from 'loot-core/src/types/handlers';
+import { ButtonWithLoading } from '@actual-app/components/button';
+import { Paragraph } from '@actual-app/components/paragraph';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { View } from '@actual-app/components/view';
 
-import { theme } from '../../style';
-import { ButtonWithLoading } from '../common/Button2';
-import { Paragraph } from '../common/Paragraph';
-import { Text } from '../common/Text';
-import { View } from '../common/View';
+import { send } from 'loot-core/platform/client/fetch';
+import { type Handlers } from 'loot-core/types/handlers';
 
 import { Setting } from './UI';
 
@@ -24,6 +24,8 @@ function useRenderResults() {
       numDeleted,
       numTransfersFixed,
       mismatchedSplits,
+      numNonParentErrorsFixed,
+      numParentTransactionsWithCategoryFixed,
     } = results;
     const result: string[] = [];
 
@@ -32,7 +34,9 @@ function useRenderResults() {
       numCleared === 0 &&
       numDeleted === 0 &&
       numTransfersFixed === 0 &&
-      mismatchedSplits.length === 0
+      numNonParentErrorsFixed === 0 &&
+      mismatchedSplits.length === 0 &&
+      numParentTransactionsWithCategoryFixed === 0
     ) {
       result.push(t('No split transactions found needing repair.'));
     } else {
@@ -57,6 +61,13 @@ function useRenderResults() {
           }),
         );
       }
+      if (numNonParentErrorsFixed > 0) {
+        result.push(
+          t('Fixed {{count}} non-split transactions with split errors.', {
+            count: numNonParentErrorsFixed,
+          }),
+        );
+      }
       if (numTransfersFixed > 0) {
         result.push(
           t('Fixed {{count}} transfers.', {
@@ -74,6 +85,13 @@ function useRenderResults() {
             'Found {{count}} split transactions with mismatched amounts on the below dates. Please review them manually:',
             { count: mismatchedSplits.length },
           ) + `\n${mismatchedSplitInfo}`,
+        );
+      }
+      if (numParentTransactionsWithCategoryFixed > 0) {
+        result.push(
+          t('Fixed {{count}} split transactions with non-null category.', {
+            count: numParentTransactionsWithCategoryFixed,
+          }),
         );
       }
     }
@@ -154,8 +172,16 @@ export function RepairTransactions() {
             locate and fix the amounts.
           </li>
           <li>
+            Checks for any non-split transactions with erroneous split errors
+            and removes the errors if found.
+          </li>
+          <li>
             Check if you have any budget transfers that erroneous contain a
             category, and remove the category.
+          </li>
+          <li>
+            Checks for any parent transactions with a category and removes the
+            category if found.
           </li>
         </ul>
       </Trans>

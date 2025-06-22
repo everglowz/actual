@@ -1,26 +1,30 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { replaceModal } from 'loot-core/src/client/actions/modals';
-import { send } from 'loot-core/src/platform/client/fetch';
+import { Button } from '@actual-app/components/button';
+import { Paragraph } from '@actual-app/components/paragraph';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { View } from '@actual-app/components/view';
+
+import { send } from 'loot-core/platform/client/fetch';
 import { type PayeeEntity } from 'loot-core/types/models';
 
-import { usePayees } from '../../hooks/usePayees';
-import { useSelector, useDispatch } from '../../redux';
-import { theme } from '../../style';
-import { Information } from '../alerts';
-import { Button } from '../common/Button2';
-import { Modal, ModalButtons } from '../common/Modal';
-import { Paragraph } from '../common/Paragraph';
-import { Text } from '../common/Text';
-import { View } from '../common/View';
+import { Information } from '@desktop-client/components/alerts';
+import { Modal, ModalButtons } from '@desktop-client/components/common/Modal';
+import { usePayees } from '@desktop-client/hooks/usePayees';
+import {
+  type Modal as ModalType,
+  replaceModal,
+} from '@desktop-client/modals/modalsSlice';
+import { useSelector, useDispatch } from '@desktop-client/redux';
 
 const highlightStyle = { color: theme.pageTextPositive };
 
-type MergeUnusedPayeesModalProps = {
-  payeeIds: Array<PayeeEntity['id']>;
-  targetPayeeId: PayeeEntity['id'];
-};
+type MergeUnusedPayeesModalProps = Extract<
+  ModalType,
+  { name: 'merge-unused-payees' }
+>['options'];
 
 export function MergeUnusedPayeesModal({
   payeeIds,
@@ -81,7 +85,13 @@ export function MergeUnusedPayeesModal({
 
       if (ruleId) {
         const rule = await send('rule-get', { id: ruleId });
-        dispatch(replaceModal('edit-rule', { rule }));
+        if (!rule) {
+          return;
+        }
+
+        dispatch(
+          replaceModal({ modal: { name: 'edit-rule', options: { rule } } }),
+        );
       }
     },
     [onMerge, dispatch],

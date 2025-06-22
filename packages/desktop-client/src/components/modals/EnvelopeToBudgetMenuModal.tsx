@@ -1,14 +1,19 @@
-import React, {
-  type ComponentPropsWithoutRef,
-  type CSSProperties,
-} from 'react';
+import React, { type CSSProperties } from 'react';
 
-import { theme, styles } from '../../style';
-import { ToBudgetMenu } from '../budget/envelope/budgetsummary/ToBudgetMenu';
-import { Modal, ModalCloseButton, ModalHeader } from '../common/Modal';
+import { styles } from '@actual-app/components/styles';
+import { theme } from '@actual-app/components/theme';
 
-type EnvelopeToBudgetMenuModalProps = ComponentPropsWithoutRef<
-  typeof ToBudgetMenu
+import { ToBudgetMenu } from '@desktop-client/components/budget/envelope/budgetsummary/ToBudgetMenu';
+import {
+  Modal,
+  ModalCloseButton,
+  ModalHeader,
+} from '@desktop-client/components/common/Modal';
+import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
+
+type EnvelopeToBudgetMenuModalProps = Omit<
+  Extract<ModalType, { name: 'envelope-summary-to-budget-menu' }>['options'],
+  'month'
 >;
 
 export function EnvelopeToBudgetMenuModal({

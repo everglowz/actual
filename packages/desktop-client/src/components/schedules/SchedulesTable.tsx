@@ -2,33 +2,40 @@
 import React, { useRef, useState, useMemo, type CSSProperties } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
+import { Button } from '@actual-app/components/button';
+import { SvgDotsHorizontalTriple } from '@actual-app/components/icons/v1';
+import { SvgCheck } from '@actual-app/components/icons/v2';
+import { Menu } from '@actual-app/components/menu';
+import { Popover } from '@actual-app/components/popover';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { View } from '@actual-app/components/view';
+
+import { format as monthUtilFormat } from 'loot-core/shared/months';
+import { getNormalisedString } from 'loot-core/shared/normalisation';
+import { getScheduledAmount } from 'loot-core/shared/schedules';
+import { integerToCurrency } from 'loot-core/shared/util';
+import { type ScheduleEntity } from 'loot-core/types/models';
+
+import { StatusBadge } from './StatusBadge';
+
+import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
+import {
+  Table,
+  TableHeader,
+  Row,
+  Field,
+  Cell,
+} from '@desktop-client/components/table';
+import { DisplayId } from '@desktop-client/components/util/DisplayId';
+import { useAccounts } from '@desktop-client/hooks/useAccounts';
+import { useContextMenu } from '@desktop-client/hooks/useContextMenu';
+import { useDateFormat } from '@desktop-client/hooks/useDateFormat';
+import { usePayees } from '@desktop-client/hooks/usePayees';
 import {
   type ScheduleStatusType,
   type ScheduleStatuses,
-} from 'loot-core/src/client/data-hooks/schedules';
-import { format as monthUtilFormat } from 'loot-core/src/shared/months';
-import { getNormalisedString } from 'loot-core/src/shared/normalisation';
-import { getScheduledAmount } from 'loot-core/src/shared/schedules';
-import { integerToCurrency } from 'loot-core/src/shared/util';
-import { type ScheduleEntity } from 'loot-core/src/types/models';
-
-import { useAccounts } from '../../hooks/useAccounts';
-import { useContextMenu } from '../../hooks/useContextMenu';
-import { useDateFormat } from '../../hooks/useDateFormat';
-import { usePayees } from '../../hooks/usePayees';
-import { SvgDotsHorizontalTriple } from '../../icons/v1';
-import { SvgCheck } from '../../icons/v2';
-import { theme } from '../../style';
-import { Button } from '../common/Button2';
-import { Menu } from '../common/Menu';
-import { Popover } from '../common/Popover';
-import { Text } from '../common/Text';
-import { View } from '../common/View';
-import { PrivacyFilter } from '../PrivacyFilter';
-import { Table, TableHeader, Row, Field, Cell } from '../table';
-import { DisplayId } from '../util/DisplayId';
-
-import { StatusBadge } from './StatusBadge';
+} from '@desktop-client/hooks/useSchedules';
 
 type SchedulesTableProps = {
   isLoading?: boolean;

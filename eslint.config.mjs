@@ -5,11 +5,11 @@ import globals from 'globals';
 
 import pluginImport from 'eslint-plugin-import';
 import pluginJSXA11y from 'eslint-plugin-jsx-a11y';
-import pluginPrettier from 'eslint-plugin-prettier/recommended';
 import pluginReact from 'eslint-plugin-react';
 import pluginReactHooks from 'eslint-plugin-react-hooks';
 import pluginRulesDir from 'eslint-plugin-rulesdir';
 import pluginTypescript from 'typescript-eslint';
+import pluginTypescriptPaths from 'eslint-plugin-typescript-paths';
 
 import tsParser from '@typescript-eslint/parser';
 
@@ -85,15 +85,16 @@ const confusingBrowserGlobals = [
   'top',
 ];
 
-/** @type {import('eslint').Linter.Config[]} */
-export default [
+export default pluginTypescript.config(
   {
     ignores: [
       'packages/api/app/bundle.api.js',
+      'packages/api/app/stats.json',
       'packages/api/dist',
       'packages/api/@types',
       'packages/api/migrations',
       'packages/crdt/dist',
+      'packages/component-library/src/icons/**/*',
       'packages/desktop-client/bundle.browser.js',
       'packages/desktop-client/build/',
       'packages/desktop-client/build-electron/',
@@ -102,7 +103,6 @@ export default [
       'packages/desktop-client/public/data/',
       'packages/desktop-client/**/node_modules/*',
       'packages/desktop-client/node_modules/',
-      'packages/desktop-client/src/icons/**/*',
       'packages/desktop-client/test-results/',
       'packages/desktop-client/playwright-report/',
       'packages/desktop-electron/client-build/',
@@ -113,10 +113,29 @@ export default [
       'packages/loot-core/**/node_modules/*',
       'packages/loot-core/**/lib-dist/*',
       'packages/loot-core/**/proto/*',
-      'packages/sync-server',
       '.yarn/*',
       '.github/*',
     ],
+  },
+  {
+    // Temporary until the sync-server is migrated to TypeScript
+    files: [
+      'packages/sync-server/**/*.spec.{js,jsx}',
+      'packages/sync-server/**/*.test.{js,jsx}',
+    ],
+    languageOptions: {
+      globals: {
+        vi: true,
+        describe: true,
+        expect: true,
+        it: true,
+        beforeAll: true,
+        beforeEach: true,
+        afterAll: true,
+        afterEach: true,
+        test: true,
+      },
+    },
   },
   {
     linterOptions: {
@@ -126,7 +145,6 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.commonjs,
-        ...globals.jest,
         ...globals.node,
         globalThis: false,
         vi: true,
@@ -146,14 +164,14 @@ export default [
   },
   pluginReact.configs.flat.recommended,
   pluginReact.configs.flat['jsx-runtime'],
-  pluginPrettier,
-  ...pluginTypescript.configs.recommended,
+  pluginTypescript.configs.recommended,
   pluginImport.flatConfigs.recommended,
   {
     plugins: {
       'react-hooks': pluginReactHooks,
       'jsx-a11y': pluginJSXA11y,
       rulesdir: pluginRulesDir,
+      'typescript-paths': pluginTypescriptPaths,
     },
   },
   {
@@ -522,7 +540,7 @@ export default [
     },
   },
   {
-    files: ['**/*.ts?(x)'],
+    files: ['**/*.{ts,tsx}'],
 
     languageOptions: {
       parser: tsParser,
@@ -530,7 +548,7 @@ export default [
       sourceType: 'module',
 
       parserOptions: {
-        project: [path.join(__dirname, './tsconfig.json')],
+        projectService: true,
         ecmaFeatures: {
           jsx: true,
         },
@@ -549,6 +567,13 @@ export default [
       'no-dupe-class-members': 'off',
       // 'tsc' already handles this (https://github.com/typescript-eslint/typescript-eslint/issues/477)
       'no-undef': 'off',
+
+      // TypeScript already handles these (https://typescript-eslint.io/troubleshooting/typed-linting/performance/#eslint-plugin-import)
+      'import/named': 'off',
+      'import/namespace': 'off',
+      'import/default': 'off',
+      'import/no-named-as-default-member': 'off',
+      'import/no-unresolved': 'off',
 
       // Add TypeScript specific rules (and turn off ESLint equivalents)
       '@typescript-eslint/consistent-type-assertions': 'warn',
@@ -581,6 +606,16 @@ export default [
 
       'no-useless-constructor': 'off',
       '@typescript-eslint/no-useless-constructor': 'warn',
+    },
+  },
+  {
+    files: ['packages/desktop-client/**/*.{js,ts,jsx,tsx}'],
+    rules: {
+      'typescript-paths/absolute-parent-import': [
+        'error',
+        { preferPathOverBaseUrl: true },
+      ],
+      'typescript-paths/absolute-import': ['error', { enableAlias: false }],
     },
   },
   {
@@ -671,7 +706,6 @@ export default [
   },
   {
     files: ['packages/loot-core/src/**/*'],
-
     rules: {
       'no-restricted-imports': [
         'warn',
@@ -690,6 +724,10 @@ export default [
               group: ['loot-core/**'],
               message:
                 'Please use relative imports in loot-core instead of importing from `loot-core/*`',
+            },
+            {
+              group: ['@actual-app/web/*'],
+              message: 'Please do not import `@actual-app/web` in `loot-core`',
             },
           ],
         },
@@ -744,6 +782,16 @@ export default [
       'import/no-unresolved': 'off',
     },
   },
+
+  // Allow configuring vitest with default exports (recommended as per vitest docs)
+  {
+    files: ['**/vitest.config.ts', '**/vitest.web.config.ts'],
+    rules: {
+      'import/no-anonymous-default-export': 'off',
+      'import/no-default-export': 'off',
+    },
+  },
+
   {},
   {
     // TODO: fix the issues in these files
@@ -758,7 +806,7 @@ export default [
       'packages/desktop-client/src/components/budget/MobileBudget.tsx',
       'packages/desktop-client/src/components/budget/envelope/HoldMenu.tsx',
       'packages/desktop-client/src/components/budget/envelope/TransferMenu.tsx',
-      'packages/desktop-client/src/components/common/Menu.tsx',
+      'packages/component-library/src/Menu.tsx',
       'packages/desktop-client/src/components/FinancesApp.tsx',
       'packages/desktop-client/src/components/GlobalKeys.ts',
       'packages/desktop-client/src/components/LoggedInUser.tsx',
@@ -787,21 +835,6 @@ export default [
       'packages/desktop-client/src/components/select/DateSelect.tsx',
       'packages/desktop-client/src/components/sidebar/Tools.tsx',
       'packages/desktop-client/src/components/sort.tsx',
-      'packages/desktop-client/src/components/spreadsheet/useSheetValue.ts',
-      'packages/desktop-client/src/components/table.tsx',
-      'packages/desktop-client/src/components/Titlebar.tsx',
-      'packages/desktop-client/src/components/transactions/MobileTransaction.jsx',
-      'packages/desktop-client/src/components/transactions/SelectedTransactions.jsx',
-      'packages/desktop-client/src/components/transactions/SimpleTransactionsTable.jsx',
-      'packages/desktop-client/src/components/transactions/TransactionList.jsx',
-      'packages/desktop-client/src/components/transactions/TransactionsTable.jsx',
-      'packages/desktop-client/src/components/transactions/TransactionsTable.test.jsx',
-      'packages/desktop-client/src/hooks/useAccounts.ts',
-      'packages/desktop-client/src/hooks/useCategories.ts',
-      'packages/desktop-client/src/hooks/usePayees.ts',
-      'packages/desktop-client/src/hooks/useProperFocus.tsx',
-      'packages/desktop-client/src/hooks/useSelected.tsx',
-      'packages/loot-core/src/client/query-hooks.tsx',
     ],
 
     rules: {
@@ -815,6 +848,7 @@ export default [
       '**/*.test.ts',
       '**/*.test.jsx',
       '**/*.test.tsx',
+      '**/*.spec.js',
     ],
 
     rules: {
@@ -832,4 +866,21 @@ export default [
       '@typescript-eslint/consistent-type-definitions': ['warn', 'type'],
     },
   },
-];
+  {
+    files: ['packages/sync-server/**/*'],
+    // TODO: fix the issues in these files
+    rules: {
+      'import/extensions': 'off',
+      'rulesdir/typography': 'off',
+    },
+  },
+  {
+    files: ['packages/sync-server/src/app-gocardless/banks/*.js'],
+    rules: {
+      'import/no-anonymous-default-export': 'off',
+      'import/no-default-export': 'off',
+      // can be re-enabled after https://github.com/actualbudget/actual/pull/4253
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
+  },
+);

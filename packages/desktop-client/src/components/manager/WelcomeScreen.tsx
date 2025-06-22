@@ -1,15 +1,17 @@
 import React from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
-import { createBudget, pushModal } from 'loot-core/client/actions';
+import { Button } from '@actual-app/components/button';
+import { Paragraph } from '@actual-app/components/paragraph';
+import { styles } from '@actual-app/components/styles';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { View } from '@actual-app/components/view';
 
-import { useDispatch } from '../../redux';
-import { styles, theme } from '../../style';
-import { Button } from '../common/Button2';
-import { Link } from '../common/Link';
-import { Paragraph } from '../common/Paragraph';
-import { Text } from '../common/Text';
-import { View } from '../common/View';
+import { createBudget } from '@desktop-client/budgets/budgetsSlice';
+import { Link } from '@desktop-client/components/common/Link';
+import { pushModal } from '@desktop-client/modals/modalsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 export function WelcomeScreen() {
   const { t } = useTranslation();
@@ -79,7 +81,9 @@ export function WelcomeScreen() {
           flexShrink: 0,
         }}
       >
-        <Button onPress={() => dispatch(pushModal('import'))}>
+        <Button
+          onPress={() => dispatch(pushModal({ modal: { name: 'import' } }))}
+        >
           {t('Import my budget')}
         </Button>
         <View
@@ -95,7 +99,7 @@ export function WelcomeScreen() {
           <Button
             variant="primary"
             autoFocus
-            onPress={() => dispatch(createBudget())}
+            onPress={() => dispatch(createBudget({}))}
           >
             {t('Start fresh')}
           </Button>

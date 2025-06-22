@@ -6,16 +6,19 @@ import {
   SvgCheveronDown,
   SvgCheveronRight,
   SvgCog,
+  SvgCreditCard,
   SvgReports,
   SvgStoreFront,
   SvgTuning,
   SvgWallet,
-} from '../../icons/v1';
-import { SvgCalendar } from '../../icons/v2';
-import { View } from '../common/View';
+} from '@actual-app/components/icons/v1';
+import { SvgCalendar3 } from '@actual-app/components/icons/v2';
+import { View } from '@actual-app/components/view';
 
 import { Item } from './Item';
 import { SecondaryItem } from './SecondaryItem';
+
+import { useSyncServerStatus } from '@desktop-client/hooks/useSyncServerStatus';
 
 export function PrimaryButtons() {
   const { t } = useTranslation();
@@ -23,9 +26,16 @@ export function PrimaryButtons() {
   const onToggle = useCallback(() => setOpen(open => !open), []);
   const location = useLocation();
 
-  const isActive = ['/payees', '/rules', '/settings', '/tools'].some(route =>
-    location.pathname.startsWith(route),
-  );
+  const syncServerStatus = useSyncServerStatus();
+  const isUsingServer = syncServerStatus !== 'no-server';
+
+  const isActive = [
+    '/payees',
+    '/rules',
+    '/bank-sync',
+    '/settings',
+    '/tools',
+  ].some(route => location.pathname.startsWith(route));
 
   useEffect(() => {
     if (isActive) {
@@ -37,7 +47,7 @@ export function PrimaryButtons() {
     <View style={{ flexShrink: 0 }}>
       <Item title={t('Budget')} Icon={SvgWallet} to="/budget" />
       <Item title={t('Reports')} Icon={SvgReports} to="/reports" />
-      <Item title={t('Schedules')} Icon={SvgCalendar} to="/schedules" />
+      <Item title={t('Schedules')} Icon={SvgCalendar3} to="/schedules" />
       <Item
         title={t('More')}
         Icon={isOpen ? SvgCheveronDown : SvgCheveronRight}
@@ -59,6 +69,14 @@ export function PrimaryButtons() {
             to="/rules"
             indent={15}
           />
+          {isUsingServer && (
+            <SecondaryItem
+              title={t('Bank Sync')}
+              Icon={SvgCreditCard}
+              to="/bank-sync"
+              indent={15}
+            />
+          )}
           <SecondaryItem
             title={t('Settings')}
             Icon={SvgCog}

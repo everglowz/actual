@@ -1,21 +1,26 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { envelopeBudget } from 'loot-core/client/queries';
+import { Button } from '@actual-app/components/button';
+import { InitialFocus } from '@actual-app/components/initial-focus';
+import { styles } from '@actual-app/components/styles';
+import { View } from '@actual-app/components/view';
 
-import { styles } from '../../style';
-import { useEnvelopeSheetValue } from '../budget/envelope/EnvelopeBudgetComponents';
-import { Button } from '../common/Button2';
-import { InitialFocus } from '../common/InitialFocus';
-import { Modal, ModalCloseButton, ModalHeader } from '../common/Modal';
-import { View } from '../common/View';
-import { FieldLabel } from '../mobile/MobileForms';
-import { AmountInput } from '../util/AmountInput';
+import { useEnvelopeSheetValue } from '@desktop-client/components/budget/envelope/EnvelopeBudgetComponents';
+import {
+  Modal,
+  ModalCloseButton,
+  ModalHeader,
+} from '@desktop-client/components/common/Modal';
+import { FieldLabel } from '@desktop-client/components/mobile/MobileForms';
+import { AmountInput } from '@desktop-client/components/util/AmountInput';
+import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
+import { envelopeBudget } from '@desktop-client/queries/queries';
 
-type HoldBufferModalProps = {
-  month: string;
-  onSubmit: (amount: number) => void;
-};
+type HoldBufferModalProps = Extract<
+  ModalType,
+  { name: 'hold-buffer' }
+>['options'];
 
 export function HoldBufferModal({ onSubmit }: HoldBufferModalProps) {
   const { t } = useTranslation(); // Initialize i18next

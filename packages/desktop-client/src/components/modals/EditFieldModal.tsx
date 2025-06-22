@@ -6,20 +6,25 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Button } from '@actual-app/components/button';
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
+import { Input } from '@actual-app/components/input';
+import { theme } from '@actual-app/components/theme';
+import { View } from '@actual-app/components/view';
 import { parseISO, format as formatDate, parse as parseDate } from 'date-fns';
 
-import { currentDay, dayFromDate } from 'loot-core/src/shared/months';
-import { amountToInteger } from 'loot-core/src/shared/util';
+import { currentDay, dayFromDate } from 'loot-core/shared/months';
+import { amountToInteger } from 'loot-core/shared/util';
 
-import { useDateFormat } from '../../hooks/useDateFormat';
-import { theme } from '../../style';
-import { Button } from '../common/Button2';
-import { Input } from '../common/Input';
-import { Modal, ModalCloseButton, ModalHeader } from '../common/Modal';
-import { View } from '../common/View';
-import { SectionLabel } from '../forms';
-import { useResponsive } from '../responsive/ResponsiveProvider';
-import { DateSelect } from '../select/DateSelect';
+import {
+  Modal,
+  ModalCloseButton,
+  ModalHeader,
+} from '@desktop-client/components/common/Modal';
+import { SectionLabel } from '@desktop-client/components/forms';
+import { DateSelect } from '@desktop-client/components/select/DateSelect';
+import { useDateFormat } from '@desktop-client/hooks/useDateFormat';
+import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
 
 const itemStyle: CSSProperties = {
   fontSize: 17,
@@ -30,15 +35,10 @@ const itemStyle: CSSProperties = {
 
 type NoteAmendMode = 'replace' | 'prepend' | 'append';
 
-type EditFieldModalProps = {
-  name: string;
-  onSubmit: (
-    name: string,
-    value: string | number,
-    mode?: NoteAmendMode,
-  ) => void;
-  onClose: () => void;
-};
+type EditFieldModalProps = Extract<
+  ModalType,
+  { name: 'edit-field' }
+>['options'];
 
 export function EditFieldModal({
   name,
@@ -86,7 +86,6 @@ export function EditFieldModal({
         <DateSelect
           value={formatDate(parseISO(today), dateFormat)}
           dateFormat={dateFormat}
-          focused={true}
           embedded={true}
           onUpdate={() => {}}
           onSelect={date => {
@@ -207,11 +206,10 @@ export function EditFieldModal({
             </Button>
           </View>
           <Input
-            inputRef={noteInputRef}
+            ref={noteInputRef}
             autoFocus
-            focused={true}
-            onEnter={e => {
-              onSelectNote(e.currentTarget.value, noteAmend);
+            onEnter={value => {
+              onSelectNote(value, noteAmend);
               close();
             }}
             style={inputStyle}
@@ -224,9 +222,8 @@ export function EditFieldModal({
       label = t('Amount');
       editor = ({ close }) => (
         <Input
-          focused={true}
-          onEnter={e => {
-            onSelect(e.currentTarget.value);
+          onEnter={value => {
+            onSelect(value);
             close();
           }}
           style={inputStyle}
@@ -244,7 +241,9 @@ export function EditFieldModal({
       onClose={onClose}
       containerProps={{
         style: {
-          height: isNarrowWidth ? '85vh' : 275,
+          height: isNarrowWidth
+            ? 'calc(var(--visual-viewport-height) * 0.85)'
+            : 275,
           padding: '15px 10px',
           ...(minWidth && { minWidth }),
           backgroundColor: theme.menuAutoCompleteBackground,

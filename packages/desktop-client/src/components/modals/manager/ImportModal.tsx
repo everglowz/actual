@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
-import { pushModal } from 'loot-core/client/actions';
+import { Block } from '@actual-app/components/block';
+import { Button } from '@actual-app/components/button';
+import { styles } from '@actual-app/components/styles';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { View } from '@actual-app/components/view';
 
-import { useDispatch } from '../../../redux';
-import { styles, theme } from '../../../style';
-import { Block } from '../../common/Block';
-import { Button } from '../../common/Button2';
-import { Modal, ModalCloseButton, ModalHeader } from '../../common/Modal';
-import { Text } from '../../common/Text';
-import { View } from '../../common/View';
+import {
+  Modal,
+  ModalCloseButton,
+  ModalHeader,
+} from '@desktop-client/components/common/Modal';
+import { pushModal } from '@desktop-client/modals/modalsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 function getErrorMessage(error: 'not-ynab4' | boolean) {
   switch (error) {
@@ -29,13 +34,13 @@ export function ImportModal() {
   function onSelectType(type: 'ynab4' | 'ynab5' | 'actual') {
     switch (type) {
       case 'ynab4':
-        dispatch(pushModal('import-ynab4'));
+        dispatch(pushModal({ modal: { name: 'import-ynab4' } }));
         break;
       case 'ynab5':
-        dispatch(pushModal('import-ynab5'));
+        dispatch(pushModal({ modal: { name: 'import-ynab5' } }));
         break;
       case 'actual':
-        dispatch(pushModal('import-actual'));
+        dispatch(pushModal({ modal: { name: 'import-actual' } }));
         break;
       default:
     }
@@ -65,8 +70,10 @@ export function ImportModal() {
             )}
 
             <Text style={{ marginBottom: 15 }}>
-              Select an app to import from, and we’ll guide you through the
-              process.
+              <Trans>
+                Select an app to import from, and we’ll guide you through the
+                process.
+              </Trans>
             </Text>
 
             <Button style={itemStyle} onPress={() => onSelectType('ynab4')}>
