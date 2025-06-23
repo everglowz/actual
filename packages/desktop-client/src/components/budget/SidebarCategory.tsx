@@ -37,7 +37,7 @@ type SidebarCategoryProps = {
   onEditName: (id: CategoryEntity['id']) => void;
   onSave: (category: CategoryEntity) => void;
   onDelete: (id: CategoryEntity['id']) => Promise<void>;
-  onCopyName: (name: string) => void;
+  onCopyName: (name: CategoryEntity['name']) => void;
   onHideNewCategory?: () => void;
 };
 
