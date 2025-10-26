@@ -1,4 +1,4 @@
-import { type Template } from 'loot-core/server/budget/types/templates';
+import { type Template } from 'loot-core/types/models/templates';
 
 import { type DisplayTemplateType } from './constants';
 
@@ -14,7 +14,7 @@ type SET_TEMPLATE = {
 
 type UPDATE_TEMPLATE = {
   type: 'update-template';
-  payload: Partial<Template>;
+  payload: Partial<Template> & Pick<Template, 'type'>;
 };
 
 export const setType = (type: DisplayTemplateType): SET_TYPE => ({
@@ -28,7 +28,7 @@ export const setTemplate = (template: Template): SET_TEMPLATE => ({
 });
 
 export const updateTemplate = (
-  template: Partial<Template>,
+  template: Partial<Template> & Pick<Template, 'type'>,
 ): UPDATE_TEMPLATE => ({
   type: 'update-template' as const,
   payload: template,

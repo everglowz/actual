@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { captureException } from '../../platform/exceptions';
 import * as asyncStorage from '../../platform/server/asyncStorage';
 import * as connection from '../../platform/server/connection';
+import { logger } from '../../platform/server/log';
 import { isNonProductionEnvironment } from '../../shared/environment';
 import { dayFromDate } from '../../shared/months';
 import * as monthUtils from '../../shared/months';
@@ -16,6 +17,7 @@ import {
   SyncServerSimpleFinAccount,
   SyncServerPluggyAiAccount,
   type GoCardlessToken,
+  ImportTransactionEntity,
 } from '../../types/models';
 import { createApp } from '../app';
 import * as db from '../db';
@@ -435,6 +437,10 @@ async function closeAccount({
         throw APIError('balance is non-zero: transferAccountId is required');
       }
 
+      if (id === transferAccountId) {
+        throw APIError('transfer account can not be the account being closed');
+      }
+
       await db.update('accounts', { id, closed: 1 });
 
       // If there is a balance we need to transfer it to the specified
@@ -532,7 +538,7 @@ async function checkSecret(name: string) {
       'X-ACTUAL-TOKEN': userToken,
     });
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     return { error: 'failed' };
   }
 }
@@ -584,7 +590,7 @@ async function pollGoCardlessWebToken({
 
     if (data) {
       if (data.error_code) {
-        console.error('Failed linking gocardless account:', data);
+        logger.error('Failed linking gocardless account:', data);
         cb({ status: 'unknown', message: data.error_type });
       } else {
         cb({ status: 'success', data });
@@ -785,7 +791,7 @@ async function createGoCardlessWebToken({
       },
     );
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     return { error: 'failed' };
   }
 }
@@ -918,7 +924,7 @@ async function accountsBankSync({
   for (const acct of accounts) {
     if (acct.bankId && acct.account_id) {
       try {
-        console.group('Bank Sync operation for account:', acct.name);
+        logger.group('Bank Sync operation for account:', acct.name);
         const syncResponse = await bankSync.syncAccount(
           userId as string,
           userKey as string,
@@ -940,7 +946,7 @@ async function accountsBankSync({
           message: 'Failed syncing account “' + acct.name + '.”',
         } as Error);
       } finally {
-        console.groupEnd();
+        logger.groupEnd();
       }
     }
   }
@@ -987,7 +993,7 @@ async function simpleFinBatchSync({
     };
   }> = [];
 
-  console.group('Bank Sync operation for all SimpleFin accounts');
+  logger.group('Bank Sync operation for all SimpleFin accounts');
   try {
     const syncResponses: Array<{
       accountId: AccountEntity['id'];
@@ -1006,7 +1012,7 @@ async function simpleFinBatchSync({
     for (const syncResponse of syncResponses) {
       const account = accounts.find(a => a.id === syncResponse.accountId);
       if (!account) {
-        console.error(
+        logger.error(
           `Invalid account ID found in response: ${syncResponse.accountId}. Proceeding to the next account...`,
         );
         continue;
@@ -1069,12 +1075,12 @@ async function simpleFinBatchSync({
     });
   }
 
-  console.groupEnd();
+  logger.groupEnd();
 
   return retVal;
 }
 
-type ImportTransactionsResult = bankSync.ReconcileTransactionsResult & {
+export type ImportTransactionsResult = bankSync.ReconcileTransactionsResult & {
   errors: Array<{
     message: string;
   }>;
@@ -1087,10 +1093,10 @@ async function importTransactions({
   opts,
 }: {
   accountId: AccountEntity['id'];
-  transactions: TransactionEntity[];
+  transactions: ImportTransactionEntity[];
   isPreview: boolean;
   opts?: {
-    defaultCleared: boolean;
+    defaultCleared?: boolean;
   };
 }): Promise<ImportTransactionsResult> {
   if (typeof accountId !== 'string') {
@@ -1198,7 +1204,7 @@ async function unlinkAccount({ id }: { id: AccountEntity['id'] }) {
         },
       );
     } catch (error) {
-      console.log({ error });
+      logger.log({ error });
     }
   }
 

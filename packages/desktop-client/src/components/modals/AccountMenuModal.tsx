@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import {
@@ -158,7 +158,7 @@ export function AccountMenuModal({
                 notes={
                   originalNotes && originalNotes.length > 0
                     ? originalNotes
-                    : 'No notes'
+                    : t('No notes')
                 }
                 editable={false}
                 focused={false}
@@ -187,7 +187,7 @@ export function AccountMenuModal({
                   height={20}
                   style={{ paddingRight: 5 }}
                 />
-                {t('Edit notes')}
+                <Trans>Edit notes</Trans>
               </Button>
             </View>
           </View>
@@ -208,6 +208,7 @@ function AdditionalAccountMenu({
   onClose,
   onReopen,
 }: AdditionalAccountMenuProps) {
+  const { t } = useTranslation();
   const triggerRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const itemStyle: CSSProperties = {
@@ -225,7 +226,7 @@ function AdditionalAccountMenu({
       <Button
         ref={triggerRef}
         variant="bare"
-        aria-label="Menu"
+        aria-label={t('Menu')}
         onPress={() => {
           setMenuOpen(true);
         }}
@@ -247,13 +248,13 @@ function AdditionalAccountMenu({
               account.closed
                 ? {
                     name: 'reopen',
-                    text: 'Reopen account',
+                    text: t('Reopen account'),
                     icon: SvgLockOpen,
                     iconSize: 15,
                   }
                 : {
                     name: 'close',
-                    text: 'Close account',
+                    text: t('Close account'),
                     icon: SvgClose,
                     iconSize: 15,
                   },

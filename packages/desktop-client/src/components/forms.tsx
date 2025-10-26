@@ -35,19 +35,41 @@ type FormLabelProps = {
   style?: CSSProperties;
 };
 
+const defaultLabelStyle: CSSProperties = {
+  fontSize: 13,
+  marginBottom: 3,
+  color: theme.tableText,
+};
+
 export const FormLabel = ({ style, title, id, htmlFor }: FormLabelProps) => {
   return (
     <Text
       style={{
-        fontSize: 13,
-        marginBottom: 3,
-        color: theme.tableText,
+        ...defaultLabelStyle,
         ...style,
       }}
     >
       <label htmlFor={htmlFor} id={id}>
         {title}
       </label>
+    </Text>
+  );
+};
+
+export const FormTextLabel = ({
+  style,
+  title,
+  id,
+}: Omit<FormLabelProps, 'htmlFor'>) => {
+  return (
+    <Text
+      style={{
+        ...defaultLabelStyle,
+        cursor: 'default',
+        ...style,
+      }}
+    >
+      <span id={id}>{title}</span>
     </Text>
   );
 };
@@ -96,11 +118,11 @@ export const Checkbox = (props: CheckboxProps) => {
               display: 'block',
               background:
                 theme.checkboxBackgroundSelected +
-                // eslint-disable-next-line rulesdir/typography
+                // eslint-disable-next-line actual/typography
                 ' url(\'data:image/svg+xml; utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="white" d="M0 11l2-2 5 5L18 3l2 2L7 18z"/></svg>\') 9px 9px',
               width: 9,
               height: 9,
-              // eslint-disable-next-line rulesdir/typography
+              // eslint-disable-next-line actual/typography
               content: '" "',
             },
           },
@@ -124,7 +146,7 @@ export const Checkbox = (props: CheckboxProps) => {
               right: -5,
               border: '2px solid ' + theme.checkboxBorderSelected,
               borderRadius: 6,
-              // eslint-disable-next-line rulesdir/typography
+              // eslint-disable-next-line actual/typography
               content: '" "',
             },
           },

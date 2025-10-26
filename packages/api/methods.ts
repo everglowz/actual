@@ -1,5 +1,6 @@
 // @ts-strict-ignore
 import type { Handlers } from 'loot-core/types/handlers';
+import type { ImportTransactionEntity } from 'loot-core/types/models/import-transaction';
 
 import * as injected from './injected';
 
@@ -95,18 +96,21 @@ export function addTransactions(
 
 export interface ImportTransactionsOpts {
   defaultCleared?: boolean;
+  dryRun?: boolean;
 }
 
 export function importTransactions(
-  accountId,
-  transactions,
+  accountId: string,
+  transactions: ImportTransactionEntity[],
   opts: ImportTransactionsOpts = {
     defaultCleared: true,
+    dryRun: false,
   },
 ) {
   return send('api/transactions-import', {
     accountId,
     transactions,
+    isPreview: opts.dryRun,
     opts,
   });
 }
@@ -237,4 +241,32 @@ export function holdBudgetForNextMonth(month, amount) {
 
 export function resetBudgetHold(month) {
   return send('api/budget-reset-hold', { month });
+}
+
+export function createSchedule(schedule) {
+  return send('api/schedule-create', schedule);
+}
+
+export function updateSchedule(id, fields, resetNextDate?: boolean) {
+  return send('api/schedule-update', {
+    id,
+    fields,
+    resetNextDate,
+  });
+}
+
+export function deleteSchedule(scheduleId) {
+  return send('api/schedule-delete', scheduleId);
+}
+
+export function getSchedules() {
+  return send('api/schedules-get');
+}
+
+export function getIDByName(type, name) {
+  return send('api/get-id-by-name', { type, name });
+}
+
+export function getServerVersion() {
+  return send('api/get-server-version');
 }

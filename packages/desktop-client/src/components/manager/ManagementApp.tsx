@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router';
 
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { Text } from '@actual-app/components/text';
@@ -66,7 +66,7 @@ export function ManagementApp() {
     isNarrowWidth ? theme.mobileConfigServerViewTheme : undefined,
   );
 
-  const files = useSelector(state => state.budgets.allFiles);
+  const files = useSelector(state => state.budgetfiles.allFiles);
   const isLoading = useSelector(state => state.app.loadingText !== null);
   const userData = useSelector(state => state.user.data);
   const multiuserEnabled = useMultiuserEnabled();

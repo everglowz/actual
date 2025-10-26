@@ -91,7 +91,7 @@ export const styles: Record<string, any> = {
   },
   shadowLarge,
   tnum: {
-    // eslint-disable-next-line rulesdir/typography
+    // eslint-disable-next-line actual/typography
     fontFeatureSettings: '"tnum"',
   },
   notFixed: { fontFeatureSettings: '' },
@@ -153,5 +153,11 @@ export const styles: Record<string, any> = {
     backgroundColor: theme.pillBackground,
     borderRadius: 4,
     padding: '3px 5px',
+  },
+  mobileListItem: {
+    borderBottom: `1px solid ${theme.tableBorder}`,
+    backgroundColor: theme.tableBackground,
+    padding: 16,
+    cursor: 'pointer',
   },
 };

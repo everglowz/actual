@@ -8,7 +8,7 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { createBudget } from '@desktop-client/budgets/budgetsSlice';
+import { createBudget } from '@desktop-client/budgetfiles/budgetfilesSlice';
 import { Link } from '@desktop-client/components/common/Link';
 import { pushModal } from '@desktop-client/modals/modalsSlice';
 import { useDispatch } from '@desktop-client/redux';
@@ -84,7 +84,7 @@ export function WelcomeScreen() {
         <Button
           onPress={() => dispatch(pushModal({ modal: { name: 'import' } }))}
         >
-          {t('Import my budget')}
+          <Trans>Import my budget</Trans>
         </Button>
         <View
           style={{
@@ -94,14 +94,14 @@ export function WelcomeScreen() {
           }}
         >
           <Button onPress={() => dispatch(createBudget({ testMode: true }))}>
-            {t('View demo')}
+            <Trans>View demo</Trans>
           </Button>
           <Button
             variant="primary"
             autoFocus
             onPress={() => dispatch(createBudget({}))}
           >
-            {t('Start fresh')}
+            <Trans>Start fresh</Trans>
           </Button>
         </View>
       </View>

@@ -6,29 +6,26 @@ import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import {
-  type AccountEntity,
-  type TransactionEntity,
-} from 'loot-core/types/models';
+import { type TransactionEntity } from 'loot-core/types/models';
 
 import { TransactionList } from './TransactionList';
 
 import { Search } from '@desktop-client/components/common/Search';
 import { PullToRefresh } from '@desktop-client/components/mobile/PullToRefresh';
-import type {
-  Binding,
-  SheetNames,
-  SheetFields,
-} from '@desktop-client/components/spreadsheet';
 import {
   CellValue,
   CellValueText,
 } from '@desktop-client/components/spreadsheet/CellValue';
-import { useSheetValue } from '@desktop-client/components/spreadsheet/useSheetValue';
 import {
   SelectedProvider,
   useSelected,
 } from '@desktop-client/hooks/useSelected';
+import { useSheetValue } from '@desktop-client/hooks/useSheetValue';
+import type {
+  Binding,
+  SheetNames,
+  SheetFields,
+} from '@desktop-client/spreadsheet';
 
 type TransactionSearchInputProps = {
   placeholder: string;
@@ -92,7 +89,7 @@ type TransactionListWithBalancesProps = {
   onLoadMore: () => void;
   onOpenTransaction: (transaction: TransactionEntity) => void;
   onRefresh?: () => void;
-  account?: AccountEntity;
+  showMakeTransfer?: boolean;
 };
 
 export function TransactionListWithBalances({
@@ -107,7 +104,7 @@ export function TransactionListWithBalances({
   onLoadMore,
   onOpenTransaction,
   onRefresh,
-  account,
+  showMakeTransfer = false,
 }: TransactionListWithBalancesProps) {
   const selectedInst = useSelected('transactions', [...transactions], []);
 
@@ -142,7 +139,7 @@ export function TransactionListWithBalances({
           />
         </View>
         <PullToRefresh
-          isPullable={!!onRefresh}
+          isPullable={!isLoading && !!onRefresh}
           onRefresh={async () => onRefresh?.()}
         >
           <TransactionList
@@ -151,7 +148,7 @@ export function TransactionListWithBalances({
             isLoadingMore={isLoadingMore}
             onLoadMore={onLoadMore}
             onOpenTransaction={onOpenTransaction}
-            account={account}
+            showMakeTransfer={showMakeTransfer}
           />
         </PullToRefresh>
       </>

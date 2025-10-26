@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 
 import { Button } from '@actual-app/components/button';
 import { Menu } from '@actual-app/components/menu';
@@ -19,7 +19,7 @@ import { useMultiuserEnabled, useServerURL } from './ServerContext';
 
 import { useAuth } from '@desktop-client/auth/AuthProvider';
 import { Permissions } from '@desktop-client/auth/types';
-import { closeBudget } from '@desktop-client/budgets/budgetsSlice';
+import { closeBudget } from '@desktop-client/budgetfiles/budgetfilesSlice';
 import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
 import { useNavigate } from '@desktop-client/hooks/useNavigate';
 import { useSelector, useDispatch } from '@desktop-client/redux';
@@ -49,7 +49,7 @@ export function LoggedInUser({
   const location = useLocation();
   const { hasPermission } = useAuth();
   const multiuserEnabled = useMultiuserEnabled();
-  const allFiles = useSelector(state => state.budgets.allFiles || []);
+  const allFiles = useSelector(state => state.budgetfiles.allFiles || []);
   const remoteFiles = allFiles.filter(
     f => f.state === 'remote' || f.state === 'synced' || f.state === 'detached',
   ) as (SyncedLocalFile | RemoteFile)[];

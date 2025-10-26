@@ -9,9 +9,9 @@ import {
 import { useCategory } from './useCategory';
 import { useCategoryScheduleGoalTemplates } from './useCategoryScheduleGoalTemplates';
 import { usePreviewTransactions } from './usePreviewTransactions';
+import { useSheetValue } from './useSheetValue';
 
-import { useSheetValue } from '@desktop-client/components/spreadsheet/useSheetValue';
-import { categoryBalance } from '@desktop-client/queries/queries';
+import { categoryBalance } from '@desktop-client/spreadsheet/bindings';
 
 type UseCategoryPreviewTransactionsProps = {
   categoryId: CategoryEntity['id'];
@@ -66,8 +66,8 @@ export function useCategoryPreviewTransactions({
       return {
         previewTransactions: [],
         runningBalances: new Map(),
-        isLoading: false,
-        error: undefined,
+        isLoading,
+        error,
       };
     }
 
@@ -77,12 +77,9 @@ export function useCategoryPreviewTransactions({
     );
 
     const transactionIds = new Set(previewTransactions.map(t => t.id));
-    const runningBalances = allRunningBalances;
-    for (const transactionId of runningBalances.keys()) {
-      if (!transactionIds.has(transactionId)) {
-        runningBalances.delete(transactionId);
-      }
-    }
+    const runningBalances = new Map(
+      [...allRunningBalances].filter(([id]) => transactionIds.has(id)),
+    );
 
     return {
       previewTransactions,

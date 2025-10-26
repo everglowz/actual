@@ -36,21 +36,21 @@ import {
   ConditionalPrivacyFilter,
   mergeConditionalPrivacyFilterProps,
 } from './PrivacyFilter';
-import {
-  type Spreadsheets,
-  type SheetFields,
-  type SheetNames,
-  type Binding,
-} from './spreadsheet';
-import { type FormatType, useFormat } from './spreadsheet/useFormat';
-import { useSheetValue } from './spreadsheet/useSheetValue';
 
+import { type FormatType, useFormat } from '@desktop-client/hooks/useFormat';
 import { useModalState } from '@desktop-client/hooks/useModalState';
 import {
   AvoidRefocusScrollProvider,
   useProperFocus,
 } from '@desktop-client/hooks/useProperFocus';
 import { useSelectedItems } from '@desktop-client/hooks/useSelected';
+import { useSheetValue } from '@desktop-client/hooks/useSheetValue';
+import {
+  type Spreadsheets,
+  type SheetFields,
+  type SheetNames,
+  type Binding,
+} from '@desktop-client/spreadsheet';
 
 export const ROW_HEIGHT = 32;
 
@@ -319,6 +319,8 @@ type InputValueProps = Omit<
 > & {
   value?: string;
   onUpdate?: (newValue: string) => void;
+} & {
+  [key: `data-${string}`]: unknown;
 };
 
 function InputValue({
@@ -624,6 +626,7 @@ type SelectCellProps = Omit<ComponentProps<typeof Cell>, 'children'> & {
   partial?: boolean;
   onEdit?: () => void;
   onSelect?: (e) => void;
+  icon?: ReactNode;
   buttonProps?: Partial<CellButtonProps>;
 };
 export function SelectCell({
@@ -632,6 +635,7 @@ export function SelectCell({
   style,
   onSelect,
   onEdit,
+  icon = <SvgCheckmark width={6} height={6} />,
   buttonProps = {},
   ...props
 }: SelectCellProps) {
@@ -673,7 +677,7 @@ export function SelectCell({
           clickBehavior="none"
           {...buttonProps}
         >
-          {selected && <SvgCheckmark width={6} height={6} />}
+          {selected && icon}
         </CellButton>
       )}
     </Cell>
@@ -774,7 +778,7 @@ export function SheetCell<
   );
 }
 
-type TableHeaderProps = ComponentProps<typeof Row> & {
+type TableHeaderProps = Omit<ComponentProps<typeof Row>, 'headers'> & {
   headers?: Array<ComponentProps<typeof Cell>>;
 };
 export function TableHeader({
@@ -900,14 +904,15 @@ export type TableHandleRef<T extends TableItem = TableItem> = {
   isAnchored(): boolean;
 };
 
-type TableWithNavigatorProps = TableProps & {
-  fields;
-};
+type TableWithNavigatorProps<T extends TableItem = TableItem> =
+  TableProps<T> & {
+    fields: string[] | ((item?: T) => string[]);
+  };
 
-export function TableWithNavigator({
+export function TableWithNavigator<T extends TableItem = TableItem>({
   fields,
   ...props
-}: TableWithNavigatorProps) {
+}: TableWithNavigatorProps<T>) {
   const navigator = useTableNavigator(props.items, fields);
   return <Table {...props} navigator={navigator} />;
 }

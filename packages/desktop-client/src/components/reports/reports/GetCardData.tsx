@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
-import { useTranslation } from 'react-i18next';
+import { Trans } from 'react-i18next';
 
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { styles } from '@actual-app/components/styles';
@@ -26,14 +26,13 @@ import { createGroupedSpreadsheet } from '@desktop-client/components/reports/spr
 import { useReport } from '@desktop-client/components/reports/useReport';
 
 function ErrorFallback() {
-  const { t } = useTranslation();
   return (
     <>
       <div>
         <br />
       </div>
       <Text style={{ ...styles.mediumText, color: theme.errorText }}>
-        {t('There was a problem loading your report')}
+        <Trans>There was a problem loading your report</Trans>
       </Text>
     </>
   );
@@ -71,6 +70,7 @@ export function GetCardData({
   accounts,
   categories,
   earliestTransaction,
+  latestTransaction,
   firstDayOfWeekIdx,
   showTooltip,
 }: {
@@ -79,6 +79,7 @@ export function GetCardData({
   accounts: AccountEntity[];
   categories: { list: CategoryEntity[]; grouped: CategoryGroupEntity[] };
   earliestTransaction: string;
+  latestTransaction: string;
   firstDayOfWeekIdx?: SyncedPrefs['firstDayOfWeekIdx'];
   showTooltip?: boolean;
 }) {
@@ -91,6 +92,7 @@ export function GetCardData({
     const [dateStart, dateEnd] = getLiveRange(
       report.dateRange,
       earliestTransaction,
+      latestTransaction,
       report.includeCurrentInterval,
       firstDayOfWeekIdx,
     );

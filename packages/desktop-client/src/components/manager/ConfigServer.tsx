@@ -17,7 +17,7 @@ import {
 
 import { Title } from './subscribe/common';
 
-import { createBudget } from '@desktop-client/budgets/budgetsSlice';
+import { createBudget } from '@desktop-client/budgetfiles/budgetfilesSlice';
 import { Link } from '@desktop-client/components/common/Link';
 import {
   useServerURL,
@@ -56,12 +56,16 @@ export function ElectronServerConfig({
   const [startingSyncServer, setStartingSyncServer] = useState(false);
 
   const onConfigureSyncServer = async () => {
+    if (startingSyncServer) {
+      return; // Prevent multiple clicks
+    }
+
     if (
       isNaN(electronServerPort) ||
       electronServerPort <= 0 ||
       electronServerPort > 65535
     ) {
-      setConfigError('Ports must be within range 1 - 65535');
+      setConfigError(t('Ports must be within range 1 - 65535'));
       return;
     }
 
@@ -89,7 +93,7 @@ export function ElectronServerConfig({
       navigate('/');
     } catch (error) {
       setStartingSyncServer(false);
-      setConfigError('Failed to configure sync server');
+      setConfigError(t('Failed to configure sync server'));
       console.error('Failed to configure sync server:', error);
     }
   };
@@ -135,8 +139,26 @@ export function ElectronServerConfig({
           }}
         >
           <Trans>
-            Configure your local server below to allow seamless data
-            synchronization across your devices, bank sync and more...
+            Set up your server below to enable seamless data synchronization
+            across your devices, bank sync and more...
+          </Trans>
+        </Text>
+        <Text
+          style={{
+            fontSize: 16,
+            color: theme.pageText,
+            lineHeight: 1.5,
+          }}
+        >
+          <Trans>
+            Need to expose your server to the internet? Follow our step-by-step{' '}
+            <Link
+              variant="external"
+              to="https://actualbudget.org/docs/install/desktop-app"
+            >
+              guide
+            </Link>{' '}
+            for more information.
           </Trans>
         </Text>
 
@@ -203,23 +225,23 @@ export function ElectronServerConfig({
           >
             <Label title={t('')} style={{ textAlign: 'left', width: '7ch' }} />
             {!electronSyncServerRunning ? (
-              <Button
+              <ButtonWithLoading
                 variant="primary"
                 style={{ padding: 10, width: '8ch' }}
                 onPress={onConfigureSyncServer}
-                isPending={startingSyncServer}
+                isLoading={startingSyncServer}
               >
                 <Trans>Start</Trans>
-              </Button>
+              </ButtonWithLoading>
             ) : (
-              <Button
+              <ButtonWithLoading
                 variant="primary"
                 style={{ padding: 10, width: '8ch' }}
                 onPress={onConfigureSyncServer}
-                isPending={startingSyncServer}
+                isLoading={startingSyncServer}
               >
                 <Trans>Save</Trans>
-              </Button>
+              </ButtonWithLoading>
             )}
           </View>
         </View>
@@ -463,7 +485,7 @@ export function ConfigServer() {
               style={{ fontSize: 15 }}
               onPress={onSubmit}
             >
-              {t('OK')}
+              <Trans>OK</Trans>
             </ButtonWithLoading>
             {currentUrl && (
               <Button
@@ -471,7 +493,7 @@ export function ConfigServer() {
                 style={{ fontSize: 15, marginLeft: 10 }}
                 onPress={() => navigate(-1)}
               >
-                {t('Cancel')}
+                <Trans>Cancel</Trans>
               </Button>
             )}
           </View>
@@ -489,7 +511,7 @@ export function ConfigServer() {
                 style={{ color: theme.pageTextLight }}
                 onPress={onSkip}
               >
-                {t('Stop using a server')}
+                <Trans>Stop using a server</Trans>
               </Button>
             ) : (
               <>
@@ -503,7 +525,7 @@ export function ConfigServer() {
                     }}
                     onPress={onSameDomain}
                   >
-                    {t('Use current domain')}
+                    <Trans>Use current domain</Trans>
                   </Button>
                 )}
                 <Button
@@ -511,7 +533,7 @@ export function ConfigServer() {
                   style={{ color: theme.pageTextLight, margin: 5 }}
                   onPress={onSkip}
                 >
-                  {t('Don’t use a server')}
+                  <Trans>Don’t use a server</Trans>
                 </Button>
 
                 {isNonProductionEnvironment() && (
@@ -523,7 +545,7 @@ export function ConfigServer() {
                       navigate('/');
                     }}
                   >
-                    {t('Create test file')}
+                    <Trans>Create test file</Trans>
                   </Button>
                 )}
               </>

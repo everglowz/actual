@@ -33,6 +33,8 @@ import { AutoTextSize } from 'auto-text-size';
 
 import { useModalState } from '@desktop-client/hooks/useModalState';
 
+export const MODAL_Z_INDEX = 3000;
+
 type ModalProps = ComponentPropsWithRef<typeof ReactAriaModal> & {
   name: string;
   isLoading?: boolean;
@@ -80,7 +82,7 @@ export const Modal = ({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 3000,
+        zIndex: MODAL_Z_INDEX,
         fontSize: 14,
         willChange: 'transform',
         // on mobile, we disable the blurred background for performance reasons
@@ -201,7 +203,8 @@ const ModalContentContainer = ({
       }
 
       if (isActive) {
-        contentRef.current.style.transform = 'translateY(0px) scale(1)';
+        contentRef.current.style.transform = 'none';
+        contentRef.current.style.willChange = 'auto';
         contentRef.current.style.pointerEvents = 'auto';
       } else {
         contentRef.current.style.transform = `translateY(-40px) scale(.95) rotate(${rotateFactor.current}deg)`;
