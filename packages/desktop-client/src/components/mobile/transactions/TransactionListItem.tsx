@@ -44,9 +44,10 @@ import { useCachedSchedules } from '@desktop-client/hooks/useCachedSchedules';
 import { useCategories } from '@desktop-client/hooks/useCategories';
 import { useDisplayPayee } from '@desktop-client/hooks/useDisplayPayee';
 import { usePayee } from '@desktop-client/hooks/usePayee';
+import { NotesTagFormatter } from '@desktop-client/notes/NotesTagFormatter';
 import { useSelector } from '@desktop-client/redux';
 
-const ROW_HEIGHT = 60;
+export const ROW_HEIGHT = 60;
 
 const getTextStyle = ({
   isPreview,
@@ -94,7 +95,9 @@ export function TransactionListItem({
   const transferAccount = useAccount(payee?.transfer_acct || '');
   const isPreview = isPreviewId(transaction?.id || '');
 
-  const newTransactions = useSelector(state => state.queries.newTransactions);
+  const newTransactions = useSelector(
+    state => state.transactions.newTransactions,
+  );
 
   const { longPressProps } = useLongPress({
     accessibilityDescription: 'Long press to select multiple transactions',
@@ -134,11 +137,11 @@ export function TransactionListItem({
   const isAdded = newTransactions.includes(id);
   const categoryName = lookupName(categories, categoryId);
   const specialCategory = account?.offbudget
-    ? 'Off budget'
+    ? t('Off budget')
     : transferAccount && !transferAccount.offbudget
-      ? 'Transfer'
+      ? t('Transfer')
       : isParent
-        ? 'Split'
+        ? t('Split')
         : null;
 
   const prettyCategory = specialCategory || categoryName;
@@ -263,7 +266,7 @@ export function TransactionListItem({
                         textAlign: 'left',
                       }}
                     >
-                      {prettyCategory || 'Uncategorized'}
+                      {prettyCategory || t('Uncategorized')}
                     </TextOneLine>
                   </View>
                 )}
@@ -278,7 +281,7 @@ export function TransactionListItem({
                       opacity: 0.85,
                     }}
                   >
-                    {notes}
+                    <NotesTagFormatter notes={notes} />
                   </TextOneLine>
                 )}
               </View>

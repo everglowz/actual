@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { Menu } from '@actual-app/components/menu';
@@ -31,6 +31,7 @@ import { validateEnd, validateStart } from './reportRanges';
 import { setSessionReport } from './setSessionReport';
 
 import { Information } from '@desktop-client/components/alerts';
+import { useLocale } from '@desktop-client/hooks/useLocale';
 
 type ReportSidebarProps = {
   customReportItems: CustomReportEntity;
@@ -62,6 +63,7 @@ type ReportSidebarProps = {
   defaultItems: (item: string) => void;
   defaultModeItems: (graph: string, item: string) => void;
   earliestTransaction: string;
+  latestTransaction: string;
   firstDayOfWeekIdx: SyncedPrefs['firstDayOfWeekIdx'];
   isComplexCategoryCondition?: boolean;
 };
@@ -92,10 +94,13 @@ export function ReportSidebar({
   defaultItems,
   defaultModeItems,
   earliestTransaction,
+  latestTransaction,
   firstDayOfWeekIdx,
   isComplexCategoryCondition = false,
 }: ReportSidebarProps) {
   const { t } = useTranslation();
+  const locale = useLocale();
+
   const [menuOpen, setMenuOpen] = useState(false);
   const triggerRef = useRef(null);
 
@@ -107,6 +112,7 @@ export function ReportSidebar({
       ...getLiveRange(
         cond,
         earliestTransaction,
+        latestTransaction,
         customReportItems.includeCurrentInterval,
         firstDayOfWeekIdx,
       ),
@@ -215,7 +221,9 @@ export function ReportSidebar({
           }}
         >
           <Text>
-            <strong>{t('Display')}</strong>
+            <strong>
+              <Trans>Display</Trans>
+            </strong>
           </Text>
         </View>
         <SpaceBetween
@@ -224,18 +232,20 @@ export function ReportSidebar({
             padding: 5,
           }}
         >
-          <Text style={{ width: 50, textAlign: 'right' }}>{t('Mode:')}</Text>
+          <Text style={{ width: 50, textAlign: 'right' }}>
+            <Trans>Mode:</Trans>
+          </Text>
           <ModeButton
             selected={customReportItems.mode === 'total'}
             onSelect={() => onChangeMode('total')}
           >
-            {t('Total')}
+            <Trans>Total</Trans>
           </ModeButton>
           <ModeButton
             selected={customReportItems.mode === 'time'}
             onSelect={() => onChangeMode('time')}
           >
-            {t('Time')}
+            <Trans>Time</Trans>
           </ModeButton>
         </SpaceBetween>
 
@@ -247,7 +257,7 @@ export function ReportSidebar({
           }}
         >
           <Text style={{ width: 50, textAlign: 'right', marginRight: 5 }}>
-            {t('Split:')}
+            <Trans>Split:</Trans>
           </Text>
           <Select
             value={customReportItems.groupBy}
@@ -268,7 +278,7 @@ export function ReportSidebar({
           }}
         >
           <Text style={{ width: 50, textAlign: 'right', marginRight: 5 }}>
-            {t('Type:')}
+            <Trans>Type:</Trans>
           </Text>
           <Select
             value={customReportItems.balanceType}
@@ -288,7 +298,7 @@ export function ReportSidebar({
           }}
         >
           <Text style={{ width: 50, textAlign: 'right', marginRight: 5 }}>
-            {t('Interval:')}
+            <Trans>Interval:</Trans>
           </Text>
           <Select
             value={customReportItems.interval}
@@ -322,7 +332,7 @@ export function ReportSidebar({
             }}
           >
             <Text style={{ width: 50, textAlign: 'right', marginRight: 5 }}>
-              {t('Sort:')}
+              <Trans>Sort:</Trans>
             </Text>
             <Select
               value={customReportItems.sortBy}
@@ -354,7 +364,7 @@ export function ReportSidebar({
               padding: '5px 10px',
             }}
           >
-            {t('Options')}
+            <Trans>Options</Trans>
           </Button>
           <Popover
             triggerRef={triggerRef}
@@ -455,7 +465,9 @@ export function ReportSidebar({
           }}
         >
           <Text>
-            <strong>{t('Date filters')}</strong>
+            <strong>
+              <Trans>Date filters</Trans>
+            </strong>
           </Text>
           <View style={{ flex: 1 }} />
           <ModeButton
@@ -466,7 +478,7 @@ export function ReportSidebar({
               onSelectRange(customReportItems.dateRange);
             }}
           >
-            Live
+            <Trans>Live</Trans>
           </ModeButton>
           <ModeButton
             selected={customReportItems.isDateStatic}
@@ -480,7 +492,7 @@ export function ReportSidebar({
               );
             }}
           >
-            {t('Static')}
+            <Trans>Static</Trans>
           </ModeButton>
         </SpaceBetween>
         {!customReportItems.isDateStatic ? (
@@ -492,7 +504,7 @@ export function ReportSidebar({
             }}
           >
             <Text style={{ width: 50, textAlign: 'right', marginRight: 5 }}>
-              {t('Range:')}
+              <Trans>Range:</Trans>
             </Text>
             <Select
               value={customReportItems.dateRange}
@@ -503,7 +515,11 @@ export function ReportSidebar({
               customReportItems.includeCurrentInterval && (
                 <Tooltip
                   placement="bottom start"
-                  content={<Text>{t('Current month')}</Text>}
+                  content={
+                    <Text>
+                      <Trans>Current month</Trans>
+                    </Text>
+                  }
                   style={{
                     ...styles.tooltip,
                     lineHeight: 1.5,
@@ -525,13 +541,14 @@ export function ReportSidebar({
               }}
             >
               <Text style={{ width: 50, textAlign: 'right', marginRight: 5 }}>
-                From:
+                <Trans>From:</Trans>
               </Text>
               <Select
                 onChange={newValue =>
                   onChangeDates(
                     ...validateStart(
                       earliestTransaction,
+                      latestTransaction,
                       newValue,
                       customReportItems.endDate,
                       customReportItems.interval,
@@ -545,6 +562,7 @@ export function ReportSidebar({
                   ReportOptions.intervalFormat.get(
                     customReportItems.interval,
                   ) || '',
+                  locale,
                 )}
                 options={allIntervals.map(({ name, pretty }) => [name, pretty])}
               />
@@ -557,13 +575,14 @@ export function ReportSidebar({
               }}
             >
               <Text style={{ width: 50, textAlign: 'right', marginRight: 5 }}>
-                To:
+                <Trans>To:</Trans>
               </Text>
               <Select
                 onChange={newValue =>
                   onChangeDates(
                     ...validateEnd(
                       earliestTransaction,
+                      latestTransaction,
                       customReportItems.startDate,
                       newValue,
                       customReportItems.interval,
@@ -577,6 +596,7 @@ export function ReportSidebar({
                   ReportOptions.intervalFormat.get(
                     customReportItems.interval,
                   ) || '',
+                  locale,
                 )}
                 options={allIntervals.map(({ name, pretty }) => [name, pretty])}
               />
@@ -600,7 +620,9 @@ export function ReportSidebar({
       >
         {isComplexCategoryCondition ? (
           <Information>
-            {t('Remove active category filters to show the category selector.')}
+            <Trans>
+              Remove active category filters to show the category selector.
+            </Trans>
           </Information>
         ) : (
           <CategorySelector

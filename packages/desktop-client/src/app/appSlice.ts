@@ -13,6 +13,7 @@ import { syncAccounts } from '@desktop-client/accounts/accountsSlice';
 import { pushModal } from '@desktop-client/modals/modalsSlice';
 import { loadPrefs } from '@desktop-client/prefs/prefsSlice';
 import { createAppAsyncThunk } from '@desktop-client/redux';
+import { getIsOutdated, getLatestVersion } from '@desktop-client/util/versions';
 
 const sliceName = 'app';
 
@@ -25,6 +26,10 @@ type AppState = {
   } | null;
   showUpdateNotification: boolean;
   managerHasInitialized: boolean;
+  versionInfo: {
+    latestVersion: string;
+    isOutdated: boolean;
+  } | null;
 };
 
 const initialState: AppState = {
@@ -32,6 +37,7 @@ const initialState: AppState = {
   updateInfo: null,
   showUpdateNotification: true,
   managerHasInitialized: false,
+  versionInfo: null,
 };
 
 export const resetApp = createAction(`${sliceName}/resetApp`);
@@ -104,6 +110,26 @@ export const sync = createAppAsyncThunk(
   },
 );
 
+export const getLatestAppVersion = createAppAsyncThunk(
+  `${sliceName}/getLatestAppVersion`,
+  async (_, { dispatch, getState }) => {
+    const globalPrefs = getState().prefs.global;
+    if (globalPrefs && globalPrefs.notifyWhenUpdateIsAvailable) {
+      const theLatestVersion = await getLatestVersion();
+      dispatch(
+        setAppState({
+          versionInfo: {
+            latestVersion: theLatestVersion,
+            isOutdated: getIsOutdated(theLatestVersion),
+          },
+        }),
+      );
+    }
+
+    return;
+  },
+);
+
 type SyncAndDownloadPayload = {
   accountId?: AccountEntity['id'] | string;
 };
@@ -121,7 +147,9 @@ export const syncAndDownload = createAppAsyncThunk(
       return { error: syncState.error };
     }
 
-    const hasDownloaded = await dispatch(syncAccounts({ id: accountId }));
+    const hasDownloaded = await dispatch(
+      syncAccounts({ id: accountId }),
+    ).unwrap();
 
     if (hasDownloaded) {
       // Sync again afterwards if new transactions were created
@@ -171,6 +199,7 @@ export const actions = {
   resetSync,
   sync,
   syncAndDownload,
+  getLatestAppVersion,
 };
 
 export const { setAppState } = actions;

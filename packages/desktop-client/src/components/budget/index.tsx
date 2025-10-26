@@ -15,27 +15,27 @@ import * as trackingBudget from './tracking/TrackingBudgetComponents';
 import { TrackingBudgetProvider } from './tracking/TrackingBudgetContext';
 import { prewarmAllMonths, prewarmMonth } from './util';
 
-import { NamespaceContext } from '@desktop-client/components/spreadsheet/NamespaceContext';
-import { useCategories } from '@desktop-client/hooks/useCategories';
-import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
-import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { useSpreadsheet } from '@desktop-client/hooks/useSpreadsheet';
-import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
-import { pushModal } from '@desktop-client/modals/modalsSlice';
-import { addNotification } from '@desktop-client/notifications/notificationsSlice';
 import {
   applyBudgetAction,
   createCategory,
-  createGroup,
+  createCategoryGroup,
   deleteCategory,
-  deleteGroup,
+  deleteCategoryGroup,
   getCategories,
   moveCategory,
   moveCategoryGroup,
   updateCategory,
-  updateGroup,
-} from '@desktop-client/queries/queriesSlice';
+  updateCategoryGroup,
+} from '@desktop-client/budget/budgetSlice';
+import { useCategories } from '@desktop-client/hooks/useCategories';
+import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
+import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
+import { useNavigate } from '@desktop-client/hooks/useNavigate';
+import { SheetNameProvider } from '@desktop-client/hooks/useSheetName';
+import { useSpreadsheet } from '@desktop-client/hooks/useSpreadsheet';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
+import { pushModal } from '@desktop-client/modals/modalsSlice';
+import { addNotification } from '@desktop-client/notifications/notificationsSlice';
 import { useDispatch } from '@desktop-client/redux';
 
 type TrackingReportComponents = {
@@ -217,9 +217,9 @@ function BudgetInner(props: BudgetInnerProps) {
 
   const onSaveGroup = group => {
     if (group.id === 'new') {
-      dispatch(createGroup({ name: group.name }));
+      dispatch(createCategoryGroup({ name: group.name }));
     } else {
-      dispatch(updateGroup({ group }));
+      dispatch(updateCategoryGroup({ group }));
     }
   };
 
@@ -242,14 +242,16 @@ function BudgetInner(props: BudgetInnerProps) {
             options: {
               group: id,
               onDelete: transferCategory => {
-                dispatch(deleteGroup({ id, transferId: transferCategory }));
+                dispatch(
+                  deleteCategoryGroup({ id, transferId: transferCategory }),
+                );
               },
             },
           },
         }),
       );
     } else {
-      dispatch(deleteGroup({ id }));
+      dispatch(deleteCategoryGroup({ id }));
     }
   };
 
@@ -388,9 +390,9 @@ function BudgetInner(props: BudgetInnerProps) {
   }
 
   return (
-    <NamespaceContext.Provider value={monthUtils.sheetForMonth(startMonth)}>
+    <SheetNameProvider name={monthUtils.sheetForMonth(startMonth)}>
       <View style={{ flex: 1 }}>{table}</View>
-    </NamespaceContext.Provider>
+    </SheetNameProvider>
   );
 }
 

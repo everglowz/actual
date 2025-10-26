@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { SvgExclamationSolid } from '@actual-app/components/icons/v1';
 import { styles } from '@actual-app/components/styles';
@@ -37,14 +37,12 @@ export function CustomReportListCards({
   report,
   onRemove,
 }: CustomReportListCardsProps) {
-  const { t } = useTranslation();
-
   // It's possible for a dashboard to reference a non-existing
   // custom report
   if (!report) {
     return (
       <MissingReportCard isEditing={isEditing} onRemove={onRemove}>
-        {t('This custom report has been deleted.')}
+        <Trans>This custom report has been deleted.</Trans>
       </MissingReportCard>
     );
   }
@@ -65,10 +63,13 @@ function CustomReportListCardsInner({
 }: Omit<CustomReportListCardsProps, 'report'> & {
   report: CustomReportEntity;
 }) {
+  const { t } = useTranslation();
+
   const dispatch = useDispatch();
 
   const [nameMenuOpen, setNameMenuOpen] = useState(false);
   const [earliestTransaction, setEarliestTransaction] = useState('');
+  const [latestTransaction, setLatestTransaction] = useState('');
 
   const payees = usePayees();
   const accounts = useAccounts();
@@ -85,8 +86,14 @@ function CustomReportListCardsInner({
 
   useEffect(() => {
     async function run() {
-      const trans = await send('get-earliest-transaction');
-      setEarliestTransaction(trans ? trans.date : monthUtils.currentDay());
+      const earliestTrans = await send('get-earliest-transaction');
+      const latestTrans = await send('get-latest-transaction');
+      setEarliestTransaction(
+        earliestTrans ? earliestTrans.date : monthUtils.currentDay(),
+      );
+      setLatestTransaction(
+        latestTrans ? latestTrans.date : monthUtils.currentDay(),
+      );
     }
     run();
   }, []);
@@ -104,7 +111,9 @@ function CustomReportListCardsInner({
         addNotification({
           notification: {
             type: 'error',
-            message: `Failed saving report name: ${response.error.message}`,
+            message: t('Failed saving report name: {{error}}', {
+              error: response.error.message,
+            }),
           },
         }),
       );
@@ -123,11 +132,11 @@ function CustomReportListCardsInner({
       menuItems={[
         {
           name: 'rename',
-          text: 'Rename',
+          text: t('Rename'),
         },
         {
           name: 'remove',
-          text: 'Remove',
+          text: t('Remove'),
         },
       ]}
       onMenuSelect={item => {
@@ -159,7 +168,7 @@ function CustomReportListCardsInner({
               <DateRange start={report.startDate} end={report.endDate} />
             ) : (
               <Text style={{ color: theme.pageTextSubdued }}>
-                {report.dateRange}
+                {t(report.dateRange)}
               </Text>
             )}
           </View>
@@ -170,6 +179,7 @@ function CustomReportListCardsInner({
           accounts={accounts}
           categories={categories}
           earliestTransaction={earliestTransaction}
+          latestTransaction={latestTransaction}
           firstDayOfWeekIdx={firstDayOfWeekIdx}
           showTooltip={!isEditing}
         />
@@ -177,7 +187,9 @@ function CustomReportListCardsInner({
       {hasWarning && (
         <View style={{ padding: 5, position: 'absolute', bottom: 0 }}>
           <Tooltip
-            content="The widget is configured to use a non-existing filter value (i.e. category/account/payee). Edit the filters used in this report widget to remove the warning."
+            content={t(
+              'The widget is configured to use a non-existing filter value (i.e. category/account/payee). Edit the filters used in this report widget to remove the warning.',
+            )}
             placement="bottom start"
             style={{ ...styles.tooltip, maxWidth: 300 }}
           >

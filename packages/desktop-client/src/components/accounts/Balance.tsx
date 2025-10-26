@@ -14,15 +14,15 @@ import { isPreviewId } from 'loot-core/shared/transactions';
 import { type AccountEntity } from 'loot-core/types/models';
 
 import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
-import { type Binding } from '@desktop-client/components/spreadsheet';
 import {
   CellValue,
   CellValueText,
 } from '@desktop-client/components/spreadsheet/CellValue';
-import { useFormat } from '@desktop-client/components/spreadsheet/useFormat';
-import { useSheetValue } from '@desktop-client/components/spreadsheet/useSheetValue';
 import { useCachedSchedules } from '@desktop-client/hooks/useCachedSchedules';
+import { useFormat } from '@desktop-client/hooks/useFormat';
 import { useSelectedItems } from '@desktop-client/hooks/useSelected';
+import { useSheetValue } from '@desktop-client/hooks/useSheetValue';
+import { type Binding } from '@desktop-client/spreadsheet';
 
 type DetailedBalanceProps = {
   name: string;
@@ -39,7 +39,6 @@ function DetailedBalance({
   return (
     <Text
       style={{
-        marginLeft: 15,
         borderRadius: 4,
         padding: '4px 6px',
         color: theme.pillText,
@@ -167,10 +166,10 @@ function MoreBalances({ balanceQuery }: MoreBalancesProps) {
   });
 
   return (
-    <View style={{ flexDirection: 'row' }}>
+    <>
       <DetailedBalance name={t('Cleared total:')} balance={cleared ?? 0} />
       <DetailedBalance name={t('Uncleared total:')} balance={uncleared ?? 0} />
-    </View>
+    </>
   );
 }
 
@@ -199,9 +198,11 @@ export function Balances({
     <View
       style={{
         flexDirection: 'row',
+        flexWrap: 'wrap',
         alignItems: 'center',
         marginTop: -5,
         marginLeft: -5,
+        gap: 10,
       }}
     >
       <Button

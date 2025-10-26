@@ -3,16 +3,16 @@ import { useCallback, useMemo, useReducer, useState } from 'react';
 import { Stack } from '@actual-app/components/stack';
 import { type CSSProperties } from '@actual-app/components/styles';
 
-import { type Template } from 'loot-core/server/budget/types/templates';
 import {
   type CategoryGroupEntity,
   type ScheduleEntity,
 } from 'loot-core/types/models';
+import { type Template } from 'loot-core/types/models/templates';
 
 import { type Action } from './actions';
 import { BudgetAutomationEditor } from './BudgetAutomationEditor';
 import { BudgetAutomationReadOnly } from './BudgetAutomationReadOnly';
-import { getInitialState, templateReducer } from './reducer';
+import { DEFAULT_PRIORITY, getInitialState, templateReducer } from './reducer';
 
 type BudgetAutomationProps = {
   categories: CategoryGroupEntity[];
@@ -26,9 +26,10 @@ type BudgetAutomationProps = {
 };
 
 const DEFAULT_TEMPLATE: Template = {
-  directive: '',
+  directive: 'template',
   type: 'simple',
   monthly: 0,
+  priority: DEFAULT_PRIORITY,
 };
 
 export const BudgetAutomation = ({

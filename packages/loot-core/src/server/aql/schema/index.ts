@@ -85,6 +85,7 @@ export const schema = {
     hidden: f('boolean'),
     group: f('id', { ref: 'category_groups' }),
     goal_def: f('string'),
+    template_settings: f('json', { default: { source: 'notes' } }),
     sort_order: f('float'),
     tombstone: f('boolean'),
   },
@@ -304,7 +305,7 @@ export const schemaConfig: SchemaConfig = {
 
     schedules: {
       v_schedules: internalFields => {
-        /* eslint-disable rulesdir/typography */
+        /* eslint-disable actual/typography */
         const fields = internalFields({
           next_date: `
             CASE
@@ -328,7 +329,7 @@ export const schemaConfig: SchemaConfig = {
         LEFT JOIN rules _rules ON _rules.id = _.rule
         LEFT JOIN payee_mapping pm ON pm.id = json_extract(_rules.conditions, _paths.payee || '.value')
         `;
-        /* eslint-enable rulesdir/typography */
+        /* eslint-enable actual/typography */
       },
     },
 

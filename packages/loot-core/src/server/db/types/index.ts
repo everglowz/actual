@@ -39,6 +39,7 @@ export type DbCategory = {
   sort_order: number;
   hidden: 1 | 0;
   goal_def?: JsonString | null;
+  template_settings?: { source: 'notes' | 'ui' };
   tombstone: 1 | 0;
 };
 
@@ -286,6 +287,17 @@ export type DbViewCategory = {
   tombstone: DbCategory['tombstone'];
 };
 
+export type DbViewCategoryWithGroupHidden = {
+  id: DbCategory['id'];
+  name: DbCategory['name'];
+  is_income: DbCategory['is_income'];
+  hidden: DbCategory['hidden'];
+  group: DbCategoryGroup['id'];
+  group_hidden: DbCategoryGroup['hidden'];
+  sort_order: DbCategory['sort_order'];
+  tombstone: DbCategory['tombstone'];
+};
+
 export type DbViewPayee = {
   id: DbPayee['id'];
   name: DbAccount['name'] | DbPayee['name'];
@@ -312,4 +324,12 @@ export type DbViewSchedule = {
   _date: JsonString;
   _conditions: JsonString;
   _actions: JsonString;
+};
+
+export type DbTag = {
+  id: string;
+  tag: string;
+  color?: string | null;
+  description?: string | null;
+  tombstone: 1 | 0;
 };

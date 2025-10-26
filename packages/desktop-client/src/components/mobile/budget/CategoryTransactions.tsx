@@ -1,10 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { TextOneLine } from '@actual-app/components/text-one-line';
-import { View } from '@actual-app/components/view';
-
 import { listen } from 'loot-core/platform/client/fetch';
-import * as monthUtils from 'loot-core/shared/months';
 import { q } from 'loot-core/shared/query';
 import { isPreviewId } from 'loot-core/shared/transactions';
 import {
@@ -12,19 +8,15 @@ import {
   type TransactionEntity,
 } from 'loot-core/types/models';
 
-import { MobileBackButton } from '@desktop-client/components/mobile/MobileBackButton';
-import { AddTransactionButton } from '@desktop-client/components/mobile/transactions/AddTransactionButton';
 import { TransactionListWithBalances } from '@desktop-client/components/mobile/transactions/TransactionListWithBalances';
-import { MobilePageHeader, Page } from '@desktop-client/components/Page';
 import { SchedulesProvider } from '@desktop-client/hooks/useCachedSchedules';
 import { useCategoryPreviewTransactions } from '@desktop-client/hooks/useCategoryPreviewTransactions';
 import { useDateFormat } from '@desktop-client/hooks/useDateFormat';
-import { useLocale } from '@desktop-client/hooks/useLocale';
 import { useNavigate } from '@desktop-client/hooks/useNavigate';
 import { useTransactions } from '@desktop-client/hooks/useTransactions';
 import { useTransactionsSearch } from '@desktop-client/hooks/useTransactionsSearch';
-import * as queries from '@desktop-client/queries/queries';
 import { useDispatch } from '@desktop-client/redux';
+import * as bindings from '@desktop-client/spreadsheet/bindings';
 
 type CategoryTransactionsProps = {
   category: CategoryEntity;
@@ -35,32 +27,12 @@ export function CategoryTransactions({
   category,
   month,
 }: CategoryTransactionsProps) {
-  const locale = useLocale();
-
   const schedulesQuery = useMemo(() => q('schedules').select('*'), []);
 
   return (
-    <Page
-      header={
-        <MobilePageHeader
-          title={
-            <View>
-              <TextOneLine>{category.name}</TextOneLine>
-              <TextOneLine>
-                ({monthUtils.format(month, 'MMMM ‘yy', locale)})
-              </TextOneLine>
-            </View>
-          }
-          leftContent={<MobileBackButton />}
-          rightContent={<AddTransactionButton categoryId={category.id} />}
-        />
-      }
-      padding={0}
-    >
-      <SchedulesProvider query={schedulesQuery}>
-        <TransactionListWithPreviews category={category} month={month} />
-      </SchedulesProvider>
-    </Page>
+    <SchedulesProvider query={schedulesQuery}>
+      <TransactionListWithPreviews category={category} month={month} />
+    </SchedulesProvider>
   );
 }
 
@@ -90,7 +62,7 @@ function TransactionListWithPreviews({
   );
   const {
     transactions,
-    isLoading,
+    isLoading: isTransactionsLoading,
     isLoadingMore,
     loadMore: loadMoreTransactions,
     reload: reloadTransactions,
@@ -131,14 +103,18 @@ function TransactionListWithPreviews({
     [navigate],
   );
 
-  const balance = queries.categoryBalance(category.id, month);
-  const balanceCleared = queries.categoryBalanceCleared(category.id, month);
-  const balanceUncleared = queries.categoryBalanceUncleared(category.id, month);
-
-  const { previewTransactions } = useCategoryPreviewTransactions({
-    categoryId: category.id,
+  const balance = bindings.categoryBalance(category.id, month);
+  const balanceCleared = bindings.categoryBalanceCleared(category.id, month);
+  const balanceUncleared = bindings.categoryBalanceUncleared(
+    category.id,
     month,
-  });
+  );
+
+  const { previewTransactions, isLoading: isPreviewTransactionsLoading } =
+    useCategoryPreviewTransactions({
+      categoryId: category.id,
+      month,
+    });
 
   const transactionsToDisplay = !isSearching
     ? previewTransactions.concat(transactions)
@@ -146,7 +122,9 @@ function TransactionListWithPreviews({
 
   return (
     <TransactionListWithBalances
-      isLoading={isLoading}
+      isLoading={
+        isSearching ? isTransactionsLoading : isPreviewTransactionsLoading
+      }
       transactions={transactionsToDisplay}
       balance={balance}
       balanceCleared={balanceCleared}
@@ -156,8 +134,6 @@ function TransactionListWithPreviews({
       isLoadingMore={isLoadingMore}
       onLoadMore={loadMoreTransactions}
       onOpenTransaction={onOpenTransaction}
-      onRefresh={undefined}
-      account={undefined}
     />
   );
 }

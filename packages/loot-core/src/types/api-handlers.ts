@@ -1,17 +1,25 @@
 // @ts-strict-ignore
 import { ImportTransactionsOpts } from '@actual-app/api';
 
+import type { ImportTransactionsResult } from '../server/accounts/app';
 import type {
   APIAccountEntity,
   APICategoryEntity,
   APICategoryGroupEntity,
   APIFileEntity,
   APIPayeeEntity,
+  APIScheduleEntity,
 } from '../server/api-models';
 import { BudgetFileHandlers } from '../server/budgetfiles/app';
 import { type batchUpdateTransactions } from '../server/transactions';
 
-import type { NewRuleEntity, RuleEntity, TransactionEntity } from './models';
+import type {
+  ImportTransactionEntity,
+  NewRuleEntity,
+  RuleEntity,
+  TransactionEntity,
+  ScheduleEntity,
+} from './models';
 
 export interface ApiHandlers {
   'api/batch-budget-start': () => Promise<unknown>;
@@ -82,14 +90,10 @@ export interface ApiHandlers {
 
   'api/transactions-import': (arg: {
     accountId;
-    transactions;
+    transactions: ImportTransactionEntity[];
     isPreview?;
     opts?: ImportTransactionsOpts;
-  }) => Promise<{
-    errors?: { message: string }[];
-    added;
-    updated;
-  }>;
+  }) => Promise<ImportTransactionsResult>;
 
   'api/transactions-add': (arg: {
     accountId;
@@ -186,4 +190,25 @@ export interface ApiHandlers {
   'api/rule-update': (arg: { rule: RuleEntity }) => Promise<RuleEntity>;
 
   'api/rule-delete': (id: string) => Promise<boolean>;
+
+  'api/schedule-create': (
+    schedule: APIScheduleEntity,
+  ) => Promise<ScheduleEntity['id']>;
+
+  'api/schedule-update': (arg: {
+    id: ScheduleEntity['id'];
+    fields: Partial<APIScheduleEntity>;
+    resetNextDate?: boolean;
+  }) => Promise<ScheduleEntity['id']>;
+
+  'api/schedule-delete': (id: string) => Promise<void>;
+
+  'api/schedules-get': () => Promise<APIScheduleEntity[]>;
+  'api/get-id-by-name': (arg: {
+    type: string;
+    name: string;
+  }) => Promise<string>;
+  'api/get-server-version': () => Promise<
+    { error?: string } | { version: string }
+  >;
 }

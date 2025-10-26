@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { captureBreadcrumb } from '../../platform/exceptions';
 import * as connection from '../../platform/server/connection';
+import { logger } from '../../platform/server/log';
 import { currentDay, dayFromDate, parseDate } from '../../shared/months';
 import { q } from '../../shared/query';
 import {
@@ -33,7 +34,7 @@ import {
   updateRule,
 } from '../transactions/transaction-rules';
 import { undoable } from '../undo';
-import { Schedule as RSchedule } from '../util/rschedule';
+import { RSchedule } from '../util/rschedule';
 
 import { findSchedules } from './find-schedules';
 
@@ -412,7 +413,13 @@ function onApplySync(oldValues, newValues) {
 // This is the service that move schedules forward automatically and
 // posts transactions
 
-async function postTransactionForSchedule({ id }: { id: string }) {
+async function postTransactionForSchedule({
+  id,
+  today,
+}: {
+  id: string;
+  today?: boolean;
+}) {
   const { data } = await aqlQuery(q('schedules').filter({ id }).select('*'));
   const schedule = data[0];
   if (schedule == null || schedule._account == null) {
@@ -423,7 +430,7 @@ async function postTransactionForSchedule({ id }: { id: string }) {
     payee: schedule._payee,
     account: schedule._account,
     amount: getScheduledAmount(schedule._amount),
-    date: currentDay(),
+    date: today ? currentDay() : schedule.next_date,
     schedule: schedule.id,
     cleared: false,
   };
@@ -442,6 +449,7 @@ async function advanceSchedulesService(syncSuccess) {
       .filter({ completed: false, '_account.closed': false })
       .select('*'),
   );
+
   const { data: hasTransData } = await aqlQuery(
     getHasTransactionsQuery(schedules),
   );
@@ -552,8 +560,12 @@ app.events.on('sync', ({ type }) => {
     type === 'success' || type === 'error' || type === 'unauthorized';
 
   if (completeEvent && prefs.getPrefs()) {
-    const { lastScheduleRun } = prefs.getPrefs();
+    if (!db.getDatabase()) {
+      logger.info('database is not available, skipping schedule service');
+      return;
+    }
 
+    const { lastScheduleRun } = prefs.getPrefs();
     if (lastScheduleRun !== currentDay()) {
       runMutator(() => advanceSchedulesService(type === 'success'));
 

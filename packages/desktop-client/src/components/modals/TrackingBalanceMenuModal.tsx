@@ -1,5 +1,5 @@
 import React, { type CSSProperties } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans } from 'react-i18next';
 
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
@@ -20,7 +20,7 @@ import {
 import { CellValueText } from '@desktop-client/components/spreadsheet/CellValue';
 import { useCategory } from '@desktop-client/hooks/useCategory';
 import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
-import { trackingBudget } from '@desktop-client/queries/queries';
+import { trackingBudget } from '@desktop-client/spreadsheet/bindings';
 
 type TrackingBalanceMenuModalProps = Omit<
   Extract<ModalType, { name: 'tracking-balance-menu' }>['options'],
@@ -38,7 +38,6 @@ export function TrackingBalanceMenuModal({
     borderTop: `1px solid ${theme.pillBorder}`,
   };
 
-  const { t } = useTranslation();
   const category = useCategory(categoryId);
 
   if (!category) {
@@ -66,7 +65,7 @@ export function TrackingBalanceMenuModal({
                 fontWeight: 400,
               }}
             >
-              {t('Balance')}
+              <Trans>Balance</Trans>
             </Text>
             <BalanceWithCarryover
               isDisabled

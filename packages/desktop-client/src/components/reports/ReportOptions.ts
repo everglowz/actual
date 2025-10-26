@@ -171,6 +171,16 @@ const dateRangeOptions: dateRangeProps[] = [
     Yearly: true,
   },
   {
+    description: t('Prior year to date'),
+    key: 'Prior year to date',
+    name: 'priorYearToDate',
+    type: 'Month',
+    Daily: false,
+    Weekly: true,
+    Monthly: true,
+    Yearly: true,
+  },
+  {
     description: t('All time'),
     key: 'All time',
     name: 'allTime',
@@ -214,7 +224,7 @@ const intervalOptions: intervalOptionsProps[] = [
     description: t('Monthly'),
     key: 'Monthly',
     name: 'Month',
-    // eslint-disable-next-line rulesdir/typography
+    // eslint-disable-next-line actual/typography
     format: "MMM ''yy",
     range: 'rangeInclusive',
   },

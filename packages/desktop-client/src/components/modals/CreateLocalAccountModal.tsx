@@ -14,6 +14,7 @@ import { View } from '@actual-app/components/view';
 
 import { toRelaxedNumber } from 'loot-core/shared/util';
 
+import { createAccount } from '@desktop-client/accounts/accountsSlice';
 import { Link } from '@desktop-client/components/common/Link';
 import {
   Modal,
@@ -24,17 +25,16 @@ import {
 } from '@desktop-client/components/common/Modal';
 import { Checkbox } from '@desktop-client/components/forms';
 import { validateAccountName } from '@desktop-client/components/util/accountValidation';
-import * as useAccounts from '@desktop-client/hooks/useAccounts';
+import { useAccounts } from '@desktop-client/hooks/useAccounts';
 import { useNavigate } from '@desktop-client/hooks/useNavigate';
 import { closeModal } from '@desktop-client/modals/modalsSlice';
-import { createAccount } from '@desktop-client/queries/queriesSlice';
 import { useDispatch } from '@desktop-client/redux';
 
 export function CreateLocalAccountModal() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const accounts = useAccounts.useAccounts();
+  const accounts = useAccounts();
   const [name, setName] = useState('');
   const [offbudget, setOffbudget] = useState(false);
   const [balance, setBalance] = useState('0');
@@ -179,18 +179,20 @@ export function CreateLocalAccountModal() {
               </InlineField>
               {balanceError && (
                 <FormError style={{ marginLeft: 75 }}>
-                  {t('Balance must be a number')}
+                  <Trans>Balance must be a number</Trans>
                 </FormError>
               )}
 
               <ModalButtons>
-                <Button onPress={close}>{t('Back')}</Button>
+                <Button onPress={close}>
+                  <Trans>Back</Trans>
+                </Button>
                 <Button
                   type="submit"
                   variant="primary"
                   style={{ marginLeft: 10 }}
                 >
-                  {t('Create')}
+                  <Trans>Create</Trans>
                 </Button>
               </ModalButtons>
             </Form>

@@ -10,6 +10,7 @@ import {
 } from 'date-fns';
 import * as Handlebars from 'handlebars';
 
+import { logger } from '../../platform/server/log';
 import {
   monthFromDate,
   yearFromDate,
@@ -38,7 +39,7 @@ import {
 import { fastSetMerge } from '../../shared/util';
 import { RuleConditionEntity, RuleEntity } from '../../types/models';
 import { RuleError } from '../errors';
-import { Schedule as RSchedule } from '../util/rschedule';
+import { RSchedule } from '../util/rschedule';
 
 function registerHandlebarsHelpers() {
   const regexTest = /^\/(.*)\/([gimuy]*)$/;
@@ -146,7 +147,7 @@ function registerHandlebarsHelpers() {
       return format(addDays(date, day - actualDay), 'yyyy-MM-dd');
     },
     debug: (value: unknown) => {
-      console.log(value);
+      logger.log(value);
     },
     concat: (...args: unknown[]) => args.join(''),
   } as Record<string, Handlebars.HelperDelegate>;
@@ -327,6 +328,10 @@ const CONDITION_TYPES = {
           'no-empty-string',
           `${op} must have non-empty string (field: ${fieldName})`,
         );
+      }
+
+      if (op === 'hasTags') {
+        return value;
       }
 
       return value.toLowerCase();
@@ -590,7 +595,7 @@ export class Condition {
         try {
           return new RegExp(this.value).test(fieldValue);
         } catch (e) {
-          console.log('invalid regexp in matches condition', e);
+          logger.log('invalid regexp in matches condition', e);
           return false;
         }
 
@@ -667,7 +672,7 @@ export class Action {
         try {
           this.handlebarsTemplate({});
         } catch (e) {
-          console.debug(e);
+          logger.debug(e);
           assert(false, 'invalid-template', `Invalid Handlebars template`);
         }
       }
@@ -707,7 +712,18 @@ export class Action {
               object[this.field] = parseFloat(object[this.field]);
               break;
             case 'date':
-              object[this.field] = parseDate(object[this.field]);
+              const parsed = parseDate(object[this.field]);
+              if (parsed && dateFns.isValid(parsed)) {
+                object[this.field] = format(parsed, 'yyyy-MM-dd');
+              } else {
+                // Keep original string; log for diagnostics but avoid hard crash
+                logger.error(
+                  `rules: invalid date produced by template for field “${this.field}”:`,
+                  object[this.field],
+                );
+                // Make it stick like a sore thumb
+                object[this.field] = '9999-12-31';
+              }
               break;
             case 'boolean':
               object[this.field] = object[this.field] === 'true';
@@ -1045,7 +1061,7 @@ const OP_SCORES: Record<RuleConditionEntity['op'], number> = {
 function computeScore(rule: Rule): number {
   const initialScore = rule.conditions.reduce((score, condition) => {
     if (OP_SCORES[condition.op] == null) {
-      console.log(`Found invalid operation while ranking: ${condition.op}`);
+      logger.log(`Found invalid operation while ranking: ${condition.op}`);
       return 0;
     }
 

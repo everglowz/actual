@@ -3,13 +3,15 @@ import { title } from '../../util/title/index.js';
 import Fallback from './integration-bank.js';
 
 const regexCard =
-  /^CARTE \d{2}\/\d{2}\/\d{2} (?<payeeName>.+?)( CB\*)?( ?\d{4,})?$/;
+  /^CARTE (?<date>\d{2}\/\d{2}\/\d{2}) (?<payeeName>.+?)( \d+)?( CB\*\d{4})?$/;
 const regexAtmWithdrawal =
-  /^RETRAIT DAB \d{2}\/\d{2}\/\d{2} (?<locationName>.+?) CB\*\d{4,}/;
+  /^RETRAIT DAB (?<date>\d{2}\/\d{2}\/\d{2}) (?<locationName>.+?) CB\*\d{4,}/;
 const regexTransfer = /^VIR /;
 const regexInstantTransfer = /^VIR INST /;
 const regexSepa = /^(PRLV|VIR) SEPA /;
 const regexLoan = /^ECH PRET:/;
+const regexCreditNote =
+  /^AVOIR (?<date>\d{2}\/\d{2}\/\d{2}) (?<payeeName>.+?) CB\*\d{4,}/;
 
 /** @type {import('./bank.interface.js').IBank} */
 export default {
@@ -21,59 +23,69 @@ export default {
     const editedTrans = { ...transaction };
 
     editedTrans.remittanceInformationUnstructuredArray =
-      // Remove the backslashes that are sometimes present
+      // Remove the localisation with backslashes that are sometimes present
       transaction.remittanceInformationUnstructuredArray
-        .map(line => line.replace(/\\ ?/g, ' '))
+        .map(line => line.replace(/\\.+/g, ''))
         // Remove an unwanted line that pollutes the remittance information
         .filter(line => line.startsWith('Réf : ') === false);
 
     const infoArray = editedTrans.remittanceInformationUnstructuredArray;
-    const firstLine = infoArray[0];
 
-    if (firstLine.match(regexCard)) {
+    let match;
+
+    // Transactions can have their identifier in any line, as the order of lines is not guaranteed.
+    // This is why we check all lines for specific patterns.
+    if ((match = infoArray.find(line => regexCard.test(line)))) {
       // Card transaction
-      const payeeName = firstLine.replace(regexCard, '$1');
-      editedTrans.payeeName = title(payeeName);
-    } else if (firstLine.match(regexInstantTransfer)) {
-      // Instant transfer
-      editedTrans.payeeName = title(
-        firstLine.replace(regexInstantTransfer, ''),
-      );
-    } else if (firstLine.match(regexSepa)) {
-      // SEPA transfer
-      editedTrans.payeeName = title(firstLine.replace(regexSepa, ''));
-    } else if (firstLine.match(regexTransfer) && infoArray.length > 1) {
-      // Other transfer
-      // Must be evaluated after the other transfers as they're more specific (here VIR only)
-      editedTrans.payeeName = title(infoArray[1]);
-      editedTrans.notes = firstLine.replace(regexTransfer, '');
-    } else if (firstLine.match(regexLoan)) {
+      const cardMatch = match.match(regexCard);
+      editedTrans.payeeName = title(cardMatch.groups.payeeName);
+      editedTrans.notes = `Carte ${cardMatch.groups.date}`;
+      if (infoArray.length > 1) {
+        editedTrans.notes += ' ' + infoArray.filter(l => l !== match).join(' ');
+      }
+    } else if ((match = infoArray.find(line => regexLoan.test(line)))) {
       // Loan
       editedTrans.payeeName = 'Prêt bancaire';
-      editedTrans.notes = firstLine;
-    } else if (firstLine.match(regexAtmWithdrawal)) {
+      editedTrans.notes = match;
+    } else if (
+      (match = infoArray.find(line => regexAtmWithdrawal.test(line)))
+    ) {
       // ATM withdrawal
+      const atmMatch = match.match(regexAtmWithdrawal);
       editedTrans.payeeName = 'Retrait DAB';
-      editedTrans.notes =
-        firstLine.match(regexAtmWithdrawal).groups.locationName;
+      editedTrans.notes = `Retrait ${atmMatch.groups.date} ${atmMatch.groups.locationName}`;
       if (infoArray.length > 1) {
-        editedTrans.notes += ' ' + infoArray[1];
+        editedTrans.notes += ' ' + infoArray.filter(l => l !== match).join(' ');
       }
+    } else if ((match = infoArray.find(line => regexCreditNote.test(line)))) {
+      // Credit note (refund)
+      const creditMatch = match.match(regexCreditNote);
+      editedTrans.payeeName = title(creditMatch.groups.payeeName);
+      editedTrans.notes = `Avoir ${creditMatch.groups.date}`;
+      if (infoArray.length > 1) {
+        editedTrans.notes += ' ' + infoArray.filter(l => l !== match).join(' ');
+      }
+    } else if (
+      (match = infoArray.find(line => regexInstantTransfer.test(line)))
+    ) {
+      // Instant transfer
+      editedTrans.payeeName = title(match.replace(regexInstantTransfer, ''));
+      editedTrans.notes = infoArray.filter(l => l !== match).join(' ');
+    } else if ((match = infoArray.find(line => regexSepa.test(line)))) {
+      // SEPA transfer
+      editedTrans.payeeName = title(match.replace(regexSepa, ''));
+      editedTrans.notes = infoArray.filter(l => l !== match).join(' ');
+    } else if ((match = infoArray.find(line => regexTransfer.test(line)))) {
+      // Other transfer
+      // Must be evaluated after the other transfers as they're more specific
+      // (here VIR only)
+      const infoArrayWithoutLine = infoArray.filter(l => l !== match);
+      editedTrans.payeeName = title(infoArrayWithoutLine.join(' '));
+      editedTrans.notes = match.replace(regexTransfer, '');
     } else {
-      editedTrans.payeeName = title(firstLine);
-    }
-
-    if (editedTrans.notes === undefined) {
-      // We managed to extract the payee name, but nothing specific in the notes
-
-      if (infoArray.length === 2) {
-        // If there are only two lines, the second one is the notes
-        editedTrans.notes = infoArray[1];
-      } else {
-        // Unfortunately, the order of the lines is not always the same, which causes issues on multiple syncs
-        // Thus, do not set the notes if we have more than two lines
-        editedTrans.notes = '';
-      }
+      // Unknown transaction type
+      editedTrans.payeeName = title(infoArray[0].replace(/ \d+$/, ''));
+      editedTrans.notes = infoArray.slice(1).join(' ');
     }
 
     return Fallback.normalizeTransaction(transaction, booked, editedTrans);

@@ -1,7 +1,9 @@
-import { type Template } from 'loot-core/server/budget/types/templates';
+import { type Template } from 'loot-core/types/models/templates';
 
 import { type Action } from './actions';
 import { type ReducerState, type DisplayTemplateType } from './constants';
+
+export const DEFAULT_PRIORITY = 1;
 
 export const getInitialState = (template: Template | null): ReducerState => {
   const type = template?.type;
@@ -21,7 +23,7 @@ export const getInitialState = (template: Template | null): ReducerState => {
         template,
         displayType: 'schedule',
       };
-    case 'week':
+    case 'periodic':
       return {
         template,
         displayType: 'week',
@@ -31,6 +33,8 @@ export const getInitialState = (template: Template | null): ReducerState => {
       throw new Error('Goal is not yet supported');
     case 'remainder':
       throw new Error('Remainder is not yet supported');
+    case 'limit':
+      throw new Error('Limit is not yet supported');
     case 'average':
     case 'copy':
       return {
@@ -58,9 +62,10 @@ const changeType = (
       return {
         displayType: visualType,
         template: {
-          directive: '',
+          directive: 'template',
           type: 'simple',
-          monthly: 500,
+          monthly: 5,
+          priority: DEFAULT_PRIORITY,
         },
       };
     case 'percentage':
@@ -70,11 +75,12 @@ const changeType = (
       return {
         displayType: visualType,
         template: {
-          directive: '',
+          directive: 'template',
           type: 'percentage',
           percent: 15,
           previous: false,
           category: 'total',
+          priority: DEFAULT_PRIORITY,
         },
       };
     case 'schedule':
@@ -84,23 +90,28 @@ const changeType = (
       return {
         displayType: visualType,
         template: {
-          directive: '',
+          directive: 'template',
           type: 'schedule',
           name: '',
+          priority: DEFAULT_PRIORITY,
         },
       };
     case 'week':
-      if (prevState.template.type === 'week') {
+      if (prevState.template.type === 'periodic') {
         return prevState;
       }
       return {
         displayType: visualType,
         template: {
-          directive: '',
-          type: 'week',
-          amount: 500,
-          weeks: null,
+          directive: 'template',
+          type: 'periodic',
+          amount: 5,
+          period: {
+            period: 'week',
+            amount: 1,
+          },
           starting: '',
+          priority: DEFAULT_PRIORITY,
         },
       };
     case 'historical':
@@ -113,9 +124,10 @@ const changeType = (
       return {
         displayType: visualType,
         template: {
-          directive: '',
+          directive: 'template',
           type: 'average',
           numMonths: 3,
+          priority: DEFAULT_PRIORITY,
         },
       };
     default:
@@ -126,7 +138,7 @@ const changeType = (
 
 function mapTemplateTypesForUpdate(
   state: ReducerState,
-  template: Partial<Template>,
+  template: Partial<Template> & Pick<Template, 'type'>,
 ): ReducerState {
   switch (state.template.type) {
     case 'average':
@@ -137,9 +149,10 @@ function mapTemplateTypesForUpdate(
             displayType: 'historical',
             template: {
               ...template,
-              directive: '',
+              directive: 'template',
               type: 'copy',
               lookBack: state.template.numMonths,
+              priority: state.template.priority,
             },
           };
         default:
@@ -154,9 +167,10 @@ function mapTemplateTypesForUpdate(
             displayType: 'historical',
             template: {
               ...template,
-              directive: '',
+              directive: 'template',
               type: 'average',
               numMonths: state.template.lookBack,
+              priority: state.template.priority,
             },
           };
         default:
@@ -167,8 +181,8 @@ function mapTemplateTypesForUpdate(
       break;
   }
 
-  if (!template.type || state.template.type === template.type) {
-    const { type: _, ...rest } = template;
+  if (state.template.type === template.type) {
+    const { type: _1, directive: _2, ...rest } = template;
     return {
       ...state,
       ...getInitialState({

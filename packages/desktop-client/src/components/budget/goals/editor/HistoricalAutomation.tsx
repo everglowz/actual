@@ -6,7 +6,7 @@ import { Stack } from '@actual-app/components/stack';
 import type {
   CopyTemplate,
   AverageTemplate,
-} from 'loot-core/server/budget/types/templates';
+} from 'loot-core/types/models/templates';
 
 import {
   type Action,
@@ -62,8 +62,8 @@ export const HistoricalAutomation = ({
             dispatch(
               updateTemplate(
                 template.type === 'average'
-                  ? { numMonths: value }
-                  : { lookBack: value },
+                  ? { type: 'average', numMonths: value }
+                  : { type: 'copy', lookBack: value },
               ),
             )
           }

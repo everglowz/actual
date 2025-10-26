@@ -16,6 +16,7 @@ import * as actions from './actions';
 import * as budget from './base';
 import * as cleanupActions from './cleanup-template';
 import * as goalActions from './goal-template';
+import * as goalNoteActions from './template-notes';
 
 export interface BudgetHandlers {
   'budget/budget-amount': typeof actions.setBudget;
@@ -39,6 +40,7 @@ export interface BudgetHandlers {
   'budget/cover-overbudgeted': typeof actions.coverOverbudgeted;
   'budget/transfer-category': typeof actions.transferCategory;
   'budget/set-carryover': typeof actions.setCategoryCarryover;
+  'budget/reset-income-carryover': typeof actions.resetIncomeCarryover;
   'get-categories': typeof getCategories;
   'get-budget-bounds': typeof getBudgetBounds;
   'envelope-budget-month': typeof envelopeBudgetMonth;
@@ -53,6 +55,10 @@ export interface BudgetHandlers {
   'category-group-move': typeof moveCategoryGroup;
   'category-group-delete': typeof deleteCategoryGroup;
   'must-category-transfer': typeof isCategoryTransferRequired;
+  'budget/get-category-automations': typeof goalActions.getTemplatesForCategory;
+  'budget/set-category-automations': typeof goalActions.storeTemplates;
+  'budget/store-note-templates': typeof goalNoteActions.storeNoteTemplates;
+  'budget/render-note-templates': typeof goalNoteActions.unparse;
 }
 
 export const app = createApp<BudgetHandlers>();
@@ -120,6 +126,10 @@ app.method(
   'budget/set-carryover',
   mutator(undoable(actions.setCategoryCarryover)),
 );
+app.method(
+  'budget/reset-income-carryover',
+  mutator(undoable(actions.resetIncomeCarryover)),
+);
 app.method('get-categories', getCategories);
 app.method('get-budget-bounds', getBudgetBounds);
 app.method('envelope-budget-month', envelopeBudgetMonth);
@@ -134,6 +144,20 @@ app.method('category-group-update', mutator(undoable(updateCategoryGroup)));
 app.method('category-group-move', mutator(undoable(moveCategoryGroup)));
 app.method('category-group-delete', mutator(undoable(deleteCategoryGroup)));
 app.method('must-category-transfer', isCategoryTransferRequired);
+
+app.method(
+  'budget/get-category-automations',
+  goalActions.getTemplatesForCategory,
+);
+app.method(
+  'budget/set-category-automations',
+  mutator(undoable(goalActions.storeTemplates)),
+);
+app.method(
+  'budget/store-note-templates',
+  mutator(goalNoteActions.storeNoteTemplates),
+);
+app.method('budget/render-note-templates', goalNoteActions.unparse);
 
 // Server must return AQL entities not the raw DB data
 async function getCategories() {
@@ -300,7 +324,7 @@ async function moveCategory({
 }: {
   id: CategoryEntity['id'];
   groupId: CategoryGroupEntity['id'];
-  targetId: CategoryEntity['id'];
+  targetId: CategoryEntity['id'] | null;
 }): Promise<void> {
   await batchMessages(async () => {
     await db.moveCategory(id, groupId, targetId);
@@ -312,7 +336,7 @@ async function deleteCategory({
   transferId,
 }: {
   id: CategoryEntity['id'];
-  transferId?: CategoryEntity['id'];
+  transferId?: CategoryEntity['id'] | null;
 }): Promise<{ error?: 'no-categories' | 'category-type' }> {
   let result = {};
   await batchMessages(async () => {
@@ -391,7 +415,7 @@ async function moveCategoryGroup({
   targetId,
 }: {
   id: CategoryGroupEntity['id'];
-  targetId: CategoryGroupEntity['id'];
+  targetId: CategoryGroupEntity['id'] | null;
 }): Promise<void> {
   await batchMessages(async () => {
     await db.moveCategoryGroup(id, targetId);
@@ -403,7 +427,7 @@ async function deleteCategoryGroup({
   transferId,
 }: {
   id: CategoryGroupEntity['id'];
-  transferId: CategoryGroupEntity['id'];
+  transferId?: CategoryGroupEntity['id'] | null;
 }): Promise<void> {
   const groupCategories = await db.all<Pick<CategoryEntity, 'id'>>(
     'SELECT id FROM categories WHERE cat_group = ? AND tombstone = 0',

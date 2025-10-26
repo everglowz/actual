@@ -43,6 +43,7 @@ import {
   DbClockMessage,
   DbPayee,
   DbPayeeMapping,
+  DbTag,
   DbTransaction,
   DbViewTransaction,
   DbViewTransactionInternalAlive,
@@ -393,7 +394,7 @@ export function updateCategoryGroup(
 
 export async function moveCategoryGroup(
   id: DbCategoryGroup['id'],
-  targetId: DbCategoryGroup['id'],
+  targetId?: DbCategoryGroup['id'] | null,
 ) {
   const groups = await all<Pick<DbCategoryGroup, 'id' | 'sort_order'>>(
     `SELECT id, sort_order FROM category_groups WHERE tombstone = 0 ORDER BY sort_order, id`,
@@ -408,7 +409,7 @@ export async function moveCategoryGroup(
 
 export async function deleteCategoryGroup(
   group: Pick<DbCategoryGroup, 'id'>,
-  transferId?: DbCategory['id'],
+  transferId?: DbCategory['id'] | null,
 ) {
   const categories = await all<DbCategory>(
     'SELECT * FROM categories WHERE cat_group = ?',
@@ -490,7 +491,7 @@ export function updateCategory(
 export async function moveCategory(
   id: DbCategory['id'],
   groupId: DbCategoryGroup['id'],
-  targetId: DbCategory['id'] | null,
+  targetId?: DbCategory['id'] | null,
 ) {
   if (!groupId) {
     throw new Error('moveCategory: groupId is required');
@@ -510,7 +511,7 @@ export async function moveCategory(
 
 export async function deleteCategory(
   category: Pick<DbCategory, 'id'>,
-  transferId?: DbCategory['id'],
+  transferId?: DbCategory['id'] | null,
 ) {
   if (transferId) {
     // We need to update all the deleted categories that currently
@@ -662,7 +663,7 @@ export function getCommonPayees() {
   `);
 }
 
-/* eslint-disable rulesdir/typography */
+/* eslint-disable actual/typography */
 const orphanedPayeesQuery = `
   SELECT p.id
   FROM payees p
@@ -680,7 +681,7 @@ const orphanedPayeesQuery = `
         AND json_extract(cond.value, '$.value') = pm.targetId
     );
 `;
-/* eslint-enable rulesdir/typography */
+/* eslint-enable actual/typography */
 
 export function syncGetOrphanedPayees() {
   return all<Pick<DbPayee, 'id'>>(orphanedPayeesQuery);
@@ -802,4 +803,44 @@ export async function deleteTransaction(transaction) {
 
 function toSqlQueryParameters(params: unknown[]) {
   return params.map(() => '?').join(',');
+}
+
+export function getTags() {
+  return all<DbTag>(`
+    SELECT id, tag, color, description
+    FROM tags
+    WHERE tombstone = 0
+    ORDER BY tag
+  `);
+}
+
+export function getAllTags() {
+  return all<DbTag>(`
+    SELECT id, tag, color, description
+    FROM tags
+    ORDER BY tag
+  `);
+}
+
+export function insertTag(tag): Promise<DbTag['id']> {
+  return insertWithUUID('tags', tag);
+}
+
+export async function deleteTag(tag) {
+  return delete_('tags', tag.id);
+}
+
+export function updateTag(tag) {
+  return update('tags', tag);
+}
+
+export function findTags() {
+  return all<{ notes: string }>(
+    `
+    SELECT notes
+    FROM transactions
+    WHERE tombstone = 0 AND notes LIKE ?
+  `,
+    ['%#%'],
+  );
 }
