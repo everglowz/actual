@@ -1,9 +1,5 @@
-import React, {
-  type CSSProperties,
-  useCallback,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 
 import { Popover } from '@actual-app/components/popover';
 import { View } from '@actual-app/components/view';
@@ -16,6 +12,7 @@ import { useEnvelopeSheetValue } from '@desktop-client/components/budget/envelop
 import { HoldMenu } from '@desktop-client/components/budget/envelope/HoldMenu';
 import { TransferMenu } from '@desktop-client/components/budget/envelope/TransferMenu';
 import { useContextMenu } from '@desktop-client/hooks/useContextMenu';
+import { useFormat } from '@desktop-client/hooks/useFormat';
 import { envelopeBudget } from '@desktop-client/spreadsheet/bindings';
 
 type ToBudgetProps = {
@@ -36,6 +33,7 @@ export function ToBudget({
 }: ToBudgetProps) {
   const [menuStep, _setMenuStep] = useState<string>('actions');
   const triggerRef = useRef(null);
+  const format = useFormat();
 
   const ref = useRef<HTMLSpanElement>(null);
   const setMenuStep = useCallback(
@@ -116,7 +114,7 @@ export function ToBudget({
           )}
           {menuStep === 'transfer' && (
             <TransferMenu
-              initialAmount={availableValue ?? undefined}
+              initialAmount={availableValue}
               onClose={() => setMenuOpen(false)}
               onSubmit={(amount, categoryId) => {
                 onBudgetAction(month, 'transfer-available', {
@@ -129,10 +127,13 @@ export function ToBudget({
           {menuStep === 'cover' && (
             <CoverMenu
               showToBeBudgeted={false}
+              initialAmount={availableValue}
               onClose={() => setMenuOpen(false)}
-              onSubmit={categoryId => {
+              onSubmit={(amount, categoryId) => {
                 onBudgetAction(month, 'cover-overbudgeted', {
                   category: categoryId,
+                  amount,
+                  currencyCode: format.currency.code,
                 });
               }}
             />

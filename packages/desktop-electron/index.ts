@@ -1,23 +1,26 @@
 import fs from 'fs';
-import { createServer, Server } from 'http';
+import { createServer } from 'http';
+import type { Server } from 'http';
 import path from 'path';
 
 import {
-  net,
   app,
-  ipcMain,
   BrowserWindow,
-  Menu,
   dialog,
-  shell,
+  ipcMain,
+  Menu,
+  net,
   powerMonitor,
   protocol,
+  shell,
   utilityProcess,
-  UtilityProcess,
-  OpenDialogSyncOptions,
-  SaveDialogOptions,
+} from 'electron';
+import type {
   Env,
   ForkOptions,
+  OpenDialogSyncOptions,
+  SaveDialogOptions,
+  UtilityProcess,
 } from 'electron';
 import { copy, exists, mkdir, remove } from 'fs-extra';
 import promiseRetry from 'promise-retry';
@@ -29,7 +32,6 @@ import {
   get as getWindowState,
   listen as listenToWindowState,
 } from './window-state';
-
 import './security';
 
 const BUILD_ROOT = `${__dirname}/..`;
@@ -83,7 +85,7 @@ const logMessage = (loglevel: 'info' | 'error', message: string) => {
     queuedClientWinLogs.push(`console.${loglevel}(${trimmedMessage})`);
   } else {
     // Send the queued up logs to the devtools console
-    clientWin.webContents.executeJavaScript(
+    void clientWin.webContents.executeJavaScript(
       `console.${loglevel}(${trimmedMessage})`,
     );
   }
@@ -105,9 +107,11 @@ const createOAuthServer = async () => {
       const code = query.get('token');
       if (code && clientWin) {
         if (isDev) {
-          clientWin.loadURL(`http://localhost:3001/openid-cb?token=${code}`);
+          void clientWin.loadURL(
+            `http://localhost:3001/openid-cb?token=${code}`,
+          );
         } else {
-          clientWin.loadURL(`app://actual/openid-cb?token=${code}`);
+          void clientWin.loadURL(`app://actual/openid-cb?token=${code}`);
         }
 
         // Respond to the browser
@@ -141,7 +145,7 @@ async function loadGlobalPrefs() {
         'utf8',
       ),
     );
-  } catch (e) {
+  } catch {
     logMessage('info', 'Could not load global state - using defaults');
     state = {};
   }
@@ -262,7 +266,7 @@ async function startSyncServer() {
 
     // ACTUAL_SERVER_DATA_DIR is the root directory for the sync-server
     if (!fs.existsSync(syncServerConfig.ACTUAL_SERVER_DATA_DIR)) {
-      mkdir(syncServerConfig.ACTUAL_SERVER_DATA_DIR, { recursive: true });
+      void mkdir(syncServerConfig.ACTUAL_SERVER_DATA_DIR, { recursive: true });
     }
 
     let forkOptions: ForkOptions = {
@@ -346,6 +350,7 @@ async function createWindow() {
       contextIsolation: true,
       preload: __dirname + '/preload.js',
     },
+    autoHideMenuBar: true, // Alt key shows the menu
   });
 
   win.setBackgroundColor('#E8ECF0');
@@ -357,18 +362,19 @@ async function createWindow() {
   const unlistenToState = listenToWindowState(win, windowState);
 
   if (isDev) {
-    win.loadURL(`file://${__dirname}/loading.html`);
+    void win.loadURL(`file://${__dirname}/loading.html`);
     // Wait for the development server to start
     setTimeout(() => {
-      promiseRetry(retry => win.loadURL('http://localhost:3001/').catch(retry));
+      void promiseRetry(retry =>
+        win.loadURL('http://localhost:3001/').catch(retry),
+      );
     }, 3000);
   } else {
-    win.loadURL(`app://actual/`);
+    void win.loadURL(`app://actual/`);
   }
 
   win.on('closed', () => {
     clientWin = null;
-    updateMenu();
     unlistenToState();
   });
 
@@ -383,7 +389,7 @@ async function createWindow() {
     if (clientWin) {
       const url = clientWin.webContents.getURL();
       if (url.includes('app://') || url.includes('localhost:')) {
-        clientWin.webContents.executeJavaScript(
+        void clientWin.webContents.executeJavaScript(
           'window.__actionsForMenu.appFocused()',
         );
       }
@@ -394,7 +400,7 @@ async function createWindow() {
   // always deny, optionally redirect to browser
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (isExternalUrl(url)) {
-      shell.openExternal(url);
+      void shell.openExternal(url);
     }
 
     return { action: 'deny' };
@@ -404,17 +410,12 @@ async function createWindow() {
   // optionally redirect to browser
   win.webContents.on('will-navigate', (event, url) => {
     if (isExternalUrl(url)) {
-      shell.openExternal(url);
+      void shell.openExternal(url);
       event.preventDefault();
     }
   });
 
-  if (process.platform === 'win32') {
-    Menu.setApplicationMenu(null);
-    win.setMenu(getMenu(isDev, createWindow));
-  } else {
-    Menu.setApplicationMenu(getMenu(isDev, createWindow));
-  }
+  Menu.setApplicationMenu(getMenu());
 
   clientWin = win;
 
@@ -428,37 +429,6 @@ async function createWindow() {
 
 function isExternalUrl(url: string) {
   return !url.includes('localhost:') && !url.includes('app://');
-}
-
-function updateMenu(budgetId?: string) {
-  const isBudgetOpen = !!budgetId;
-  const menu = getMenu(isDev, createWindow, budgetId);
-  const file = menu.items.filter(item => item.label === 'File')[0];
-  const fileItems = file.submenu?.items || [];
-  fileItems
-    .filter(item => item.label === 'Load Backup...')
-    .forEach(item => {
-      item.enabled = isBudgetOpen;
-    });
-
-  const tools = menu.items.filter(item => item.label === 'Tools')[0];
-  tools.submenu?.items.forEach(item => {
-    item.enabled = isBudgetOpen;
-  });
-
-  const edit = menu.items.filter(item => item.label === 'Edit')[0];
-  const editItems = edit.submenu?.items || [];
-  editItems
-    .filter(item => item.label === 'Undo' || item.label === 'Redo')
-    .map(item => (item.enabled = isBudgetOpen));
-
-  if (process.platform === 'win32') {
-    if (clientWin) {
-      clientWin.setMenu(menu);
-    }
-  } else {
-    Menu.setApplicationMenu(menu);
-  }
 }
 
 app.setAppUserModelId('com.actualbudget.actual');
@@ -549,7 +519,7 @@ app.on('before-quit', () => {
 
 app.on('activate', () => {
   if (clientWin === null) {
-    createWindow();
+    void createWindow();
   }
 });
 
@@ -587,7 +557,7 @@ ipcMain.handle('restart-server', () => {
     serverProcess = null;
   }
 
-  createBackgroundProcess();
+  void createBackgroundProcess();
 });
 
 ipcMain.handle('relaunch', () => {
@@ -640,7 +610,11 @@ ipcMain.handle(
 );
 
 ipcMain.handle('open-external-url', (event, url) => {
-  shell.openExternal(url);
+  void shell.openExternal(url);
+});
+
+ipcMain.handle('open-in-file-manager', (event, filepath) => {
+  shell.showItemInFolder(filepath);
 });
 
 ipcMain.on('message', (_event, msg) => {
@@ -651,25 +625,10 @@ ipcMain.on('message', (_event, msg) => {
   serverProcess.postMessage(msg.args);
 });
 
-ipcMain.on('screenshot', () => {
-  if (isDev) {
-    const width = 1100;
-
-    // This is for the main screenshot inside the frame
-    if (clientWin) {
-      clientWin.setSize(width, Math.floor(width * (427 / 623)));
-    }
-  }
-});
-
-ipcMain.on('update-menu', (_event, budgetId?: string) => {
-  updateMenu(budgetId);
-});
-
 ipcMain.on('set-theme', (_event, theme: string) => {
   const obj = { theme };
   if (clientWin) {
-    clientWin.webContents.executeJavaScript(
+    void clientWin.webContents.executeJavaScript(
       `window.__actionsForMenu && window.__actionsForMenu.saveGlobalPrefs({ prefs: ${JSON.stringify(obj)} })`,
     );
   }

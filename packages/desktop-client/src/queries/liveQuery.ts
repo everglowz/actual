@@ -1,6 +1,6 @@
 // @ts-strict-ignore
-import { listen } from 'loot-core/platform/client/fetch';
-import { type Query } from 'loot-core/shared/query';
+import { listen } from 'loot-core/platform/client/connection';
+import type { Query } from 'loot-core/shared/query';
 
 import { aqlQuery } from './aqlQuery';
 
@@ -38,7 +38,7 @@ export class LiveQuery<TResponse = unknown> {
   private _listeners: Array<Listener<TResponse>>;
   private _supportedSyncTypes: Set<'applied' | 'success'>;
   private _query: Query;
-  private _onError: (error: Error) => void;
+  private _onError?: (error: Error) => void;
 
   get query() {
     return this._query;
@@ -77,7 +77,7 @@ export class LiveQuery<TResponse = unknown> {
     this._data = null;
     this._dependencies = null;
     this._listeners = [];
-    this._onError = onError || (() => {});
+    this._onError = onError;
 
     // TODO: error types?
     this._supportedSyncTypes = options.onlySync
@@ -104,7 +104,7 @@ export class LiveQuery<TResponse = unknown> {
   };
 
   protected onError = (error: Error) => {
-    this._onError(error);
+    this._onError?.(error);
   };
 
   protected onUpdate = (tables: string[]) => {
@@ -114,7 +114,7 @@ export class LiveQuery<TResponse = unknown> {
       this._dependencies == null ||
       tables.find(table => this._dependencies.has(table))
     ) {
-      this.run();
+      void this.run();
     }
   };
 
@@ -130,7 +130,7 @@ export class LiveQuery<TResponse = unknown> {
     options: LiveQueryOptions = {},
   ) => {
     const liveQuery = new LiveQuery<TResponse>(query, onData, onError, options);
-    liveQuery.run();
+    void liveQuery.run();
     return liveQuery;
   };
 

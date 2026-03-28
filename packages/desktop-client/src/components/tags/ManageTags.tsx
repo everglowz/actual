@@ -4,7 +4,8 @@ import { Trans, useTranslation } from 'react-i18next';
 import { Button } from '@actual-app/components/button';
 import { SvgAdd } from '@actual-app/components/icons/v1';
 import { SvgSearchAlternate } from '@actual-app/components/icons/v2';
-import { Stack } from '@actual-app/components/stack';
+import { SpaceBetween } from '@actual-app/components/space-between';
+import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
@@ -21,16 +22,17 @@ import {
   useSelected,
 } from '@desktop-client/hooks/useSelected';
 import { useTags } from '@desktop-client/hooks/useTags';
-import { useDispatch } from '@desktop-client/redux';
-import { deleteAllTags, findTags } from '@desktop-client/tags/tagsSlice';
+import {
+  useDeleteTagsMutation,
+  useDiscoverTagsMutation,
+} from '@desktop-client/tags';
 
 export function ManageTags() {
   const { t } = useTranslation();
-  const dispatch = useDispatch();
   const [filter, setFilter] = useState('');
   const [hoveredTag, setHoveredTag] = useState<string>();
   const [create, setCreate] = useState(false);
-  const tags = useTags();
+  const { data: tags = [] } = useTags();
 
   const filteredTags = useMemo(() => {
     return filter === ''
@@ -42,10 +44,19 @@ export function ManageTags() {
 
   const selectedInst = useSelected('manage-tags', filteredTags, []);
 
+  const { mutate: discoverTags } = useDiscoverTagsMutation();
+  const { mutate: deleteTags } = useDeleteTagsMutation();
+
   const onDeleteSelected = useCallback(async () => {
-    dispatch(deleteAllTags([...selectedInst.items]));
-    selectedInst.dispatch({ type: 'select-none' });
-  }, [dispatch, selectedInst]);
+    deleteTags(
+      { ids: [...selectedInst.items] },
+      {
+        onSuccess: () => {
+          selectedInst.dispatch({ type: 'select-none' });
+        },
+      },
+    );
+  }, [deleteTags, selectedInst]);
 
   return (
     <SelectedProvider instance={selectedInst}>
@@ -69,17 +80,12 @@ export function ManageTags() {
             <Trans>User defined tags with color and description.</Trans>
           </View>
         </View>
-        <Stack
-          spacing={2}
-          direction="row"
-          align="center"
-          style={{ marginTop: 12 }}
-        >
+        <SpaceBetween gap={10} style={{ marginTop: 12, alignItems: 'center' }}>
           <Button variant="bare" onPress={() => setCreate(true)}>
             <SvgAdd width={10} height={10} style={{ marginRight: 3 }} />
             <Trans>Add New</Trans>
           </Button>
-          <Button variant="bare" onPress={() => dispatch(findTags())}>
+          <Button variant="bare" onPress={() => discoverTags()}>
             <SvgSearchAlternate
               width={10}
               height={10}
@@ -93,8 +99,8 @@ export function ManageTags() {
             value={filter}
             onChange={setFilter}
           />
-        </Stack>
-        <View style={{ flex: 1, marginTop: 12 }}>
+        </SpaceBetween>
+        <View style={{ marginTop: 12, ...styles.tableContainer }}>
           <TagsHeader />
           {create && (
             <TagCreationRow onClose={() => setCreate(false)} tags={tags} />
@@ -127,7 +133,10 @@ export function ManageTags() {
             flexShrink: 0,
           }}
         >
-          <Stack direction="row" align="center" justify="flex-end" spacing={2}>
+          <SpaceBetween
+            gap={10}
+            style={{ alignItems: 'center', justifyContent: 'flex-end' }}
+          >
             {selectedInst.items.size > 0 && (
               <Button onPress={onDeleteSelected}>
                 <Trans count={selectedInst.items.size}>
@@ -135,7 +144,7 @@ export function ManageTags() {
                 </Trans>
               </Button>
             )}
-          </Stack>
+          </SpaceBetween>
         </View>
       </View>
     </SelectedProvider>

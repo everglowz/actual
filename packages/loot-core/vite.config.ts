@@ -1,4 +1,3 @@
-// @ts-strict-ignore
 import path from 'path';
 
 import { visualizer } from 'rollup-plugin-visualizer';
@@ -7,7 +6,6 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import peggyLoader from 'vite-plugin-peggy-loader';
 
 // https://vitejs.dev/config/
-// eslint-disable-next-line import/no-default-export
 export default defineConfig(({ mode }) => {
   const isDev = mode === 'development';
   const outDir = path.resolve(__dirname, 'lib-dist/browser');
@@ -63,15 +61,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     resolve: {
-      extensions: [
-        '.web.js',
-        '.web.ts',
-        '.web.tsx',
-        '.js',
-        '.ts',
-        '.tsx',
-        '.json',
-      ],
+      extensions: ['.js', '.ts', '.tsx', '.json'],
       alias: [
         {
           find: /^@actual-app\/crdt(\/.*)?$/,
@@ -113,7 +103,6 @@ export default defineConfig(({ mode }) => {
         'path-browserify',
         'stream-browserify',
         'browserify-zlib',
-        'memfs',
       ],
     },
   };

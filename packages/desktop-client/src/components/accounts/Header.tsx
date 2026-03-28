@@ -1,9 +1,5 @@
-import React, {
-  type ComponentProps,
-  type ReactNode,
-  useRef,
-  useState,
-} from 'react';
+import React, { useRef, useState } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { Dialog, DialogTrigger } from 'react-aria-components';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { Trans, useTranslation } from 'react-i18next';
@@ -25,7 +21,7 @@ import { InitialFocus } from '@actual-app/components/initial-focus';
 import { Input } from '@actual-app/components/input';
 import { Menu } from '@actual-app/components/menu';
 import { Popover } from '@actual-app/components/popover';
-import { Stack } from '@actual-app/components/stack';
+import { SpaceBetween } from '@actual-app/components/space-between';
 import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
@@ -33,14 +29,14 @@ import { View } from '@actual-app/components/view';
 import { format as formatDate } from 'date-fns';
 
 import { tsToRelativeTime } from 'loot-core/shared/util';
-import {
-  type AccountEntity,
-  type RuleConditionEntity,
-  type TransactionEntity,
-  type TransactionFilterEntity,
+import type {
+  AccountEntity,
+  RuleConditionEntity,
+  TransactionEntity,
+  TransactionFilterEntity,
 } from 'loot-core/types/models';
 
-import { type TableRef } from './Account';
+import type { TableRef } from './Account';
 import { Balances } from './Balance';
 import { BalanceHistoryGraph } from './BalanceHistoryGraph';
 import { ReconcileMenu, ReconcilingMessage } from './Reconcile';
@@ -49,7 +45,7 @@ import { AnimatedRefresh } from '@desktop-client/components/AnimatedRefresh';
 import { Search } from '@desktop-client/components/common/Search';
 import { FilterButton } from '@desktop-client/components/filters/FiltersMenu';
 import { FiltersStack } from '@desktop-client/components/filters/FiltersStack';
-import { type SavedFilter } from '@desktop-client/components/filters/SavedFilterMenuButton';
+import type { SavedFilter } from '@desktop-client/components/filters/SavedFilterMenuButton';
 import { NotesButton } from '@desktop-client/components/NotesButton';
 import { SelectedTransactionsButton } from '@desktop-client/components/transactions/SelectedTransactionsButton';
 import { useDateFormat } from '@desktop-client/hooks/useDateFormat';
@@ -336,12 +332,7 @@ export function AccountHeader({
             }}
           />
         </View>
-        <Stack
-          spacing={2}
-          direction="row"
-          align="center"
-          style={{ marginTop: 12 }}
-        >
+        <SpaceBetween gap={10} style={{ marginTop: 12 }}>
           {canSync && (
             <Button
               variant="bare"
@@ -383,14 +374,12 @@ export function AccountHeader({
             <FilterButton onApply={onApplyFilter} />
           </View>
           <View style={{ flex: 1 }} />
+
           <Search
             placeholder={t('Search')}
             value={search}
             onChange={onSearch}
-            inputRef={searchInput}
-            // Remove marginRight magically being added by Stack...
-            // We need to refactor the Stack component
-            style={{ marginRight: 0 }}
+            ref={searchInput}
           />
           {workingHard ? (
             <View>
@@ -415,7 +404,7 @@ export function AccountHeader({
               onMergeTransactions={onMergeTransactions}
             />
           )}
-          <View style={{ flex: '0 0 auto', marginLeft: 10 }}>
+          <View style={{ flex: '0 0 auto' }}>
             {account && (
               <Tooltip
                 style={{
@@ -569,7 +558,7 @@ export function AccountHeader({
               </DialogTrigger>
             </View>
           )}
-        </Stack>
+        </SpaceBetween>
         {filterConditions?.length > 0 && (
           <FiltersStack
             conditions={filterConditions}
@@ -811,8 +800,8 @@ function AccountMenu({
         {
           name: 'toggle-cleared',
           text: showCleared
-            ? t('Hide “cleared” checkboxes')
-            : t('Show “cleared” checkboxes'),
+            ? t('Hide "cleared" checkboxes')
+            : t('Show "cleared" checkboxes'),
         },
         {
           name: 'toggle-reconciled',

@@ -1,5 +1,5 @@
-import React, { type ComponentProps, memo, useRef, useState } from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import React, { memo, useRef, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { SvgDotsHorizontalTriple } from '@actual-app/components/icons/v1';
@@ -17,17 +17,17 @@ import { View } from '@actual-app/components/view';
 import { RenderMonths } from './RenderMonths';
 import { getScrollbarWidth } from './util';
 
+import { useBudgetComponents } from '.';
+
 import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
 
 type BudgetTotalsProps = {
-  MonthComponent: ComponentProps<typeof RenderMonths>['component'];
   toggleHiddenCategories: () => void;
   expandAllCategories: () => void;
   collapseAllCategories: () => void;
 };
 
 export const BudgetTotals = memo(function BudgetTotals({
-  MonthComponent,
   toggleHiddenCategories,
   expandAllCategories,
   collapseAllCategories,
@@ -57,11 +57,13 @@ export const BudgetTotals = memo(function BudgetTotals({
     }
   };
 
+  const { BudgetTotalsComponent: MonthComponent } = useBudgetComponents();
+
   return (
     <View
       data-testid="budget-totals"
       style={{
-        backgroundColor: theme.tableBackground,
+        backgroundColor: theme.budgetCurrentMonth, //use budget colors, not generic table colors
         flexDirection: 'row',
         flexShrink: 0,
         boxShadow: styles.cardShadow,
@@ -81,7 +83,7 @@ export const BudgetTotals = memo(function BudgetTotals({
       <View
         style={{
           width: 200 + 100 * categoryExpandedState,
-          color: theme.pageTextLight,
+          color: theme.tableHeaderText,
           justifyContent: 'center',
           paddingLeft: 5,
           paddingRight: 5,
@@ -139,7 +141,7 @@ export const BudgetTotals = memo(function BudgetTotals({
           <SvgDotsHorizontalTriple
             width={15}
             height={15}
-            style={{ color: theme.pageTextLight }}
+            style={{ color: theme.tableHeaderText }}
           />
         </Button>
 
@@ -177,7 +179,9 @@ export const BudgetTotals = memo(function BudgetTotals({
           />
         </Popover>
       </View>
-      <RenderMonths component={MonthComponent} />
+      <RenderMonths>
+        <MonthComponent />
+      </RenderMonths>
     </View>
   );
 });

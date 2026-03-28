@@ -1,4 +1,4 @@
-import { type ComponentProps, type ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
@@ -8,11 +8,8 @@ import { SpaceBetween } from '@actual-app/components/space-between';
 import { View } from '@actual-app/components/view';
 
 import * as monthUtils from 'loot-core/shared/months';
-import {
-  type RuleConditionEntity,
-  type TimeFrame,
-} from 'loot-core/types/models';
-import { type SyncedPrefs } from 'loot-core/types/prefs';
+import type { RuleConditionEntity, TimeFrame } from 'loot-core/types/models';
+import type { SyncedPrefs } from 'loot-core/types/prefs';
 
 import { getLiveRange } from './getLiveRange';
 import {
@@ -41,17 +38,30 @@ type HeaderProps = {
     end: TimeFrame['end'],
     mode: TimeFrame['mode'],
   ) => void;
-  filters?: RuleConditionEntity[];
-  conditionsOp: 'and' | 'or';
-  onApply?: (conditions: RuleConditionEntity) => void;
-  onUpdateFilter: ComponentProps<typeof AppliedFilters>['onUpdate'];
-  onDeleteFilter: ComponentProps<typeof AppliedFilters>['onDelete'];
-  onConditionsOpChange: ComponentProps<
-    typeof AppliedFilters
-  >['onConditionsOpChange'];
   children?: ReactNode;
   inlineContent?: ReactNode;
-};
+  // no separate category filter; use main filters instead
+  filterExclude?: string[];
+} & (
+  | {
+      filters: RuleConditionEntity[];
+      onApply: (conditions: RuleConditionEntity) => void;
+      onUpdateFilter: ComponentProps<typeof AppliedFilters>['onUpdate'];
+      onDeleteFilter: ComponentProps<typeof AppliedFilters>['onDelete'];
+      conditionsOp: 'and' | 'or';
+      onConditionsOpChange: ComponentProps<
+        typeof AppliedFilters
+      >['onConditionsOpChange'];
+    }
+  | {
+      filters?: never;
+      onApply?: never;
+      onUpdateFilter?: never;
+      onDeleteFilter?: never;
+      conditionsOp?: never;
+      onConditionsOpChange?: never;
+    }
+);
 
 export function Header({
   start,
@@ -71,10 +81,12 @@ export function Header({
   onConditionsOpChange,
   children,
   inlineContent,
+  filterExclude,
 }: HeaderProps) {
   const locale = useLocale();
   const { t } = useTranslation();
   const { isNarrowWidth } = useResponsive();
+
   function convertToMonth(
     start: string,
     end: string,
@@ -138,7 +150,7 @@ export function Header({
                   )
                 }
                 value={start}
-                defaultLabel={monthUtils.format(start, 'MMMM, yyyy', locale)}
+                defaultLabel={monthUtils.format(start, 'MMMM yyyy', locale)}
                 options={allMonths.map(({ name, pretty }) => [name, pretty])}
               />
               <View>{t('to')}</View>
@@ -212,6 +224,25 @@ export function Header({
                 onChangeDates(
                   ...convertToMonth(
                     ...getLiveRange(
+                      'Last month',
+                      earliestTransaction,
+                      latestTransaction,
+                      false,
+                      firstDayOfWeekIdx,
+                    ),
+                    'lastMonth',
+                  ),
+                )
+              }
+            >
+              <Trans>Last month</Trans>
+            </Button>
+            <Button
+              variant="bare"
+              onPress={() =>
+                onChangeDates(
+                  ...convertToMonth(
+                    ...getLiveRange(
                       'Last year',
                       earliestTransaction,
                       latestTransaction,
@@ -263,11 +294,11 @@ export function Header({
                 compact={isNarrowWidth}
                 onApply={onApply}
                 hover={false}
-                exclude={undefined}
+                exclude={filterExclude}
               />
             )}
+            {inlineContent}
           </SpaceBetween>
-          <SpaceBetween gap={0}>{inlineContent}</SpaceBetween>
         </View>
 
         {children && (

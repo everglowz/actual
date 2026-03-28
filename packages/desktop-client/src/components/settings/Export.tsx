@@ -7,7 +7,7 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { format } from 'date-fns';
 
-import { send } from 'loot-core/platform/client/fetch';
+import { send } from 'loot-core/platform/client/connection';
 
 import { Setting } from './UI';
 
@@ -34,7 +34,7 @@ export function ExportBudget() {
     }
 
     if (response.data) {
-      window.Actual.saveFile(
+      void window.Actual.saveFile(
         response.data,
         `${format(new Date(), 'yyyy-MM-dd')}-${budgetName}.zip`,
         t('Export budget'),
@@ -65,7 +65,7 @@ export function ExportBudget() {
           <strong>Export</strong> your data as a zip file containing{' '}
           <code>db.sqlite</code> and <code>metadata.json</code> files. It can be
           imported into another Actual instance by closing an open file (if
-          any), then clicking the “Import file” button, then choosing “Actual.”
+          any), then clicking the "Import file" button, then choosing "Actual."
         </Trans>
       </Text>
       {encryptKeyId ? (

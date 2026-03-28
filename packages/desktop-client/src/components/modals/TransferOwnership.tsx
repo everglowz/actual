@@ -3,17 +3,17 @@ import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { Select } from '@actual-app/components/select';
-import { Stack } from '@actual-app/components/stack';
+import { SpaceBetween } from '@actual-app/components/space-between';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { send } from 'loot-core/platform/client/fetch';
+import { send } from 'loot-core/platform/client/connection';
 import { getUserAccessErrors } from 'loot-core/shared/errors';
-import { type Budget } from 'loot-core/types/budget';
-import { type RemoteFile, type SyncedLocalFile } from 'loot-core/types/file';
-import { type Handlers } from 'loot-core/types/handlers';
+import type { Budget } from 'loot-core/types/budget';
+import type { RemoteFile, SyncedLocalFile } from 'loot-core/types/file';
+import type { Handlers } from 'loot-core/types/handlers';
 
 import { closeAndLoadBudget } from '@desktop-client/budgetfiles/budgetfilesSlice';
 import {
@@ -23,10 +23,8 @@ import {
 } from '@desktop-client/components/common/Modal';
 import { FormField, FormLabel } from '@desktop-client/components/forms';
 import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
-import {
-  type Modal as ModalType,
-  popModal,
-} from '@desktop-client/modals/modalsSlice';
+import { popModal } from '@desktop-client/modals/modalsSlice';
+import type { Modal as ModalType } from '@desktop-client/modals/modalsSlice';
 import { addNotification } from '@desktop-client/notifications/notificationsSlice';
 import { useDispatch, useSelector } from '@desktop-client/redux';
 
@@ -54,7 +52,7 @@ export function TransferOwnership({
   const [isTransferring, setIsTransferring] = useState(false);
 
   useEffect(() => {
-    send('users-get').then(
+    void send('users-get').then(
       (data: Awaited<ReturnType<Handlers['users-get']>>) => {
         if (!data) {
           setAvailableUsers([]);
@@ -112,7 +110,7 @@ export function TransferOwnership({
             title={t('Transfer ownership')}
             rightContent={<ModalCloseButton onPress={close} />}
           />
-          <Stack direction="row" style={{ marginTop: 10 }}>
+          <SpaceBetween style={{ marginTop: 10 }}>
             <FormField style={{ flex: 1 }}>
               <FormLabel title={t('User')} htmlFor="user-field" />
               {availableUsers.length > 0 && (
@@ -125,7 +123,7 @@ export function TransferOwnership({
                     value={userId}
                     defaultLabel={t('Select a user')}
                   />
-                  <label
+                  <Text
                     style={{
                       ...styles.verySmallText,
                       color: theme.pageTextLight,
@@ -136,8 +134,8 @@ export function TransferOwnership({
                       Select a user from the directory to designate as the new
                       budget owner.
                     </Trans>
-                  </label>
-                  <label
+                  </Text>
+                  <Text
                     style={{
                       ...styles.verySmallText,
                       color: theme.errorText,
@@ -147,8 +145,8 @@ export function TransferOwnership({
                     {t(
                       'This action is irreversible, ownership of this budget file will only be able to be transferred by the server administrator or new owner.',
                     )}
-                  </label>
-                  <label
+                  </Text>
+                  <Text
                     style={{
                       ...styles.verySmallText,
                       color: theme.errorText,
@@ -156,7 +154,7 @@ export function TransferOwnership({
                     }}
                   >
                     <Trans>Proceed with caution.</Trans>
-                  </label>
+                  </Text>
                 </View>
               )}
               {availableUsers.length === 0 && (
@@ -171,13 +169,14 @@ export function TransferOwnership({
                 </Text>
               )}
             </FormField>
-          </Stack>
+          </SpaceBetween>
 
-          <Stack
-            direction="row"
-            justify="flex-end"
-            align="center"
-            style={{ marginTop: 20 }}
+          <SpaceBetween
+            style={{
+              marginTop: 20,
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+            }}
           >
             {error && <Text style={{ color: theme.errorText }}>{error}</Text>}
             <Button
@@ -200,7 +199,7 @@ export function TransferOwnership({
                     closeAndLoadBudget({ fileId: (currentFile as Budget).id }),
                   );
                   close();
-                } catch (error) {
+                } catch {
                   dispatch(
                     addNotification({
                       notification: {
@@ -219,7 +218,7 @@ export function TransferOwnership({
             >
               {isTransferring ? t('Transferring...') : t('Transfer ownership')}
             </Button>
-          </Stack>
+          </SpaceBetween>
         </>
       )}
     </Modal>

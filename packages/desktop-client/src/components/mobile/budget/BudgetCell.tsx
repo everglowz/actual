@@ -1,13 +1,13 @@
-import { useCallback, type ComponentPropsWithoutRef } from 'react';
+import { useCallback } from 'react';
+import type { ComponentPropsWithoutRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
-import { type CSSProperties } from '@actual-app/components/styles';
+import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { AutoTextSize } from 'auto-text-size';
 
-import { integerToCurrency } from 'loot-core/shared/util';
-import { type CategoryEntity } from 'loot-core/types/models';
+import type { CategoryEntity } from 'loot-core/types/models';
 
 import { getColumnWidth, PILL_STYLE } from './BudgetTable';
 
@@ -20,7 +20,7 @@ import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
 import { useUndo } from '@desktop-client/hooks/useUndo';
 import { pushModal } from '@desktop-client/modals/modalsSlice';
 import { useDispatch } from '@desktop-client/redux';
-import { type SheetFields } from '@desktop-client/spreadsheet';
+import type { SheetFields } from '@desktop-client/spreadsheet';
 
 type BudgetCellProps<
   SheetFieldName extends SheetFields<'envelope-budget' | 'tracking-budget'>,
@@ -28,7 +28,6 @@ type BudgetCellProps<
   typeof CellValue<'envelope-budget' | 'tracking-budget', SheetFieldName>
 > & {
   category: CategoryEntity;
-  style?: CSSProperties;
   month: string;
   onBudgetAction: (month: string, action: string, args: unknown) => void;
 };
@@ -40,7 +39,6 @@ export function BudgetCell<
   category,
   month,
   onBudgetAction,
-  style,
   children,
   ...props
 }: BudgetCellProps<SheetFieldName>) {
@@ -68,7 +66,7 @@ export function BudgetCell<
                 amount,
               });
               showUndoNotification({
-                message: `${category.name} budget has been updated to ${integerToCurrency(amount)}.`,
+                message: `${category.name} budget has been updated to ${format(amount, 'financial')}.`,
               });
             },
             onCopyLastMonthAverage: () => {
@@ -76,7 +74,7 @@ export function BudgetCell<
                 category: category.id,
               });
               showUndoNotification({
-                message: `${category.name} budget has been set last to month’s budgeted amount.`,
+                message: `${category.name} budget has been set to last month's budgeted amount.`,
               });
             },
             onSetMonthsAverage: numberOfMonths => {
@@ -116,6 +114,7 @@ export function BudgetCell<
     month,
     onBudgetAction,
     showUndoNotification,
+    format,
   ]);
 
   return (
@@ -153,6 +152,7 @@ export function BudgetCell<
                 maxFontSizePx={12}
                 mode="oneline"
                 style={{
+                  ...styles.tnum,
                   maxWidth: columnWidth,
                   textAlign: 'right',
                   fontSize: 12,

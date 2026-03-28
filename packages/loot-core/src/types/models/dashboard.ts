@@ -1,5 +1,11 @@
-import { type CustomReportEntity } from './reports';
-import { type RuleConditionEntity } from './rule';
+import type { CustomReportEntity } from './reports';
+import type { RuleConditionEntity } from './rule';
+
+export type DashboardPageEntity = {
+  id: string;
+  name: string;
+  tombstone: boolean;
+};
 
 export type TimeFrame = {
   start: string;
@@ -8,6 +14,7 @@ export type TimeFrame = {
     | 'sliding-window'
     | 'static'
     | 'full'
+    | 'lastMonth'
     | 'lastYear'
     | 'yearToDate'
     | 'priorYearToDate';
@@ -18,6 +25,7 @@ type AbstractWidget<
   Meta extends Record<string, unknown> | null = null,
 > = {
   id: string;
+  dashboard_page_id: string;
   type: T;
   x: number;
   y: number;
@@ -35,8 +43,10 @@ export type NetWorthWidget = AbstractWidget<
     conditionsOp?: 'and' | 'or';
     timeFrame?: TimeFrame;
     interval?: 'Daily' | 'Weekly' | 'Monthly' | 'Yearly';
+    mode?: 'trend' | 'stacked';
   } | null
 >;
+
 export type CashFlowWidget = AbstractWidget<
   'cash-flow-card',
   {
@@ -59,9 +69,36 @@ export type SpendingWidget = AbstractWidget<
     mode?: 'single-month' | 'budget' | 'average';
   } | null
 >;
+export type BudgetAnalysisWidget = AbstractWidget<
+  'budget-analysis-card',
+  {
+    name?: string;
+    conditions?: RuleConditionEntity[];
+    conditionsOp?: 'and' | 'or';
+    timeFrame?: TimeFrame;
+    interval?: 'Daily' | 'Weekly' | 'Monthly' | 'Yearly';
+    graphType?: 'Line' | 'Bar';
+    showBalance?: boolean;
+  } | null
+>;
 export type CustomReportWidget = AbstractWidget<
   'custom-report',
   { id: string }
+>;
+export type CrossoverWidget = AbstractWidget<
+  'crossover-card',
+  {
+    name?: string;
+    expenseCategoryIds?: string[];
+    incomeAccountIds?: string[];
+    timeFrame?: TimeFrame;
+    safeWithdrawalRate?: number; // 0.04 default
+    estimatedReturn?: number | null; // annual
+    expectedContribution?: number | null; // monthly dollar amount
+    projectionType?: 'hampel' | 'median' | 'mean'; // expense projection method
+    showHiddenCategories?: boolean; // show hidden categories in selector
+    expenseAdjustmentFactor?: number; // multiplier for expenses (default 1.0)
+  } | null
 >;
 export type MarkdownWidget = AbstractWidget<
   'markdown-card',
@@ -72,11 +109,17 @@ type SpecializedWidget =
   | NetWorthWidget
   | CashFlowWidget
   | SpendingWidget
+  | BudgetAnalysisWidget
+  | CrossoverWidget
   | MarkdownWidget
   | SummaryWidget
-  | CalendarWidget;
-export type Widget = SpecializedWidget | CustomReportWidget;
-export type NewWidget = Omit<Widget, 'id' | 'tombstone'>;
+  | CalendarWidget
+  | FormulaWidget;
+export type DashboardWidgetEntity = SpecializedWidget | CustomReportWidget;
+export type NewDashboardWidgetEntity = Omit<
+  DashboardWidgetEntity,
+  'id' | 'tombstone' | 'dashboard_page_id'
+>;
 
 // Exported/imported (json) widget definition
 export type ExportImportCustomReportWidget = Omit<
@@ -110,7 +153,7 @@ export type SummaryWidget = AbstractWidget<
 >;
 
 export type BaseSummaryContent = {
-  type: 'sum' | 'avgPerMonth' | 'avgPerTransact';
+  type: 'sum' | 'avgPerMonth' | 'avgPerYear' | 'avgPerTransact';
   fontSize?: number;
 };
 
@@ -131,5 +174,26 @@ export type CalendarWidget = AbstractWidget<
     conditions?: RuleConditionEntity[];
     conditionsOp?: 'and' | 'or';
     timeFrame?: TimeFrame;
+  } | null
+>;
+
+export type FormulaWidget = AbstractWidget<
+  'formula-card',
+  {
+    name?: string;
+    formula?: string;
+    fontSize?: number;
+    fontSizeMode?: 'dynamic' | 'static';
+    staticFontSize?: number;
+    colorFormula?: string;
+    queriesVersion?: number;
+    queries?: Record<
+      string,
+      {
+        conditions?: RuleConditionEntity[];
+        conditionsOp?: 'and' | 'or';
+        timeFrame?: TimeFrame;
+      }
+    >;
   } | null
 >;

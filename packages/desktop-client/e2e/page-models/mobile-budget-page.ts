@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 import { MobileAccountPage } from './mobile-account-page';
 import { BalanceMenuModal } from './mobile-balance-menu-modal';
@@ -8,7 +8,7 @@ import { EnvelopeBudgetSummaryModal } from './mobile-envelope-budget-summary-mod
 import { TrackingBudgetSummaryModal } from './mobile-tracking-budget-summary-modal';
 
 export class MobileBudgetPage {
-  readonly MONTH_HEADER_DATE_FORMAT = 'MMMM ‘yy';
+  readonly MONTH_HEADER_DATE_FORMAT = "MMMM ''yy";
 
   readonly page: Page;
   readonly heading: Locator;
@@ -148,7 +148,7 @@ export class MobileBudgetPage {
     return groupNameText;
   }
 
-  #getButtonForCategoryGroup(categoryGroupName: string | RegExp) {
+  async #getButtonForCategoryGroup(categoryGroupName: string | RegExp) {
     return this.categoryGroupRows.getByRole('button', {
       name: categoryGroupName,
       exact: true,
@@ -169,7 +169,7 @@ export class MobileBudgetPage {
     return categoryNameText;
   }
 
-  #getButtonForCategory(categoryName: string | RegExp) {
+  async #getButtonForCategory(categoryName: string | RegExp) {
     return this.categoryRows.getByRole('button', {
       name: categoryName,
       exact: true,
@@ -325,7 +325,7 @@ export class MobileBudgetPage {
     }
 
     throw new Error(
-      'Neither “To Budget” nor “Overbudgeted” button could be located on the page.',
+      'Neither "To Budget" nor "Overbudgeted" button could be located on the page.',
     );
   }
 
@@ -363,7 +363,7 @@ export class MobileBudgetPage {
     }
 
     throw new Error(
-      'None of “Saved”, “Projected savings”, or “Overspent” buttons could be located on the page.',
+      'None of "Saved", "Projected savings", or "Overspent" buttons could be located on the page.',
     );
   }
 

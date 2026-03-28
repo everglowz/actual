@@ -1,13 +1,13 @@
 // @ts-strict-ignore
 import * as monthUtils from '../../shared/months';
 import { q } from '../../shared/query';
-import { CategoryEntity, CategoryGroupEntity } from '../../types/models';
-import { Template } from '../../types/models/templates';
+import type { CategoryEntity, CategoryGroupEntity } from '../../types/models';
+import type { Template } from '../../types/models/templates';
 import { aqlQuery } from '../aql';
 import * as db from '../db';
 import { batchMessages } from '../sync';
 
-import { isReflectBudget, getSheetValue, setGoal, setBudget } from './actions';
+import { getSheetValue, isReflectBudget, setBudget, setGoal } from './actions';
 import { CategoryTemplateContext } from './category-template-context';
 import { checkTemplateNotes, storeNoteTemplates } from './template-notes';
 
@@ -49,7 +49,7 @@ export async function applyTemplate({
 }): Promise<Notification> {
   await storeNoteTemplates();
   const categoryTemplates = await getTemplates();
-  const ret = await processTemplate(month, false, categoryTemplates);
+  const ret = await processTemplate(month, false, categoryTemplates, []);
   return ret;
 }
 
@@ -60,7 +60,7 @@ export async function overwriteTemplate({
 }): Promise<Notification> {
   await storeNoteTemplates();
   const categoryTemplates = await getTemplates();
-  const ret = await processTemplate(month, true, categoryTemplates);
+  const ret = await processTemplate(month, true, categoryTemplates, []);
   return ret;
 }
 
@@ -153,7 +153,7 @@ type TemplateBudget = {
 async function setBudgets(month: string, templateBudget: TemplateBudget[]) {
   await batchMessages(async () => {
     templateBudget.forEach(element => {
-      setBudget({
+      void setBudget({
         category: element.category,
         month,
         amount: element.budgeted,
@@ -171,7 +171,7 @@ type TemplateGoal = {
 async function setGoals(month: string, templateGoal: TemplateGoal[]) {
   await batchMessages(async () => {
     templateGoal.forEach(element => {
-      setGoal({
+      void setGoal({
         month,
         category: element.category,
         goal: element.goal,
@@ -243,7 +243,7 @@ async function processTemplate(
   //break early if nothing to do, or there are errors
   if (templateContexts.length === 0 && errors.length === 0) {
     if (goalList.length > 0) {
-      setGoals(month, goalList);
+      void setGoals(month, goalList);
     }
     return {
       type: 'message',

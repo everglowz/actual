@@ -1,14 +1,12 @@
-import React, {
-  type ComponentProps,
-  Fragment,
-  useMemo,
-  type ReactNode,
-  type SVGProps,
-  type ComponentType,
-  type ComponentPropsWithoutRef,
-  type ReactElement,
-  type CSSProperties,
-  useCallback,
+import React, { Fragment, useCallback, useMemo } from 'react';
+import type {
+  ComponentProps,
+  ComponentPropsWithoutRef,
+  ComponentType,
+  CSSProperties,
+  ReactElement,
+  ReactNode,
+  SVGProps,
 } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -23,9 +21,9 @@ import { css, cx } from '@emotion/css';
 
 import { getNormalisedString } from 'loot-core/shared/normalisation';
 import { integerToCurrency } from 'loot-core/shared/util';
-import {
-  type CategoryEntity,
-  type CategoryGroupEntity,
+import type {
+  CategoryEntity,
+  CategoryGroupEntity,
 } from 'loot-core/types/models';
 
 import { Autocomplete, defaultFilterSuggestion } from './Autocomplete';
@@ -33,12 +31,13 @@ import { ItemHeader } from './ItemHeader';
 
 import { useEnvelopeSheetValue } from '@desktop-client/components/budget/envelope/EnvelopeBudgetComponents';
 import { makeAmountFullStyle } from '@desktop-client/components/budget/util';
+import { FinancialText } from '@desktop-client/components/FinancialText';
 import { useCategories } from '@desktop-client/hooks/useCategories';
 import { useSheetValue } from '@desktop-client/hooks/useSheetValue';
 import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
 import {
-  trackingBudget,
   envelopeBudget,
+  trackingBudget,
 } from '@desktop-client/spreadsheet/bindings';
 
 type CategoryAutocompleteItem = Omit<CategoryEntity, 'group'> & {
@@ -136,12 +135,20 @@ function CategoryList({
         }}
       >
         {splitTransaction &&
-          renderSplitTransactionButton({
-            key: 'split',
-            ...(getItemProps ? getItemProps({ item: splitTransaction }) : {}),
-            highlighted: splitTransaction.highlightedIndex === highlightedIndex,
-            embedded,
-          })}
+          (() => {
+            const splitButtonProps = getItemProps
+              ? getItemProps({ item: splitTransaction })
+              : {};
+            const { onClick, ...restSplitButtonProps } = splitButtonProps;
+            return renderSplitTransactionButton({
+              key: 'split',
+              ...restSplitButtonProps,
+              onClick,
+              highlighted:
+                splitTransaction.highlightedIndex === highlightedIndex,
+              embedded,
+            });
+          })()}
         {groupedCategories.map(({ group, categories }) => {
           if (!group) {
             return null;
@@ -227,7 +234,8 @@ export function CategoryAutocomplete({
   showHiddenCategories,
   ...props
 }: CategoryAutocompleteProps) {
-  const { grouped: defaultCategoryGroups = [] } = useCategories();
+  const { data: { grouped: defaultCategoryGroups } = { grouped: [] } } =
+    useCategories();
   const categorySuggestions: CategoryAutocompleteItem[] = useMemo(() => {
     const allSuggestions = (categoryGroups || defaultCategoryGroups).reduce(
       (list, group) =>
@@ -265,6 +273,7 @@ export function CategoryAutocomplete({
       suggestions: CategoryAutocompleteItem[],
       value: string,
     ): CategoryAutocompleteItem[] => {
+      const normalizedValue = getNormalisedString(value);
       return suggestions
         .filter(suggestion => {
           if (suggestion.id === 'split') {
@@ -274,11 +283,11 @@ export function CategoryAutocomplete({
           if (suggestion.group) {
             return (
               getNormalisedString(suggestion.group.name).includes(
-                getNormalisedString(value),
+                normalizedValue,
               ) ||
               getNormalisedString(
                 suggestion.group.name + ' ' + suggestion.name,
-              ).includes(getNormalisedString(value))
+              ).includes(normalizedValue)
             );
           }
 
@@ -286,8 +295,7 @@ export function CategoryAutocomplete({
         })
         .sort(
           (a, b) =>
-            customSort(a, getNormalisedString(value)) -
-            customSort(b, getNormalisedString(value)),
+            customSort(a, normalizedValue) - customSort(b, normalizedValue),
         );
     },
     [],
@@ -295,8 +303,8 @@ export function CategoryAutocomplete({
 
   return (
     <Autocomplete
-      strict={true}
-      highlightFirst={true}
+      strict
+      highlightFirst
       embedded={embedded}
       closeOnBlur={closeOnBlur}
       getHighlightedIndex={suggestions => {
@@ -334,7 +342,7 @@ function defaultRenderCategoryItemGroupHeader(
   return <ItemHeader {...props} type="category" />;
 }
 
-type SplitTransactionButtonProps = {
+type SplitTransactionButtonProps = ComponentPropsWithoutRef<typeof View> & {
   Icon?: ComponentType<SVGProps<SVGElement>>;
   highlighted?: boolean;
   embedded?: boolean;
@@ -371,6 +379,7 @@ function SplitTransactionButton({
       // * https://github.com/WebKit/WebKit/blob/447d90b0c52b2951a69df78f06bb5e6b10262f4b/LayoutTests/fast/events/touch/ios/content-observation/400ms-hover-intent.html
       // * https://github.com/WebKit/WebKit/blob/58956cf59ba01267644b5e8fe766efa7aa6f0c5c/Source/WebCore/page/ios/ContentChangeObserver.cpp
       // * https://github.com/WebKit/WebKit/blob/58956cf59ba01267644b5e8fe766efa7aa6f0c5c/Source/WebKit/WebProcess/WebPage/ios/WebPageIOS.mm#L783
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role
       role="button"
       style={{
         backgroundColor: highlighted
@@ -452,10 +461,10 @@ function CategoryItem({
   const toBudget = useEnvelopeSheetValue(envelopeBudget.toBudget);
 
   return (
-    <div
+    <button
+      type="button"
       style={style}
       // See comment above.
-      role="button"
       className={cx(
         className,
         css({
@@ -468,6 +477,8 @@ function CategoryItem({
           padding: 4,
           paddingLeft: 20,
           borderRadius: embedded ? 4 : 0,
+          border: 'none',
+          font: 'inherit',
           ...narrowStyle,
         }),
       )}
@@ -492,15 +503,25 @@ function CategoryItem({
           }}
         >
           {isToBudgetItem
-            ? toBudget != null
-              ? ` ${integerToCurrency(toBudget || 0)}`
-              : null
-            : balance != null
-              ? ` ${integerToCurrency(balance || 0)}`
-              : null}
+            ? toBudget != null && (
+                <>
+                  {' '}
+                  <FinancialText>
+                    {integerToCurrency(toBudget || 0)}
+                  </FinancialText>
+                </>
+              )
+            : balance != null && (
+                <>
+                  {' '}
+                  <FinancialText>
+                    {integerToCurrency(balance || 0)}
+                  </FinancialText>
+                </>
+              )}
         </TextOneLine>
       </View>
-    </div>
+    </button>
   );
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Block } from '@actual-app/components/block';
@@ -7,8 +7,8 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { send, listen } from 'loot-core/platform/client/fetch';
-import { type Backup } from 'loot-core/server/budgetfiles/backups';
+import { listen, send } from 'loot-core/platform/client/connection';
+import type { Backup } from 'loot-core/server/budgetfiles/backups';
 
 import {
   loadBackup,
@@ -19,9 +19,9 @@ import {
   ModalCloseButton,
   ModalHeader,
 } from '@desktop-client/components/common/Modal';
-import { Row, Cell } from '@desktop-client/components/table';
+import { Cell, Row } from '@desktop-client/components/table';
 import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
-import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
+import type { Modal as ModalType } from '@desktop-client/modals/modalsSlice';
 import { useDispatch } from '@desktop-client/redux';
 
 type BackupTableProps = {
@@ -30,6 +30,8 @@ type BackupTableProps = {
 };
 
 function BackupTable({ backups, onSelect }: BackupTableProps) {
+  const { t } = useTranslation();
+
   return (
     <View style={{ flex: 1, maxHeight: 200, overflow: 'auto' }}>
       {backups.map((backup, idx) => (
@@ -41,7 +43,7 @@ function BackupTable({ backups, onSelect }: BackupTableProps) {
         >
           <Cell
             width="flex"
-            value={backup.date ? backup.date : 'Revert to Latest'}
+            value={backup.date ? backup.date : t('Revert to Latest')}
             valueStyle={{ paddingLeft: 20 }}
           />
         </Row>
@@ -67,7 +69,7 @@ export function LoadBackupModal({
 
   useEffect(() => {
     if (budgetIdToLoad) {
-      send('backups-get', { id: budgetIdToLoad }).then(setBackups);
+      void send('backups-get', { id: budgetIdToLoad }).then(setBackups);
     }
   }, [budgetIdToLoad]);
 
@@ -117,7 +119,7 @@ export function LoadBackupModal({
                     variant="primary"
                     onPress={() => {
                       if (budgetIdToLoad && latestBackup.id) {
-                        dispatch(
+                        void dispatch(
                           loadBackup({
                             budgetId: budgetIdToLoad,
                             backupId: latestBackup.id,
@@ -163,7 +165,7 @@ export function LoadBackupModal({
                 backups={previousBackups}
                 onSelect={id => {
                   if (budgetIdToLoad && id) {
-                    dispatch(
+                    void dispatch(
                       loadBackup({ budgetId: budgetIdToLoad, backupId: id }),
                     );
                   }

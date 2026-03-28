@@ -1,5 +1,9 @@
-// @ts-strict-ignore
-export {};
+import type EventEmitter from 'events';
+
+export type IpcClient = {
+  on: EventEmitter['on'];
+  emit: (name: string, data: unknown) => void;
+};
 
 type FileDialogOptions = {
   properties?: Array<'openFile' | 'openDirectory'>;
@@ -13,6 +17,7 @@ type Actual = {
   IS_DEV: boolean;
   ACTUAL_VERSION: string;
   openURLInBrowser: (url: string) => void;
+  openInFileManager: (filepath: string) => void;
   saveFile: (
     contents: string | Buffer,
     filename: string,
@@ -27,8 +32,7 @@ type Actual = {
     newDirectory: string,
   ) => Promise<void>;
   applyAppUpdate: () => Promise<void>;
-  updateAppMenu: (budgetId: string) => void;
-  ipcConnect: (callback: (client) => void) => void;
+  ipcConnect: (callback: (client: IpcClient) => void) => void;
   getServerSocket: () => Promise<Worker | null>;
   setTheme: (theme: string) => void;
   logToTerminal: (...args: unknown[]) => void;
@@ -45,11 +49,14 @@ type Actual = {
 };
 
 declare global {
-  interface Window {
-    __navigate?: import('react-router').NavigateFunction;
-  }
-
   var Actual: Actual;
 
+  // oxlint-disable-next-line typescript/consistent-type-definitions -- global Window augmentation requires interface
+  interface Window {
+    Actual: Actual;
+  }
+
   var IS_TESTING: boolean;
+
+  var currentMonth: string | null;
 }

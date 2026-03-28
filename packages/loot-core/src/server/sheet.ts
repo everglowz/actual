@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-import { type Database } from '@jlongster/sql.js';
+import type { Database } from '@jlongster/sql.js';
 
 import { captureBreadcrumb } from '../platform/exceptions';
 import { logger } from '../platform/server/log';
@@ -7,7 +7,8 @@ import * as sqlite from '../platform/server/sqlite';
 import { sheetForMonth } from '../shared/months';
 import * as Platform from '../shared/platform';
 
-import {
+import type * as DbModule from './db';
+import type {
   DbPreference,
   DbReflectBudget,
   DbZeroBudget,
@@ -25,7 +26,7 @@ export function get(): Spreadsheet {
 }
 
 async function updateSpreadsheetCache(rawDb, names: string[]) {
-  await sqlite.transaction(rawDb, () => {
+  sqlite.transaction(rawDb, () => {
     names.forEach(name => {
       const node = globalSheet._getNode(name);
 
@@ -114,7 +115,7 @@ export async function loadSpreadsheet(
     const cachePath = db
       .getDatabasePath()
       .replace(/db\.sqlite$/, 'cache.sqlite');
-    globalCacheDb = cacheDb = sqlite.openDatabase(cachePath);
+    globalCacheDb = cacheDb = await sqlite.openDatabase(cachePath);
 
     sqlite.execQuery(
       cacheDb,
@@ -151,7 +152,7 @@ export async function loadSpreadsheet(
   }
 
   if (cacheEnabled && !isCacheDirty(mainDb, cacheDb)) {
-    const cachedRows = await sqlite.runQuery<{ key?: number; value: string }>(
+    const cachedRows = sqlite.runQuery<{ key?: number; value: string }>(
       cacheDb,
       'SELECT * FROM kvcache',
       [],
@@ -196,9 +197,7 @@ export async function reloadSpreadsheet(db): Promise<Spreadsheet> {
   }
 }
 
-export async function loadUserBudgets(
-  db: typeof import('./db'),
-): Promise<void> {
+export async function loadUserBudgets(db: typeof DbModule): Promise<void> {
   const sheet = globalSheet;
 
   // TODO: Clear out the cache here so make sure future loads of the app

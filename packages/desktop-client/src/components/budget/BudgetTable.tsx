@@ -1,24 +1,21 @@
-import React, {
-  type ComponentPropsWithoutRef,
-  type KeyboardEvent,
-  useMemo,
-  useState,
-} from 'react';
+import React, { useMemo, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 
 import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
 import { q } from 'loot-core/shared/query';
-import {
-  type CategoryEntity,
-  type CategoryGroupEntity,
+import type {
+  CategoryEntity,
+  CategoryGroupEntity,
 } from 'loot-core/types/models';
 
 import { BudgetCategories } from './BudgetCategories';
 import { BudgetSummaries } from './BudgetSummaries';
 import { BudgetTotals } from './BudgetTotals';
-import { type MonthBounds, MonthsProvider } from './MonthsContext';
+import { MonthsProvider } from './MonthsContext';
+import type { MonthBounds } from './MonthsContext';
 import { copyTextToClipboard } from '../util/CopyToClipboard';
 import {
   findSortDown,
@@ -27,7 +24,7 @@ import {
   separateGroups,
 } from './util';
 
-import { type DropPosition } from '@desktop-client/components/sort';
+import type { DropPosition } from '@desktop-client/components/sort';
 import { SchedulesProvider } from '@desktop-client/hooks/useCachedSchedules';
 import { useCategories } from '@desktop-client/hooks/useCategories';
 import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
@@ -39,22 +36,16 @@ type BudgetTableProps = {
   startMonth: string;
   numMonths: number;
   monthBounds: MonthBounds;
-  dataComponents: {
-    SummaryComponent: ComponentPropsWithoutRef<
-      typeof BudgetSummaries
-    >['SummaryComponent'];
-    BudgetTotalsComponent: ComponentPropsWithoutRef<
-      typeof BudgetTotals
-    >['MonthComponent'];
-  };
   onSaveCategory: (category: CategoryEntity) => void;
   onDeleteCategory: (id: CategoryEntity['id']) => void;
   onSaveGroup: (group: CategoryGroupEntity) => void;
   onDeleteGroup: (id: CategoryGroupEntity['id']) => void;
-  onApplyBudgetTemplatesInGroup: (groupId: CategoryGroupEntity['id']) => void;
+  onApplyBudgetTemplatesInGroup: (
+    categoryIds: Array<CategoryEntity['id']>,
+  ) => void;
   onReorderCategory: (params: {
     id: CategoryEntity['id'];
-    groupId?: CategoryGroupEntity['id'];
+    groupId: CategoryGroupEntity['id'];
     targetId: CategoryEntity['id'] | null;
   }) => void;
   onReorderGroup: (params: {
@@ -72,7 +63,6 @@ export function BudgetTable(props: BudgetTableProps) {
     startMonth,
     numMonths,
     monthBounds,
-    dataComponents,
     onSaveCategory,
     onDeleteCategory,
     onSaveGroup,
@@ -84,7 +74,8 @@ export function BudgetTable(props: BudgetTableProps) {
     onBudgetAction,
   } = props;
 
-  const { grouped: categoryGroups = [] } = useCategories();
+  const { data: { grouped: categoryGroups } = { grouped: [] } } =
+    useCategories();
   const [collapsedGroupIds = [], setCollapsedGroupIdsPref] =
     useLocalPref('budget.collapsed');
   const [showHiddenCategories, setShowHiddenCategoriesPef] = useLocalPref(
@@ -110,7 +101,7 @@ export function BudgetTable(props: BudgetTableProps) {
 
   const _onReorderCategory = (
     id: string,
-    dropPos: DropPosition,
+    dropPos: DropPosition | null,
     targetId: string,
   ) => {
     const isGroup = !!categoryGroups.find(g => g.id === targetId);
@@ -135,26 +126,23 @@ export function BudgetTable(props: BudgetTableProps) {
         });
       }
     } else {
-      let targetGroup;
+      const group = categoryGroups.find(({ categories = [] }) =>
+        categories.some(cat => cat.id === targetId),
+      );
 
-      for (const group of categoryGroups) {
-        if (group.categories?.find(cat => cat.id === targetId)) {
-          targetGroup = group;
-          break;
-        }
+      if (group) {
+        onReorderCategory({
+          id,
+          groupId: group.id,
+          ...findSortDown(group.categories || [], dropPos, targetId),
+        });
       }
-
-      onReorderCategory({
-        id,
-        groupId: targetGroup?.id,
-        ...findSortDown(targetGroup?.categories || [], dropPos, targetId),
-      });
     }
   };
 
   const _onReorderGroup = (
     id: string,
-    dropPos: DropPosition,
+    dropPos: DropPosition | null,
     targetId: string,
   ) => {
     const [expenseGroups] = separateGroups(categoryGroups); // exclude Income group from sortable groups to fix off-by-one error
@@ -246,7 +234,8 @@ export function BudgetTable(props: BudgetTableProps) {
             backgroundColor: 'transparent',
           },
           '& ::-webkit-scrollbar-thumb:vertical': {
-            backgroundColor: theme.tableHeaderBackground,
+            backgroundColor: theme.pageTextSubdued,
+            // changed from tableHeaderBackground. pageTextSubdued is always visible on pageBackground
           },
         }),
       }}
@@ -269,7 +258,7 @@ export function BudgetTable(props: BudgetTableProps) {
           monthBounds={monthBounds}
           type={type}
         >
-          <BudgetSummaries SummaryComponent={dataComponents.SummaryComponent} />
+          <BudgetSummaries />
         </MonthsProvider>
       </View>
 
@@ -280,7 +269,6 @@ export function BudgetTable(props: BudgetTableProps) {
         type={type}
       >
         <BudgetTotals
-          MonthComponent={dataComponents.BudgetTotalsComponent}
           toggleHiddenCategories={toggleHiddenCategories}
           expandAllCategories={expandAllCategories}
           collapseAllCategories={collapseAllCategories}
@@ -302,10 +290,8 @@ export function BudgetTable(props: BudgetTableProps) {
           >
             <SchedulesProvider query={schedulesQuery}>
               <BudgetCategories
-                // @ts-expect-error Fix when migrating BudgetCategories to ts
                 categoryGroups={categoryGroups}
                 editingCell={editing}
-                dataComponents={dataComponents}
                 onEditMonth={onEditMonth}
                 onEditName={onEditName}
                 onSaveCategory={onSaveCategory}

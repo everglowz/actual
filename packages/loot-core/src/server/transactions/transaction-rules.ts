@@ -2,37 +2,44 @@
 
 import { logger } from '../../platform/server/log';
 import {
-  currentDay,
   addDays,
-  subDays,
-  parseDate,
+  currentDay,
   dayFromDate,
+  parseDate,
+  subDays,
 } from '../../shared/months';
-import { sortNumbers, getApproxNumberThreshold } from '../../shared/rules';
+import { q } from '../../shared/query';
+import { getApproxNumberThreshold, sortNumbers } from '../../shared/rules';
 import { ungroupTransaction } from '../../shared/transactions';
-import { partitionByField, fastSetMerge } from '../../shared/util';
-import {
-  type TransactionEntity,
-  type RuleActionEntity,
-  type RuleEntity,
+import { fastSetMerge, partitionByField } from '../../shared/util';
+import type {
+  RuleActionEntity,
+  RuleEntity,
+  TransactionEntity,
 } from '../../types/models';
-import { schemaConfig } from '../aql';
+import { aqlQuery, schemaConfig } from '../aql';
 import * as db from '../db';
-import { getPayee, getPayeeByName, insertPayee, getAccount } from '../db';
+import {
+  getAccount,
+  getCategory,
+  getPayee,
+  getPayeeByName,
+  insertPayee,
+} from '../db';
 import { getMappings } from '../db/mappings';
 import { RuleError } from '../errors';
 import { requiredFields, toDateRepr } from '../models';
 import {
-  Condition,
   Action,
+  Condition,
+  execActions,
+  iterateIds,
+  migrateIds,
+  rankRules,
   Rule,
   RuleIndexer,
-  rankRules,
-  migrateIds,
-  iterateIds,
-  execActions,
 } from '../rules';
-import { batchMessages, addSyncListener } from '../sync';
+import { addSyncListener, batchMessages } from '../sync';
 
 import { batchUpdateTransactions } from '.';
 
@@ -88,7 +95,7 @@ function parseArray(str) {
   let value;
   try {
     value = typeof str === 'string' ? JSON.parse(str) : str;
-  } catch (e) {
+  } catch {
     throw new RuleError('internal', 'Cannot parse rule json');
   }
 
@@ -342,8 +349,9 @@ export async function runRules(
     // If there is a scheduleRuleID (meaning this transaction came from a schedule) then exclude rules linked to other schedules.
     if (scheduleRuleID !== '') {
       if (rules[i].id === scheduleRuleID) {
-        // if the rule has the same ID that is attached to the schedule then run it (it is the schedules rule).
-        finalTrans = rules[i].apply(finalTrans);
+        // bypass condition checking to run the rule even if the transaction date falls outside of the schedule's date range.
+        const changes = rules[i].execActions(finalTrans);
+        finalTrans = Object.assign({}, finalTrans, changes);
       } else if (RuleIdsLinkedToSchedules.includes(rules[i].id)) {
         // skip all other rules that are linked to other schedules.
         continue;
@@ -443,6 +451,8 @@ export function conditionsToAQL(
       } else {
         op = 'false';
       }
+    } else if (field === 'category_group') {
+      field = 'category.group';
     }
 
     const apply = (field, aqlOp, value) => {
@@ -664,6 +674,8 @@ export async function applyActions(
           action.op === 'append-notes'
         ) {
           return new Action(action.op, null, action.value, null);
+        } else if (action.op === 'delete-transaction') {
+          return new Action(action.op, null, null, null);
         }
 
         return new Action(
@@ -922,6 +934,9 @@ export async function updateCategoryRules(transactions) {
 export type TransactionForRules = TransactionEntity & {
   payee_name?: string;
   _account?: db.DbAccount;
+  balance?: number;
+  _category_name?: string;
+  _account_name?: string;
 };
 
 export async function prepareTransactionForRules(
@@ -936,11 +951,59 @@ export async function prepareTransactionForRules(
     }
   }
 
+  r.balance = 0;
+
   if (trans.account) {
     if (accounts !== null && accounts.has(trans.account)) {
       r._account = accounts.get(trans.account);
+      r._account_name = r._account?.name || '';
     } else {
       r._account = await getAccount(trans.account);
+      r._account_name = r._account?.name || '';
+    }
+
+    const dateBoundary = trans.date ?? currentDay();
+    let query = q('transactions')
+      .filter({ account: trans.account, is_parent: false })
+      .options({ splits: 'inline' });
+
+    if (trans.id) {
+      query = query.filter({ id: { $ne: trans.id } });
+    }
+
+    const sameDayFilter =
+      trans.sort_order != null
+        ? {
+            $and: [
+              { date: dateBoundary },
+              { sort_order: { $lt: trans.sort_order } },
+            ],
+          }
+        : {
+            $and: [
+              { date: dateBoundary },
+              {
+                $or: [
+                  { sort_order: { $ne: null } }, // ordered items come before null sort_order
+                  ...(trans.id ? [{ id: { $lt: trans.id } }] : []), // among nulls, tie-break by id
+                ],
+              },
+            ],
+          };
+
+    const { data: balance } = await aqlQuery(
+      query
+        .filter({ $or: [{ date: { $lt: dateBoundary } }, sameDayFilter] })
+        .calculate({ $sum: '$amount' }),
+    );
+
+    r.balance = balance ?? 0;
+  }
+
+  if (trans.category) {
+    const category = await getCategory(trans.category);
+    if (category) {
+      r._category_name = category.name;
     }
   }
 
@@ -965,6 +1028,10 @@ export async function finalizeTransactionForRules(
     }
 
     delete trans.payee_name;
+  }
+
+  if ('balance' in trans) {
+    delete trans.balance;
   }
 
   return trans;

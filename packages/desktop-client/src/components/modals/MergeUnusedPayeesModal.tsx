@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Trans } from 'react-i18next';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { Paragraph } from '@actual-app/components/paragraph';
@@ -7,18 +7,16 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { send } from 'loot-core/platform/client/fetch';
-import { type PayeeEntity } from 'loot-core/types/models';
-import { type TransObjectLiteral } from 'loot-core/types/util';
+import { send } from 'loot-core/platform/client/connection';
+import type { PayeeEntity } from 'loot-core/types/models';
+import type { TransObjectLiteral } from 'loot-core/types/util';
 
 import { Information } from '@desktop-client/components/alerts';
 import { Modal, ModalButtons } from '@desktop-client/components/common/Modal';
 import { usePayees } from '@desktop-client/hooks/usePayees';
-import {
-  type Modal as ModalType,
-  replaceModal,
-} from '@desktop-client/modals/modalsSlice';
-import { useSelector, useDispatch } from '@desktop-client/redux';
+import { replaceModal } from '@desktop-client/modals/modalsSlice';
+import type { Modal as ModalType } from '@desktop-client/modals/modalsSlice';
+import { useDispatch, useSelector } from '@desktop-client/redux';
 
 const highlightStyle = { color: theme.pageTextPositive };
 
@@ -31,7 +29,8 @@ export function MergeUnusedPayeesModal({
   payeeIds,
   targetPayeeId,
 }: MergeUnusedPayeesModalProps) {
-  const allPayees = usePayees();
+  const { t } = useTranslation();
+  const { data: allPayees = [] } = usePayees();
   const modalStack = useSelector(state => state.modals.modalStack);
   const isEditingRule = !!modalStack.find(m => m.name === 'edit-rule');
   const dispatch = useDispatch();
@@ -177,6 +176,9 @@ export function MergeUnusedPayeesModal({
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
+                aria-label={t(
+                  'Automatically rename these payees in the future',
+                )}
               >
                 <input
                   type="checkbox"
@@ -184,9 +186,7 @@ export function MergeUnusedPayeesModal({
                   onChange={e => setShouldCreateRule(e.target.checked)}
                 />
                 <Text style={{ marginLeft: 3 }}>
-                  <Trans count={payees.length}>
-                    Automatically rename these payees in the future
-                  </Trans>
+                  <Trans>Automatically rename these payees in the future</Trans>
                 </Text>
               </label>
             )}
@@ -197,17 +197,17 @@ export function MergeUnusedPayeesModal({
                 autoFocus
                 style={{ marginRight: 10 }}
                 onPress={() => {
-                  onMerge(targetPayee);
+                  void onMerge(targetPayee);
                   close();
                 }}
               >
                 <Trans>Merge</Trans>
               </Button>
-              {!isEditingRule && (
+              {!isEditingRule && shouldCreateRule && (
                 <Button
                   style={{ marginRight: 10 }}
                   onPress={() => {
-                    onMergeAndCreateRule(targetPayee);
+                    void onMergeAndCreateRule(targetPayee);
                     close();
                   }}
                 >

@@ -61,7 +61,7 @@ function FileLocationSettings() {
     >
       <Text>
         <Trans>
-          <strong>Actual’s data directory</strong>{' '}
+          <strong>Actual's data directory</strong>{' '}
           <small style={{ marginLeft: '0.5rem' }}>
             <i>where your files are stored</i>
           </small>
@@ -156,7 +156,7 @@ export function FilesSettingsModal() {
   const dispatch = useDispatch();
 
   function closeModal(close: () => void) {
-    dispatch(loadAllFiles());
+    void dispatch(loadAllFiles());
     close();
   }
 

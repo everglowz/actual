@@ -1,9 +1,9 @@
-import { type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
 import { ConfigurationPage } from './page-models/configuration-page';
 import { MobileNavigation } from './page-models/mobile-navigation';
-import { type MobileRulesPage } from './page-models/mobile-rules-page';
+import type { MobileRulesPage } from './page-models/mobile-rules-page';
 
 test.describe('Mobile Rules', () => {
   let page: Page;
@@ -30,7 +30,7 @@ test.describe('Mobile Rules', () => {
   });
 
   test.afterEach(async () => {
-    await page.close();
+    await page?.close();
   });
 
   test('checks the page visuals', async () => {
@@ -59,8 +59,10 @@ test.describe('Mobile Rules', () => {
   });
 
   test('clicking on a rule opens edit form', async () => {
-    const ruleCount = await rulesPage.getRuleCount();
-    expect(ruleCount).toBeGreaterThan(0);
+    await expect(async () => {
+      const ruleCount = await rulesPage.getRuleCount();
+      expect(ruleCount).toBeGreaterThan(0);
+    }).toPass();
 
     await rulesPage.clickRule(0);
 

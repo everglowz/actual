@@ -1,7 +1,8 @@
 // @ts-strict-ignore
-import React, { useEffect, type ComponentProps } from 'react';
+import React, { useEffect } from 'react';
+import type { ComponentProps } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
-import AutoSizer from 'react-virtualized-auto-sizer';
+import { AutoSizer } from 'react-virtualized-auto-sizer';
 
 import { View } from '@actual-app/components/view';
 
@@ -31,12 +32,12 @@ function getNumPossibleMonths(width: number, categoryWidth: number) {
   return 6;
 }
 
-type DynamicBudgetTableInnerProps = {
+type DynamicBudgetTableProps = {
   width: number;
   height: number;
-} & DynamicBudgetTableProps;
+} & AutoSizingBudgetTableProps;
 
-const DynamicBudgetTableInner = ({
+const DynamicBudgetTable = ({
   type,
   width,
   height,
@@ -46,7 +47,7 @@ const DynamicBudgetTableInner = ({
   monthBounds,
   onMonthSelect,
   ...props
-}: DynamicBudgetTableInnerProps) => {
+}: DynamicBudgetTableProps) => {
   const { setDisplayMax } = useBudgetMonthCount();
   const [categoryExpandedStatePref] = useGlobalPref('categoryExpandedState');
   const categoryExpandedState = categoryExpandedStatePref ?? 0;
@@ -60,7 +61,7 @@ const DynamicBudgetTableInner = ({
 
   useEffect(() => {
     setDisplayMax(numPossible);
-  }, [numPossible]);
+  }, [setDisplayMax, numPossible]);
 
   function getValidMonth(month) {
     const start = monthBounds.start;
@@ -150,9 +151,9 @@ const DynamicBudgetTableInner = ({
   );
 };
 
-DynamicBudgetTableInner.displayName = 'DynamicBudgetTableInner';
+DynamicBudgetTable.displayName = 'DynamicBudgetTable';
 
-type DynamicBudgetTableProps = Omit<
+type AutoSizingBudgetTableProps = Omit<
   ComponentProps<typeof BudgetTable>,
   'numMonths'
 > & {
@@ -160,14 +161,18 @@ type DynamicBudgetTableProps = Omit<
   onMonthSelect: (month: string, numMonths: number) => void;
 };
 
-export const DynamicBudgetTable = (props: DynamicBudgetTableProps) => {
+export const AutoSizingBudgetTable = (props: AutoSizingBudgetTableProps) => {
   return (
-    <AutoSizer>
-      {({ width, height }) => (
-        <DynamicBudgetTableInner width={width} height={height} {...props} />
-      )}
-    </AutoSizer>
+    <AutoSizer
+      renderProp={({ width = 0, height = 0 }) => {
+        if (width === 0 || height === 0) {
+          return null;
+        }
+
+        return <DynamicBudgetTable width={width} height={height} {...props} />;
+      }}
+    />
   );
 };
 
-DynamicBudgetTable.displayName = 'DynamicBudgetTable';
+AutoSizingBudgetTable.displayName = 'AutoSizingBudgetTable';

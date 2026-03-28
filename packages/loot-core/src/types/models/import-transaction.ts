@@ -2,7 +2,7 @@
  * Represents a transaction object specifically for import operations.
  * This type is used when importing transactions from external sources.
  */
-export interface ImportTransactionEntity {
+export type ImportTransactionEntity = {
   /** Required. The ID of the account this transaction belongs to */
   account: string;
 
@@ -15,7 +15,7 @@ export interface ImportTransactionEntity {
 
   /** In a create/import request, this overrides payee_name.
    * Should be an existing payee ID */
-  payee?: string;
+  payee?: string | null;
 
   /** If given, a payee will be created with this name.
    * If this matches an already existing payee, that payee will be used.
@@ -53,4 +53,4 @@ export interface ImportTransactionEntity {
     category?: string;
     notes?: string;
   }>;
-}
+};

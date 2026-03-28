@@ -1,30 +1,31 @@
-import React, { type SVGAttributes, type CSSProperties } from 'react';
+import React from 'react';
+import type { CSSProperties, SVGAttributes } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AlignedText } from '@actual-app/components/aligned-text';
 import { theme } from '@actual-app/components/theme';
 import { css } from '@emotion/css';
 import {
-  AreaChart,
   Area,
+  AreaChart,
   CartesianGrid,
+  LabelList,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  LabelList,
-  ResponsiveContainer,
 } from 'recharts';
+import type { LabelProps } from 'recharts';
 
-import {
-  type balanceTypeOpType,
-  type DataEntity,
-} from 'loot-core/types/models';
+import type { balanceTypeOpType, DataEntity } from 'loot-core/types/models';
 
 import { adjustTextSize } from './adjustTextSize';
 import { renderCustomLabel } from './renderCustomLabel';
 
+import { FinancialText } from '@desktop-client/components/FinancialText';
+import { useRechartsAnimation } from '@desktop-client/components/reports/chart-theme';
 import { Container } from '@desktop-client/components/reports/Container';
-import { type FormatType, useFormat } from '@desktop-client/hooks/useFormat';
+import { useFormat } from '@desktop-client/hooks/useFormat';
+import type { FormatType } from '@desktop-client/hooks/useFormat';
 import { usePrivacyMode } from '@desktop-client/hooks/usePrivacyMode';
 
 type PayloadItem = {
@@ -74,34 +75,50 @@ const CustomTooltip = ({
             {['totalAssets', 'totalTotals'].includes(balanceTypeOp) && (
               <AlignedText
                 left={t('Assets:')}
-                right={format(payload[0].payload.totalAssets, 'financial')}
+                right={
+                  <FinancialText>
+                    {format(payload[0].payload.totalAssets, 'financial')}
+                  </FinancialText>
+                }
               />
             )}
             {['totalDebts', 'totalTotals'].includes(balanceTypeOp) && (
               <AlignedText
                 left={t('Debts:')}
-                right={format(payload[0].payload.totalDebts, 'financial')}
+                right={
+                  <FinancialText>
+                    {format(payload[0].payload.totalDebts, 'financial')}
+                  </FinancialText>
+                }
               />
             )}
             {['netAssets'].includes(balanceTypeOp) && (
               <AlignedText
                 left={t('Net Assets:')}
-                right={format(payload[0].payload.netAssets, 'financial')}
+                right={
+                  <FinancialText>
+                    {format(payload[0].payload.netAssets, 'financial')}
+                  </FinancialText>
+                }
               />
             )}
             {['netDebts'].includes(balanceTypeOp) && (
               <AlignedText
                 left={t('Net Debts:')}
-                right={format(payload[0].payload.netDebts, 'financial')}
+                right={
+                  <FinancialText>
+                    {format(payload[0].payload.netDebts, 'financial')}
+                  </FinancialText>
+                }
               />
             )}
             {['totalTotals'].includes(balanceTypeOp) && (
               <AlignedText
                 left={t('Net:')}
                 right={
-                  <strong>
+                  <FinancialText as="strong">
                     {format(payload[0].payload.totalTotals, 'financial')}
-                  </strong>
+                  </FinancialText>
                 }
               />
             )}
@@ -114,21 +131,13 @@ const CustomTooltip = ({
   return <div />;
 };
 
-type PropsItem = {
-  index?: number;
-  x?: string | number;
-  y?: string | number;
-  value?: string | number;
-  width?: string | number;
-};
-
 const customLabel = ({
   props,
   width,
   end,
   format,
 }: {
-  props: PropsItem;
+  props: LabelProps;
   width: number;
   end: number;
   format: (value: unknown, type: FormatType) => string;
@@ -143,8 +152,8 @@ const customLabel = ({
   const textAnchor: SVGAttributes<SVGTextElement>['textAnchor'] =
     props.index === 0 ? 'start' : 'middle';
   const display =
-    typeof props.value !== 'string' && props.value !== 0
-      ? `${format(props.value || 0, 'financial-no-decimals')}`
+    typeof props.value === 'number' && props.value !== 0
+      ? `${format(props.value, 'financial-no-decimals')}`
       : '';
   const textSize = adjustTextSize({ sized: width, type: 'area' });
 
@@ -169,6 +178,7 @@ export function AreaGraph({
   showTooltip = true,
 }: AreaGraphProps) {
   const format = useFormat();
+  const animationProps = useRechartsAnimation({ isAnimationActive: false });
 
   const privacyMode = usePrivacyMode();
   const dataMax = Math.max(...data.intervalData.map(i => i[balanceTypeOp]));
@@ -220,120 +230,119 @@ export function AreaGraph({
     >
       {(width, height) =>
         data.intervalData && (
-          <ResponsiveContainer>
-            <div>
-              {!compact && <div style={{ marginTop: '15px' }} />}
-              <AreaChart
-                width={width}
-                height={height}
-                data={data.intervalData}
-                margin={{
-                  top: 0,
-                  right: labelsMargin,
-                  left: leftMargin,
-                  bottom: 10,
-                }}
-              >
-                {compact ? null : (
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                )}
-                {compact ? null : (
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fill: theme.pageText }}
-                    tickLine={{ stroke: theme.pageText }}
-                  />
-                )}
-                {compact ? null : (
-                  <YAxis
-                    dataKey={balanceTypeOp}
-                    domain={[
-                      viewLabels ? labelsMin : 'auto',
-                      viewLabels ? labelsMax : 'auto',
-                    ]}
-                    tickFormatter={tickFormatter}
-                    tick={{ fill: theme.pageText }}
-                    tickLine={{ stroke: theme.pageText }}
-                    tickSize={0}
-                  />
-                )}
-                {showTooltip && (
-                  <Tooltip
-                    content={
-                      <CustomTooltip
-                        balanceTypeOp={balanceTypeOp}
-                        format={format}
-                      />
-                    }
-                    isAnimationActive={false}
-                  />
-                )}
-                <defs>
-                  <linearGradient
-                    id={`fill${balanceTypeOp}`}
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop
-                      offset={off}
-                      stopColor={theme.reportsBlue}
-                      stopOpacity={0.2}
-                    />
-                    <stop
-                      offset={off}
-                      stopColor={theme.reportsRed}
-                      stopOpacity={0.2}
-                    />
-                  </linearGradient>
-                  <linearGradient
-                    id={`stroke${balanceTypeOp}`}
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop
-                      offset={off}
-                      stopColor={theme.reportsBlue}
-                      stopOpacity={1}
-                    />
-                    <stop
-                      offset={off}
-                      stopColor={theme.reportsRed}
-                      stopOpacity={1}
-                    />
-                  </linearGradient>
-                </defs>
-
-                <Area
-                  type="linear"
-                  dot={false}
-                  activeDot={false}
-                  animationDuration={0}
+          <div>
+            {!compact && <div style={{ marginTop: '15px' }} />}
+            <AreaChart
+              responsive
+              width={width}
+              height={height}
+              data={data.intervalData}
+              margin={{
+                top: 0,
+                right: labelsMargin,
+                left: leftMargin,
+                bottom: 10,
+              }}
+            >
+              {compact ? null : (
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              )}
+              {compact ? null : (
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: theme.pageText }}
+                  tickLine={{ stroke: theme.pageText }}
+                />
+              )}
+              {compact ? null : (
+                <YAxis
                   dataKey={balanceTypeOp}
-                  stroke={`url(#stroke${balanceTypeOp})`}
-                  fill={`url(#fill${balanceTypeOp})`}
-                  fillOpacity={1}
-                >
-                  {viewLabels && !compact && (
-                    <LabelList
-                      dataKey={balanceTypeOp}
-                      content={props =>
-                        customLabel({
-                          props,
-                          width,
-                          end: lastLabel,
-                          format,
-                        })
-                      }
+                  domain={[
+                    viewLabels ? labelsMin : 'auto',
+                    viewLabels ? labelsMax : 'auto',
+                  ]}
+                  tickFormatter={tickFormatter}
+                  tick={{ fill: theme.pageText }}
+                  tickLine={{ stroke: theme.pageText }}
+                  tickSize={0}
+                />
+              )}
+              {showTooltip && (
+                <Tooltip
+                  content={
+                    <CustomTooltip
+                      balanceTypeOp={balanceTypeOp}
+                      format={format}
                     />
-                  )}
-                </Area>
-              </AreaChart>
-            </div>
-          </ResponsiveContainer>
+                  }
+                  isAnimationActive={false}
+                />
+              )}
+              <defs>
+                <linearGradient
+                  id={`fill${balanceTypeOp}`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop
+                    offset={off}
+                    stopColor={theme.reportsNumberPositive}
+                    stopOpacity={0.2}
+                  />
+                  <stop
+                    offset={off}
+                    stopColor={theme.reportsNumberNegative}
+                    stopOpacity={0.2}
+                  />
+                </linearGradient>
+                <linearGradient
+                  id={`stroke${balanceTypeOp}`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop
+                    offset={off}
+                    stopColor={theme.reportsNumberPositive}
+                    stopOpacity={1}
+                  />
+                  <stop
+                    offset={off}
+                    stopColor={theme.reportsNumberNegative}
+                    stopOpacity={1}
+                  />
+                </linearGradient>
+              </defs>
+
+              <Area
+                type="linear"
+                dot={false}
+                activeDot={false}
+                {...animationProps}
+                dataKey={balanceTypeOp}
+                stroke={`url(#stroke${balanceTypeOp})`}
+                fill={`url(#fill${balanceTypeOp})`}
+                fillOpacity={1}
+              >
+                {viewLabels && !compact && (
+                  <LabelList
+                    dataKey={balanceTypeOp}
+                    content={props =>
+                      customLabel({
+                        props,
+                        width,
+                        end: lastLabel,
+                        format,
+                      })
+                    }
+                  />
+                )}
+              </Area>
+            </AreaChart>
+          </div>
         )
       }
     </Container>

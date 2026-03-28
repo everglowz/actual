@@ -1,11 +1,5 @@
-import {
-  type Ref,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Ref } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useParams, useSearchParams } from 'react-router';
 import { animated, config, useSpring } from 'react-spring';
@@ -25,18 +19,20 @@ import { css } from '@emotion/css';
 import { useDrag } from '@use-gesture/react';
 import { format as formatDate, parseISO } from 'date-fns';
 
-import { send } from 'loot-core/platform/client/fetch';
+import { send } from 'loot-core/platform/client/connection';
 import * as monthUtils from 'loot-core/shared/months';
-import { q, type Query } from 'loot-core/shared/query';
+import { q } from 'loot-core/shared/query';
+import type { Query } from 'loot-core/shared/query';
 import { ungroupTransactions } from 'loot-core/shared/transactions';
-import {
-  type CalendarWidget,
-  type RuleConditionEntity,
-  type TimeFrame,
-  type TransactionEntity,
+import type {
+  CalendarWidget,
+  RuleConditionEntity,
+  TimeFrame,
+  TransactionEntity,
 } from 'loot-core/types/models';
 
 import { EditablePageHeaderTitle } from '@desktop-client/components/EditablePageHeaderTitle';
+import { FinancialText } from '@desktop-client/components/FinancialText';
 import { MobileBackButton } from '@desktop-client/components/mobile/MobileBackButton';
 import { TransactionList as TransactionListMobile } from '@desktop-client/components/mobile/transactions/TransactionList';
 import {
@@ -45,25 +41,25 @@ import {
   PageHeader,
 } from '@desktop-client/components/Page';
 import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
-import { chartTheme } from '@desktop-client/components/reports/chart-theme';
 import { DateRange } from '@desktop-client/components/reports/DateRange';
 import { CalendarGraph } from '@desktop-client/components/reports/graphs/CalendarGraph';
 import { Header } from '@desktop-client/components/reports/Header';
 import { LoadingIndicator } from '@desktop-client/components/reports/LoadingIndicator';
 import { calculateTimeRange } from '@desktop-client/components/reports/reportRanges';
-import {
-  type CalendarDataType,
-  calendarSpreadsheet,
-} from '@desktop-client/components/reports/spreadsheets/calendar-spreadsheet';
+import { calendarSpreadsheet } from '@desktop-client/components/reports/spreadsheets/calendar-spreadsheet';
+import type { CalendarDataType } from '@desktop-client/components/reports/spreadsheets/calendar-spreadsheet';
 import { useReport } from '@desktop-client/components/reports/useReport';
 import { fromDateRepr } from '@desktop-client/components/reports/util';
-import { type TableHandleRef } from '@desktop-client/components/table';
+import type { TableHandleRef } from '@desktop-client/components/table';
 import { TransactionList } from '@desktop-client/components/transactions/TransactionList';
 import { useAccounts } from '@desktop-client/hooks/useAccounts';
 import { SchedulesProvider } from '@desktop-client/hooks/useCachedSchedules';
 import { useCategories } from '@desktop-client/hooks/useCategories';
+import { useDashboardWidget } from '@desktop-client/hooks/useDashboardWidget';
 import { useDateFormat } from '@desktop-client/hooks/useDateFormat';
-import { type FormatType, useFormat } from '@desktop-client/hooks/useFormat';
+import { DisplayPayeeProvider } from '@desktop-client/hooks/useDisplayPayee';
+import { useFormat } from '@desktop-client/hooks/useFormat';
+import type { FormatType } from '@desktop-client/hooks/useFormat';
 import { useLocale } from '@desktop-client/hooks/useLocale';
 import { useMergedRefs } from '@desktop-client/hooks/useMergedRefs';
 import { useNavigate } from '@desktop-client/hooks/useNavigate';
@@ -74,9 +70,9 @@ import { SelectedProviderWithItems } from '@desktop-client/hooks/useSelected';
 import { SplitsExpandedProvider } from '@desktop-client/hooks/useSplitsExpanded';
 import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
 import { useTransactions } from '@desktop-client/hooks/useTransactions';
-import { useWidget } from '@desktop-client/hooks/useWidget';
 import { addNotification } from '@desktop-client/notifications/notificationsSlice';
 import { useDispatch } from '@desktop-client/redux';
+import { useUpdateDashboardWidgetMutation } from '@desktop-client/reports/mutations';
 
 const CHEVRON_HEIGHT = 42;
 const SUMMARY_HEIGHT = 140;
@@ -84,12 +80,12 @@ const SUMMARY_HEIGHT = 140;
 export function Calendar() {
   const params = useParams();
   const [searchParams] = useSearchParams();
-  const { data: widget, isLoading } = useWidget<CalendarWidget>(
-    params.id ?? '',
-    'calendar-card',
-  );
+  const { data: widget, isPending } = useDashboardWidget<CalendarWidget>({
+    id: params.id,
+    type: 'calendar-card',
+  });
 
-  if (isLoading) {
+  if (isPending) {
     return <LoadingIndicator />;
   }
 
@@ -115,17 +111,20 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
   const [dirty, setDirty] = useState(false);
   const [latestTransaction, setLatestTransaction] = useState('');
 
-  const { transactions: transactionsGrouped, loadMore: loadMoreTransactions } =
-    useTransactions({ query });
+  const {
+    transactions: transactionsGrouped,
+    fetchNextPage: loadMoreTransactions,
+  } = useTransactions({ query });
 
   const allTransactions = useMemo(
     () => ungroupTransactions(transactionsGrouped as TransactionEntity[]),
     [transactionsGrouped],
   );
 
-  const accounts = useAccounts();
-  const payees = usePayees();
-  const { grouped: categoryGroups } = useCategories();
+  const { data: accounts = [] } = useAccounts();
+  const { data: payees = [] } = usePayees();
+  const { data: { grouped: categoryGroups } = { grouped: [] } } =
+    useCategories();
 
   const [_firstDayOfWeekIdx] = useSyncedPref('firstDayOfWeekIdx');
   const firstDayOfWeekIdx = _firstDayOfWeekIdx || '0';
@@ -273,11 +272,16 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
             parseISO(fromDateRepr(earliestTransaction.date)),
           )
         : currentMonth;
-      const latestMonth = latestTransaction
+      const latestTransactionMonth = latestTransaction
         ? monthUtils.monthFromDate(
             parseISO(fromDateRepr(latestTransaction.date)),
           )
         : currentMonth;
+
+      const latestMonth =
+        latestTransactionMonth > currentMonth
+          ? latestTransactionMonth
+          : currentMonth;
 
       // Make sure the month selects are at least populates with a
       // year's worth of months. We can undo this when we have fancier
@@ -291,13 +295,13 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
         .rangeInclusive(earliestMonth, latestMonth)
         .map(month => ({
           name: month,
-          pretty: monthUtils.format(month, 'MMMM, yyyy', locale),
+          pretty: monthUtils.format(month, 'MMMM yyyy', locale),
         }))
         .reverse();
 
       setAllMonths(allMonths);
     }
-    run();
+    void run();
   }, [locale]);
 
   useEffect(() => {
@@ -323,6 +327,7 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
   const title = widget?.meta?.name || t('Calendar');
   const table = useRef<TableHandleRef<TransactionEntity>>(null);
   const dateFormat = useDateFormat();
+  const updateDashboardWidgetMutation = useUpdateDashboardWidgetMutation();
 
   const onSaveWidgetName = async (newName: string) => {
     if (!widget) {
@@ -330,11 +335,13 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
     }
 
     const name = newName || t('Calendar');
-    await send('dashboard-update-widget', {
-      id: widget.id,
-      meta: {
-        ...(widget.meta ?? {}),
-        name,
+    updateDashboardWidgetMutation.mutate({
+      widget: {
+        id: widget.id,
+        meta: {
+          ...(widget.meta ?? {}),
+          name,
+        },
       },
     });
   };
@@ -350,39 +357,46 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
       throw new Error('No widget that could be saved.');
     }
 
-    try {
-      await send('dashboard-update-widget', {
-        id: widget.id,
-        meta: {
-          ...(widget.meta ?? {}),
-          conditions,
-          conditionsOp,
-          timeFrame: {
-            start,
-            end,
-            mode,
+    updateDashboardWidgetMutation.mutate(
+      {
+        widget: {
+          id: widget.id,
+          meta: {
+            ...(widget.meta ?? {}),
+            conditions,
+            conditionsOp,
+            timeFrame: {
+              start,
+              end,
+              mode,
+            },
           },
         },
-      });
-      dispatch(
-        addNotification({
-          notification: {
-            type: 'message',
-            message: t('Dashboard widget successfully saved.'),
-          },
-        }),
-      );
-    } catch (error) {
-      dispatch(
-        addNotification({
-          notification: {
-            type: 'error',
-            message: t('Failed to save dashboard widget.'),
-          },
-        }),
-      );
-      console.error('Error saving widget:', error);
-    }
+      },
+      {
+        onSuccess: () => {
+          dispatch(
+            addNotification({
+              notification: {
+                type: 'message',
+                message: t('Dashboard widget successfully saved.'),
+              },
+            }),
+          );
+        },
+        onError: error => {
+          dispatch(
+            addNotification({
+              notification: {
+                type: 'error',
+                message: t('Failed to save dashboard widget.'),
+              },
+            }),
+          );
+          console.error('Error saving widget:', error);
+        },
+      },
+    );
   }
   const { totalIncome, totalExpense } = useMemo(() => {
     if (!data || !data.calendarData) {
@@ -414,7 +428,7 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
 
   const onOpenTransaction = useCallback(
     (transaction: TransactionEntity) => {
-      navigate(`/transactions/${transaction.id}`);
+      void navigate(`/transactions/${transaction.id}`);
     },
     [navigate],
   );
@@ -440,7 +454,7 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
 
   useEffect(() => {
     closeY.current = totalHeight;
-    api.start({
+    void api.start({
       y: mobileTransactionsOpen ? openY : closeY.current,
       immediate: false,
     });
@@ -448,7 +462,7 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
 
   const open = useCallback(
     ({ canceled }: { canceled: boolean }) => {
-      api.start({
+      void api.start({
         y: openY,
         immediate: false,
         config: canceled ? config.wobbly : config.stiff,
@@ -460,7 +474,7 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
 
   const close = useCallback(
     (velocity = 0) => {
-      api.start({
+      void api.start({
         y: closeY.current,
         config: { ...config.stiff, velocity },
       });
@@ -473,7 +487,7 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
     ({ offset: [, oy], cancel }) => {
       if (oy < 0) {
         cancel();
-        api.start({ y: 0, immediate: true });
+        void api.start({ y: 0, immediate: true });
         return;
       }
 
@@ -487,7 +501,7 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
           open({ canceled: true });
           setMobileTransactionsOpen(true);
         } else {
-          api.start({ y: oy, immediate: true });
+          void api.start({ y: oy, immediate: true });
         }
       }
     },
@@ -548,7 +562,7 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
           onDeleteFilter={onDeleteFilter}
           conditionsOp={conditionsOp}
           onConditionsOpChange={onConditionsOpChange}
-          show1Month={true}
+          show1Month
         >
           {widget && (
             <Button variant="primary" onPress={onSaveWidget}>
@@ -646,9 +660,9 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
                     payees={payees}
                     balances={null}
                     showBalances={false}
-                    showReconciled={true}
+                    showReconciled
                     showCleared={false}
-                    showAccount={true}
+                    showAccount
                     isAdding={false}
                     isNew={() => false}
                     isMatched={() => false}
@@ -731,15 +745,21 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
                     )}
                   </Button>
                   <View
-                    style={{ height: '100%', width: '100%', overflow: 'auto' }}
+                    style={{
+                      height: '100%',
+                      width: '100%',
+                      overflow: 'auto',
+                    }}
                   >
-                    <TransactionListMobile
-                      isLoading={false}
-                      onLoadMore={loadMoreTransactions}
-                      transactions={allTransactions}
-                      onOpenTransaction={onOpenTransaction}
-                      isLoadingMore={false}
-                    />
+                    <DisplayPayeeProvider transactions={allTransactions}>
+                      <TransactionListMobile
+                        isLoading={false}
+                        onLoadMore={loadMoreTransactions}
+                        transactions={allTransactions}
+                        onOpenTransaction={onOpenTransaction}
+                        isLoadingMore={false}
+                      />
+                    </DisplayPayeeProvider>
                   </View>
                 </animated.div>
               )}
@@ -847,11 +867,11 @@ function CalendarWithHeader({
           <SvgArrowThickUp
             width={16}
             height={16}
-            style={{ color: chartTheme.colors.blue, flexShrink: 0 }}
+            style={{ color: theme.reportsNumberPositive, flexShrink: 0 }}
           />
           <View
             style={{
-              color: chartTheme.colors.blue,
+              color: theme.reportsNumberPositive,
               flexDirection: 'row',
               flexGrow: 1,
               justifyContent: 'start',
@@ -859,17 +879,19 @@ function CalendarWithHeader({
             aria-label={t('Income')}
           >
             <PrivacyFilter>
-              {format(calendar.totalIncome, 'financial')}
+              <FinancialText>
+                {format(calendar.totalIncome, 'financial')}
+              </FinancialText>
             </PrivacyFilter>
           </View>
           <SvgArrowThickDown
             width={16}
             height={16}
-            style={{ color: chartTheme.colors.red, flexShrink: 0 }}
+            style={{ color: theme.reportsNumberNegative, flexShrink: 0 }}
           />
           <View
             style={{
-              color: chartTheme.colors.red,
+              color: theme.reportsNumberNegative,
               flexDirection: 'row',
               flexGrow: 1,
               justifyContent: 'start',
@@ -877,7 +899,9 @@ function CalendarWithHeader({
             aria-label={t('Expenses')}
           >
             <PrivacyFilter>
-              {format(calendar.totalExpense, 'financial')}
+              <FinancialText>
+                {format(calendar.totalExpense, 'financial')}
+              </FinancialText>
             </PrivacyFilter>
           </View>
         </View>
@@ -969,7 +993,7 @@ function CalendarCardHeader({
             >
               <Trans>Income:</Trans>
             </View>
-            <View style={{ color: chartTheme.colors.blue }}>
+            <View style={{ color: theme.reportsNumberPositive }}>
               <PrivacyFilter>{format(totalIncome, 'financial')}</PrivacyFilter>
             </View>
 
@@ -981,7 +1005,7 @@ function CalendarCardHeader({
             >
               <Trans>Expenses:</Trans>
             </View>
-            <View style={{ color: chartTheme.colors.red }}>
+            <View style={{ color: theme.reportsNumberNegative }}>
               <PrivacyFilter>{format(totalExpense, 'financial')}</PrivacyFilter>
             </View>
           </View>

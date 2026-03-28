@@ -1,19 +1,17 @@
-import { render, type Screen, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import type { Screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 
 import { generateAccount } from 'loot-core/mocks';
 import type { AccountEntity, PayeeEntity } from 'loot-core/types/models';
 
-import {
-  PayeeAutocomplete,
-  type PayeeAutocompleteItem,
-  type PayeeAutocompleteProps,
-} from './PayeeAutocomplete';
+import { PayeeAutocomplete } from './PayeeAutocomplete';
+import type { PayeeAutocompleteProps } from './PayeeAutocomplete';
 
 import { AuthProvider } from '@desktop-client/auth/AuthProvider';
-import { useCommonPayees } from '@desktop-client/hooks/usePayees';
-import { TestProvider } from '@desktop-client/redux/mock';
+import { createTestQueryClient, TestProviders } from '@desktop-client/mocks';
+import { payeeQueries } from '@desktop-client/payees';
 
 const PAYEE_SELECTOR = '[data-testid][role=option]';
 const PAYEE_SECTION_SELECTOR = '[data-testid$="-item-group"]';
@@ -44,39 +42,27 @@ function makePayee(name: string, options?: { favorite: boolean }): PayeeEntity {
 }
 
 function extractPayeesAndHeaderNames(screen: Screen) {
-  return [
-    ...screen
-      .getByTestId('autocomplete')
-      .querySelectorAll(`${PAYEE_SELECTOR}, ${PAYEE_SECTION_SELECTOR}`),
-  ]
+  const autocompleteElement = screen.getByTestId('autocomplete');
+
+  // Get all elements that match either selector, but query them separately
+  // and then sort by their position in the DOM to maintain document order
+  const headers = [
+    ...autocompleteElement.querySelectorAll(PAYEE_SECTION_SELECTOR),
+  ];
+  const items = [...autocompleteElement.querySelectorAll(PAYEE_SELECTOR)];
+
+  // Combine all elements and sort by their position in the DOM
+  const allElements = [...headers, ...items];
+  allElements.sort((a, b) => {
+    // Compare document position to maintain DOM order
+    return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING
+      ? -1
+      : 1;
+  });
+
+  return allElements
     .map(e => e.getAttribute('data-testid'))
     .map(firstOrIncorrect);
-}
-
-function renderPayeeAutocomplete(
-  props?: Partial<PayeeAutocompleteProps>,
-): HTMLElement {
-  const autocompleteProps = {
-    ...defaultProps,
-    ...props,
-  };
-
-  render(
-    <TestProvider>
-      <AuthProvider>
-        <div data-testid="autocomplete-test">
-          <PayeeAutocomplete
-            {...autocompleteProps}
-            onSelect={vi.fn()}
-            type="single"
-            value={null}
-            embedded={false}
-          />
-        </div>
-      </AuthProvider>
-    </TestProvider>,
-  );
-  return screen.getByTestId('autocomplete-test');
 }
 
 // Not good, see `Autocomplete.js` for details
@@ -92,19 +78,42 @@ async function clickAutocomplete(autocomplete: HTMLElement) {
   await waitForAutocomplete();
 }
 
-vi.mock('../../hooks/usePayees', () => ({
-  useCommonPayees: vi.fn(),
-  usePayees: vi.fn().mockReturnValue([]),
-}));
-
 function firstOrIncorrect(id: string | null): string {
   return id?.split('-', 1)[0] || 'incorrect';
 }
 
 describe('PayeeAutocomplete.getPayeeSuggestions', () => {
+  const queryClient = createTestQueryClient();
+
   beforeEach(() => {
-    vi.mocked(useCommonPayees).mockReturnValue([]);
+    queryClient.setQueryData(payeeQueries.listCommon().queryKey, []);
   });
+
+  function renderPayeeAutocomplete(
+    props?: Partial<PayeeAutocompleteProps>,
+  ): HTMLElement {
+    const autocompleteProps = {
+      ...defaultProps,
+      ...props,
+    };
+
+    render(
+      <TestProviders queryClient={queryClient}>
+        <AuthProvider>
+          <div data-testid="autocomplete-test">
+            <PayeeAutocomplete
+              {...autocompleteProps}
+              onSelect={vi.fn()}
+              type="single"
+              value={null}
+              embedded={false}
+            />
+          </div>
+        </AuthProvider>
+      </TestProviders>,
+    );
+    return screen.getByTestId('autocomplete-test');
+  }
 
   test('favorites get sorted alphabetically', async () => {
     const autocomplete = renderPayeeAutocomplete();
@@ -123,7 +132,7 @@ describe('PayeeAutocomplete.getPayeeSuggestions', () => {
 
   test('list with less than the maximum favorites adds common payees', async () => {
     //Note that the payees list assumes the payees are already sorted
-    const payees: PayeeAutocompleteItem[] = [
+    const payees: PayeeEntity[] = [
       makePayee('Alice'),
       makePayee('Bob'),
       makePayee('Eve', { favorite: true }),
@@ -133,7 +142,7 @@ describe('PayeeAutocomplete.getPayeeSuggestions', () => {
       makePayee('Steve'),
       makePayee('Tony'),
     ];
-    vi.mocked(useCommonPayees).mockReturnValue([
+    queryClient.setQueryData(payeeQueries.listCommon().queryKey, [
       makePayee('Bruce'),
       makePayee('Natasha'),
       makePayee('Steve'),
@@ -154,15 +163,9 @@ describe('PayeeAutocomplete.getPayeeSuggestions', () => {
     ];
     await clickAutocomplete(renderPayeeAutocomplete({ payees }));
 
-    expect(
-      [
-        ...screen
-          .getByTestId('autocomplete')
-          .querySelectorAll(`${PAYEE_SELECTOR}, ${PAYEE_SECTION_SELECTOR}`),
-      ]
-        .map(e => e.getAttribute('data-testid'))
-        .map(firstOrIncorrect),
-    ).toStrictEqual(expectedPayeeOrder);
+    expect(extractPayeesAndHeaderNames(screen)).toStrictEqual(
+      expectedPayeeOrder,
+    );
   });
 
   test('list with more than the maximum favorites only lists favorites', async () => {
@@ -177,7 +180,7 @@ describe('PayeeAutocomplete.getPayeeSuggestions', () => {
       makePayee('Steve'),
       makePayee('Tony', { favorite: true }),
     ];
-    vi.mocked(useCommonPayees).mockReturnValue([
+    queryClient.setQueryData(payeeQueries.listCommon().queryKey, [
       makePayee('Bruce'),
       makePayee('Natasha'),
       makePayee('Steve'),

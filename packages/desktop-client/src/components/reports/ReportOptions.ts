@@ -1,11 +1,11 @@
 import { t } from 'i18next';
 
 import * as monthUtils from 'loot-core/shared/months';
-import {
-  type CustomReportEntity,
-  type CategoryEntity,
-  type CategoryGroupEntity,
-  type sortByOpType,
+import type {
+  CategoryEntity,
+  CategoryGroupEntity,
+  CustomReportEntity,
+  sortByOpType,
 } from 'loot-core/types/models';
 
 const startDate = monthUtils.subMonths(monthUtils.currentMonth(), 5) + '-01';
@@ -25,9 +25,10 @@ export const defaultReport: CustomReportEntity = {
   sortBy: 'desc',
   showEmpty: false,
   showOffBudget: false,
-  showHiddenCategories: false,
+  showHiddenCategories: true,
   includeCurrentInterval: true,
-  showUncategorized: false,
+  showUncategorized: true,
+  trimIntervals: false,
   graphType: 'BarGraph',
   conditions: [],
   conditionsOp: 'and',
@@ -224,7 +225,7 @@ const intervalOptions: intervalOptionsProps[] = [
     description: t('Monthly'),
     key: 'Monthly',
     name: 'Month',
-    // eslint-disable-next-line actual/typography
+
     format: "MMM ''yy",
     range: 'rangeInclusive',
   },

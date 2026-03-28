@@ -1,4 +1,5 @@
-import React, { useRef, useState, type CSSProperties } from 'react';
+import React, { useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
@@ -35,12 +36,14 @@ export function ThemeSelector({ style }: ThemeSelectorProps) {
     development: SvgMoonStars,
   } as const;
 
+  type ThemeIconKey = keyof typeof themeIcons;
+
   function onMenuSelect(newTheme: Theme) {
     setMenuOpen(false);
     switchTheme(newTheme);
   }
 
-  const Icon = themeIcons[theme] || SvgSun;
+  const Icon = themeIcons[theme as ThemeIconKey] || SvgSun;
 
   if (isNarrowWidth) {
     return null;

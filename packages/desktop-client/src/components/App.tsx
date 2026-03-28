@@ -1,21 +1,20 @@
-// @ts-strict-ignore
 import React, { useEffect, useState } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import {
-  ErrorBoundary,
-  useErrorBoundary,
-  type FallbackProps,
-} from 'react-error-boundary';
+import { ErrorBoundary, useErrorBoundary } from 'react-error-boundary';
+import type { FallbackProps } from 'react-error-boundary';
 import { HotkeysProvider } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
 import { BrowserRouter } from 'react-router';
 
 import { styles } from '@actual-app/components/styles';
 import { View } from '@actual-app/components/view';
+import { useQueryClient } from '@tanstack/react-query';
 
-import { init as initConnection, send } from 'loot-core/platform/client/fetch';
-import * as Platform from 'loot-core/shared/platform';
+import {
+  init as initConnection,
+  send,
+} from 'loot-core/platform/client/connection';
 
 import { AppBackground } from './AppBackground';
 import { BudgetMonthCountProvider } from './budget/BudgetMonthCountContext';
@@ -33,6 +32,7 @@ import {
   loadBudget,
 } from '@desktop-client/budgetfiles/budgetfilesSlice';
 import { handleGlobalEvents } from '@desktop-client/global-events';
+import { useIsTestEnv } from '@desktop-client/hooks/useIsTestEnv';
 import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
 import { SpreadsheetProvider } from '@desktop-client/hooks/useSpreadsheet';
 import { setI18NextLanguage } from '@desktop-client/i18n';
@@ -41,6 +41,7 @@ import { installPolyfills } from '@desktop-client/polyfills';
 import { loadGlobalPrefs } from '@desktop-client/prefs/prefsSlice';
 import { useDispatch, useSelector, useStore } from '@desktop-client/redux';
 import {
+  CustomThemeStyle,
   hasHiddenScrollbars,
   ThemeStyle,
   useTheme,
@@ -61,7 +62,7 @@ function AppInner() {
   }, []);
 
   useEffect(() => {
-    const maybeUpdate = async <T,>(cb?: () => T): Promise<T> => {
+    const maybeUpdate = async <T,>(cb?: () => T): Promise<T | void> => {
       if (global.Actual.isUpdateReadyForDownload()) {
         dispatch(
           setAppState({
@@ -74,10 +75,7 @@ function AppInner() {
     };
 
     async function init() {
-      const serverSocket = await maybeUpdate(() =>
-        global.Actual.getServerSocket(),
-      );
-
+      await maybeUpdate();
       dispatch(
         setAppState({
           loadingText: t(
@@ -85,7 +83,7 @@ function AppInner() {
           ),
         }),
       );
-      await initConnection(serverSocket);
+      await initConnection();
 
       // Load any global prefs
       dispatch(
@@ -117,7 +115,7 @@ function AppInner() {
         if (files) {
           const remoteFile = files.find(f => f.fileId === cloudFileId);
           if (remoteFile && remoteFile.deleted) {
-            dispatch(closeBudget());
+            void dispatch(closeBudget());
           }
         }
 
@@ -132,12 +130,8 @@ function AppInner() {
 
     initAll().catch(showErrorBoundary);
     // Removed cloudFileId & t from dependencies to prevent hard crash when closing budget in Electron
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, showErrorBoundary]);
-
-  useEffect(() => {
-    global.Actual.updateAppMenu(budgetId);
-  }, [budgetId]);
 
   useEffect(() => {
     if (userData?.tokenExpired) {
@@ -152,7 +146,7 @@ function AppInner() {
             button: {
               title: t('Go to login'),
               action: () => {
-                dispatch(signOut());
+                void dispatch(signOut());
               },
             },
           },
@@ -175,8 +169,10 @@ function ErrorFallback({ error }: FallbackProps) {
 
 export function App() {
   const store = useStore();
+  const isTestEnv = useIsTestEnv();
+  const queryClient = useQueryClient();
 
-  useEffect(() => handleGlobalEvents(store), [store]);
+  useEffect(() => handleGlobalEvents(store, queryClient), [store, queryClient]);
 
   const [hiddenScrollbars, setHiddenScrollbars] = useState(
     hasHiddenScrollbars(),
@@ -215,7 +211,7 @@ export function App() {
   return (
     <BrowserRouter>
       <ExposeNavigate />
-      <HotkeysProvider initiallyActiveScopes={['*']}>
+      <HotkeysProvider initiallyActiveScopes={['app']}>
         <SpreadsheetProvider>
           <SidebarProvider>
             <BudgetMonthCountProvider>
@@ -237,11 +233,13 @@ export function App() {
                     }}
                   >
                     <ErrorBoundary FallbackComponent={ErrorFallback}>
-                      {process.env.REACT_APP_REVIEW_ID &&
-                        !Platform.isPlaywright && <DevelopmentTopBar />}
+                      {process.env.REACT_APP_REVIEW_ID && !isTestEnv && (
+                        <DevelopmentTopBar />
+                      )}
                       <AppInner />
                     </ErrorBoundary>
                     <ThemeStyle />
+                    <CustomThemeStyle />
                     <ErrorBoundary FallbackComponent={FatalError}>
                       <Modals />
                     </ErrorBoundary>

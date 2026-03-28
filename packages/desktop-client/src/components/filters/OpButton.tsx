@@ -1,4 +1,5 @@
-import React, { type CSSProperties } from 'react';
+import React from 'react';
+import type { CSSProperties } from 'react';
 
 import { Button } from '@actual-app/components/button';
 import { theme } from '@actual-app/components/theme';
@@ -20,7 +21,6 @@ export function OpButton({ op, isSelected, style, onPress }: OpButtonProps) {
       style={style}
       className={css({
         backgroundColor: theme.pillBackground,
-        marginBottom: 5,
         ...(isSelected && {
           color: theme.buttonNormalSelectedText,
           '&,:hover,:active': {

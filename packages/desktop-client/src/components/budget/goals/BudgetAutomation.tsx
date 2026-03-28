@@ -1,34 +1,44 @@
-import { useCallback, useMemo, useReducer, useState } from 'react';
+import { useMemo, useReducer, useRef, useState } from 'react';
 
-import { Stack } from '@actual-app/components/stack';
-import { type CSSProperties } from '@actual-app/components/styles';
+import { SpaceBetween } from '@actual-app/components/space-between';
+import type { CSSProperties } from '@actual-app/components/styles';
 
-import {
-  type CategoryGroupEntity,
-  type ScheduleEntity,
+import { firstDayOfMonth } from 'loot-core/shared/months';
+import type {
+  CategoryGroupEntity,
+  ScheduleEntity,
 } from 'loot-core/types/models';
-import { type Template } from 'loot-core/types/models/templates';
+import type { Template } from 'loot-core/types/models/templates';
 
-import { type Action } from './actions';
 import { BudgetAutomationEditor } from './BudgetAutomationEditor';
 import { BudgetAutomationReadOnly } from './BudgetAutomationReadOnly';
+import type { DisplayTemplateType } from './constants';
 import { DEFAULT_PRIORITY, getInitialState, templateReducer } from './reducer';
+
+import { useEffectAfterMount } from '@desktop-client/hooks/useEffectAfterMount';
 
 type BudgetAutomationProps = {
   categories: CategoryGroupEntity[];
   schedules: readonly ScheduleEntity[];
   template?: Template;
-  onSave?: () => void;
+  onSave?: (template: Template, displayType: DisplayTemplateType) => void;
   onDelete?: () => void;
   style?: CSSProperties;
   readOnlyStyle?: CSSProperties;
   inline?: boolean;
+  hasLimitAutomation?: boolean;
+  onAddLimitAutomation?: () => void;
 };
 
 const DEFAULT_TEMPLATE: Template = {
   directive: 'template',
-  type: 'simple',
-  monthly: 0,
+  type: 'periodic',
+  amount: 0,
+  period: {
+    period: 'month',
+    amount: 1,
+  },
+  starting: firstDayOfMonth(new Date()),
   priority: DEFAULT_PRIORITY,
 };
 
@@ -41,20 +51,20 @@ export const BudgetAutomation = ({
   style,
   template,
   inline = false,
+  hasLimitAutomation,
+  onAddLimitAutomation,
 }: BudgetAutomationProps) => {
   const [isEditing, setIsEditing] = useState(false);
 
-  const [state, originalDispatch] = useReducer(
-    templateReducer,
+  const [state, dispatch] = useReducer(templateReducer, null, () =>
     getInitialState(template ?? DEFAULT_TEMPLATE),
   );
-  const dispatch = useCallback(
-    (action: Action) => {
-      originalDispatch(action);
-      onSave?.();
-    },
-    [originalDispatch, onSave],
-  );
+
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
+  useEffectAfterMount(() => {
+    onSaveRef.current?.(state.template, state.displayType);
+  }, [state]);
 
   const categoryNameMap = useMemo(() => {
     return categories.reduce(
@@ -69,9 +79,10 @@ export const BudgetAutomation = ({
   }, [categories]);
 
   return (
-    <Stack
-      direction="column"
-      spacing={inline ? 0 : 1}
+    <SpaceBetween
+      direction="vertical"
+      align="stretch"
+      gap={inline ? 0 : 5}
       style={{ ...style, minHeight: 'fit-content' }}
     >
       <BudgetAutomationReadOnly
@@ -90,8 +101,10 @@ export const BudgetAutomation = ({
           dispatch={dispatch}
           schedules={schedules}
           categories={categories}
+          hasLimitAutomation={hasLimitAutomation}
+          onAddLimitAutomation={onAddLimitAutomation}
         />
       )}
-    </Stack>
+    </SpaceBetween>
   );
 };

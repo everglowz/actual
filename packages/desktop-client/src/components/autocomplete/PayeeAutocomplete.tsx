@@ -1,15 +1,13 @@
 // @ts-strict-ignore
-import React, {
-  Fragment,
-  useState,
-  useMemo,
-  type ComponentProps,
-  type ReactNode,
-  type ComponentType,
-  type SVGProps,
-  type ComponentPropsWithoutRef,
-  type ReactElement,
-  type CSSProperties,
+import React, { Fragment, useMemo, useState } from 'react';
+import type {
+  ComponentProps,
+  ComponentPropsWithoutRef,
+  ComponentType,
+  CSSProperties,
+  ReactElement,
+  ReactNode,
+  SVGProps,
 } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -23,39 +21,39 @@ import { View } from '@actual-app/components/view';
 import { css, cx } from '@emotion/css';
 
 import { getNormalisedString } from 'loot-core/shared/normalisation';
-import { type AccountEntity, type PayeeEntity } from 'loot-core/types/models';
+import type { AccountEntity, PayeeEntity } from 'loot-core/types/models';
 
 import {
   Autocomplete,
-  defaultFilterSuggestion,
   AutocompleteFooter,
+  defaultFilterSuggestion,
 } from './Autocomplete';
 import { ItemHeader } from './ItemHeader';
 
 import { useAccounts } from '@desktop-client/hooks/useAccounts';
-import { useCommonPayees, usePayees } from '@desktop-client/hooks/usePayees';
+import { useCommonPayees } from '@desktop-client/hooks/useCommonPayees';
+import { usePayees } from '@desktop-client/hooks/usePayees';
 import {
-  createPayee,
   getActivePayees,
-} from '@desktop-client/payees/payeesSlice';
-import { useDispatch } from '@desktop-client/redux';
+  useCreatePayeeMutation,
+} from '@desktop-client/payees';
 
-export type PayeeAutocompleteItem = PayeeEntity;
+type PayeeAutocompleteItem = PayeeEntity & PayeeItemType;
 
 const MAX_AUTO_SUGGESTIONS = 5;
 
 function getPayeeSuggestions(
-  commonPayees: PayeeAutocompleteItem[],
-  payees: PayeeAutocompleteItem[],
-): (PayeeAutocompleteItem & PayeeItemType)[] {
-  const favoritePayees = payees
+  commonPayees: PayeeEntity[],
+  payees: PayeeEntity[],
+): PayeeAutocompleteItem[] {
+  const favoritePayees: PayeeAutocompleteItem[] = payees
     .filter(p => p.favorite)
     .map(p => {
       return { ...p, itemType: determineItemType(p, true) };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  let additionalCommonPayees: (PayeeAutocompleteItem & PayeeItemType)[] = [];
+  let additionalCommonPayees: PayeeAutocompleteItem[] = [];
   if (commonPayees?.length > 0) {
     if (favoritePayees.length < MAX_AUTO_SUGGESTIONS) {
       additionalCommonPayees = commonPayees
@@ -71,10 +69,10 @@ function getPayeeSuggestions(
   }
 
   if (favoritePayees.length + additionalCommonPayees.length) {
-    const filteredPayees: (PayeeAutocompleteItem & PayeeItemType)[] = payees
+    const filteredPayees: PayeeAutocompleteItem[] = payees
       .filter(p => !favoritePayees.find(fp => fp.id === p.id))
       .filter(p => !additionalCommonPayees.find(fp => fp.id === p.id))
-      .map<PayeeAutocompleteItem & PayeeItemType>(p => {
+      .map<PayeeAutocompleteItem>(p => {
         return { ...p, itemType: determineItemType(p, false) };
       });
 
@@ -86,14 +84,14 @@ function getPayeeSuggestions(
   });
 }
 
-function filterActivePayees(
-  payees: PayeeAutocompleteItem[],
+function filterActivePayees<T extends PayeeEntity>(
+  payees: T[],
   accounts: AccountEntity[],
-) {
-  return accounts ? getActivePayees(payees, accounts) : payees;
+): T[] {
+  return accounts ? (getActivePayees(payees, accounts) as T[]) : payees;
 }
 
-function filterTransferPayees(payees: PayeeAutocompleteItem[]) {
+function filterTransferPayees<T extends PayeeEntity>(payees: T[]): T[] {
   return payees.filter(payee => !!payee.transfer_acct);
 }
 
@@ -139,10 +137,7 @@ type PayeeItemType = {
   itemType: ItemTypes;
 };
 
-function determineItemType(
-  item: PayeeAutocompleteItem,
-  isCommon: boolean,
-): ItemTypes {
+function determineItemType(item: PayeeEntity, isCommon: boolean): ItemTypes {
   if (item.transfer_acct) {
     return 'account';
   }
@@ -223,7 +218,7 @@ function PayeeList({
 
   // We limit the number of payees shown to 100.
   // So we show a hint that more are available via search.
-  const showSearchForMore = items.length > 100;
+  const showSearchForMore = items.length >= 100;
 
   return (
     <View>
@@ -299,6 +294,17 @@ function PayeeList({
   );
 }
 
+function customSort(obj: PayeeAutocompleteItem, value: string): number {
+  const name = getNormalisedString(obj.name);
+  if (obj.id === 'new') {
+    return -2;
+  }
+  if (name.includes(value)) {
+    return -1;
+  }
+  return 1;
+}
+
 export type PayeeAutocompleteProps = ComponentProps<
   typeof Autocomplete<PayeeAutocompleteItem>
 > & {
@@ -317,7 +323,7 @@ export type PayeeAutocompleteProps = ComponentProps<
     props: ComponentPropsWithoutRef<typeof PayeeItem>,
   ) => ReactElement<typeof PayeeItem>;
   accounts?: AccountEntity[];
-  payees?: PayeeAutocompleteItem[];
+  payees?: PayeeEntity[];
 };
 
 export function PayeeAutocomplete({
@@ -339,13 +345,16 @@ export function PayeeAutocomplete({
   payees,
   ...props
 }: PayeeAutocompleteProps) {
-  const commonPayees = useCommonPayees();
-  const retrievedPayees = usePayees();
+  const { t } = useTranslation();
+
+  const { data: commonPayees } = useCommonPayees();
+  const { data: retrievedPayees = [] } = usePayees();
   if (!payees) {
     payees = retrievedPayees;
   }
+  const createPayeeMutation = useCreatePayeeMutation();
 
-  const cachedAccounts = useAccounts();
+  const { data: cachedAccounts = [] } = useAccounts();
   if (!accounts) {
     accounts = cachedAccounts;
   }
@@ -370,7 +379,10 @@ export function PayeeAutocomplete({
       return filteredSuggestions;
     }
 
-    return [{ id: 'new', favorite: false, name: '' }, ...filteredSuggestions];
+    return [
+      { id: 'new', favorite: false, name: '' } as PayeeAutocompleteItem,
+      ...filteredSuggestions,
+    ];
   }, [
     commonPayees,
     payees,
@@ -380,14 +392,12 @@ export function PayeeAutocomplete({
     showInactivePayees,
   ]);
 
-  const dispatch = useDispatch();
-
   async function handleSelect(idOrIds, rawInputValue) {
     if (!clearOnBlur) {
       onSelect?.(makeNew(idOrIds, rawInputValue), rawInputValue);
     } else {
       const create = payeeName =>
-        dispatch(createPayee({ name: payeeName })).unwrap();
+        createPayeeMutation.mutateAsync({ name: payeeName });
 
       if (Array.isArray(idOrIds)) {
         idOrIds = await Promise.all(
@@ -404,10 +414,44 @@ export function PayeeAutocomplete({
 
   const [payeeFieldFocused, setPayeeFieldFocused] = useState(false);
 
+  const filterSuggestions = (
+    suggestions: PayeeAutocompleteItem[],
+    value: string,
+  ) => {
+    const normalizedValue = getNormalisedString(value);
+    const filtered = suggestions
+      .filter(suggestion => {
+        if (suggestion.id === 'new') {
+          return !value || value === '' || focusTransferPayees ? false : true;
+        }
+
+        return defaultFilterSuggestion(suggestion, value);
+      })
+      .sort(
+        (a, b) =>
+          customSort(a, normalizedValue) - customSort(b, normalizedValue),
+      )
+      // Only show the first 100 results, users can search to find more.
+      // If user want to view all payees, it can be done via the manage payees page.
+      .slice(0, 100);
+
+    if (filtered.length >= 2 && filtered[0].id === 'new') {
+      const firstFiltered = filtered[1];
+      if (
+        getNormalisedString(firstFiltered.name) === normalizedValue &&
+        !firstFiltered.transfer_acct
+      ) {
+        // Exact match found, remove the 'Create payee` option.
+        return filtered.slice(1);
+      }
+    }
+    return filtered;
+  };
+
   return (
     <Autocomplete
       key={focusTransferPayees ? 'transfers' : 'all'}
-      strict={true}
+      strict
       embedded={embedded}
       value={stripNew(value)}
       suggestions={payeeSuggestions}
@@ -429,72 +473,22 @@ export function PayeeAutocomplete({
           setRawPayee('');
           setPayeeFieldFocused(false);
         },
+        'aria-label': t('Payee'),
         onFocus: () => setPayeeFieldFocused(true),
         onChangeValue: setRawPayee,
       }}
       onUpdate={(id, inputValue) => onUpdate?.(id, makeNew(id, inputValue))}
       onSelect={handleSelect}
       getHighlightedIndex={suggestions => {
-        if (suggestions.length > 1 && suggestions[0].id === 'new') {
-          return 1;
+        if (suggestions.length === 0) {
+          return null;
+        } else if (suggestions[0].id === 'new') {
+          // Highlight the first payee since the create payee option is at index 0.
+          return suggestions.length > 1 ? 1 : 0;
         }
         return 0;
       }}
-      filterSuggestions={(suggestions, value) => {
-        let filtered = suggestions.filter(suggestion => {
-          if (suggestion.id === 'new') {
-            return !value || value === '' || focusTransferPayees ? false : true;
-          }
-
-          return defaultFilterSuggestion(suggestion, value);
-        });
-
-        filtered.sort((p1, p2) => {
-          const r1 = getNormalisedString(p1.name).startsWith(
-            getNormalisedString(value),
-          );
-          const r2 = getNormalisedString(p2.name).startsWith(
-            getNormalisedString(value),
-          );
-          const r1exact = p1.name.toLowerCase() === value.toLowerCase();
-          const r2exact = p2.name.toLowerCase() === value.toLowerCase();
-
-          // (maniacal laughter) mwahaHAHAHAHAH
-          if (p1.id === 'new') {
-            return -1;
-          } else if (p2.id === 'new') {
-            return 1;
-          } else {
-            if (r1exact && !r2exact) {
-              return -1;
-            } else if (!r1exact && r2exact) {
-              return 1;
-            } else {
-              if (r1 === r2) {
-                return 0;
-              } else if (r1 && !r2) {
-                return -1;
-              } else {
-                return 1;
-              }
-            }
-          }
-        });
-
-        // Only show the first 100 results, users can search to find more.
-        // If user want to view all payees, it can be done via the manage payees page.
-        filtered = filtered.slice(0, 100);
-
-        if (filtered.length >= 2 && filtered[0].id === 'new') {
-          if (
-            filtered[1].name.toLowerCase() === value.toLowerCase() &&
-            !filtered[1].transfer_acct
-          ) {
-            return filtered.slice(1);
-          }
-        }
-        return filtered;
-      }}
+      filterSuggestions={filterSuggestions}
       renderItems={(items, getItemProps, highlightedIndex, inputValue) => (
         <PayeeList
           items={items}
@@ -591,7 +585,7 @@ export function CreatePayeeButton({
           style={{ marginRight: 5, display: 'inline-block' }}
         />
       )}
-      <Trans>Create payee “{{ payeeName }}”</Trans>
+      <Trans>Create payee "{{ payeeName }}"</Trans>
     </View>
   );
 }
@@ -645,7 +639,8 @@ function PayeeItem({
     paddingLeftOverFromIcon -= iconSize + 5;
   }
   return (
-    <div
+    <button
+      type="button"
       // Downshift calls `setTimeout(..., 250)` in the `onMouseMove`
       // event handler they set on this element. When this code runs
       // in WebKit on touch-enabled devices, taps on this element end
@@ -661,13 +656,13 @@ function PayeeItem({
       // there's some "fast path" logic that can be triggered in various
       // ways to force WebKit to bail on the content observation process.
       // One of those ways is setting `role="button"` (or a number of
-      // other aria roles) on the element, which is what we're doing here.
+      // other aria roles) on the element. Now we use a semantic button
+      // element instead which provides the same fast path behavior.
       //
       // ref:
       // * https://github.com/WebKit/WebKit/blob/447d90b0c52b2951a69df78f06bb5e6b10262f4b/LayoutTests/fast/events/touch/ios/content-observation/400ms-hover-intent.html
       // * https://github.com/WebKit/WebKit/blob/58956cf59ba01267644b5e8fe766efa7aa6f0c5c/Source/WebCore/page/ios/ContentChangeObserver.cpp
       // * https://github.com/WebKit/WebKit/blob/58956cf59ba01267644b5e8fe766efa7aa6f0c5c/Source/WebKit/WebProcess/WebPage/ios/WebPageIOS.mm#L783
-      role="button"
       className={cx(
         className,
         css({
@@ -680,6 +675,9 @@ function PayeeItem({
           borderRadius: embedded ? 4 : 0,
           padding: 4,
           paddingLeft: paddingLeftOverFromIcon,
+          border: 'none',
+          font: 'inherit',
+          textAlign: 'left',
           ...narrowStyle,
         }),
       )}
@@ -691,7 +689,7 @@ function PayeeItem({
         {itemIcon}
         {item.name}
       </TextOneLine>
-    </div>
+    </button>
   );
 }
 

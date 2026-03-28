@@ -1,11 +1,5 @@
-import React, {
-  useState,
-  useRef,
-  useEffect,
-  type CSSProperties,
-  useCallback,
-  type ComponentPropsWithoutRef,
-} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import type { ComponentPropsWithoutRef, CSSProperties } from 'react';
 import { GridList, GridListItem } from 'react-aria-components';
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -40,12 +34,12 @@ import {
   isElectron,
   isNonProductionEnvironment,
 } from 'loot-core/shared/environment';
-import {
-  type RemoteFile,
-  type File,
-  type LocalFile,
-  type SyncableLocalFile,
-  type SyncedLocalFile,
+import type {
+  File,
+  LocalFile,
+  RemoteFile,
+  SyncableLocalFile,
+  SyncedLocalFile,
 } from 'loot-core/types/file';
 
 import {
@@ -59,8 +53,9 @@ import {
 import { useMultiuserEnabled } from '@desktop-client/components/ServerContext';
 import { useInitialMount } from '@desktop-client/hooks/useInitialMount';
 import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
+import { useSyncServerStatus } from '@desktop-client/hooks/useSyncServerStatus';
 import { pushModal } from '@desktop-client/modals/modalsSlice';
-import { useSelector, useDispatch } from '@desktop-client/redux';
+import { useDispatch, useSelector } from '@desktop-client/redux';
 import { getUserData } from '@desktop-client/users/usersSlice';
 
 function getFileDescription(file: File, t: (key: string) => string) {
@@ -275,7 +270,7 @@ type BudgetFileListItemProps = ComponentPropsWithoutRef<
   typeof GridListItem<File>
 > & {
   quickSwitchMode: boolean;
-  onSelect: (file: File) => void;
+  onSelect: (file: File) => Promise<void>;
   onDelete: (file: File) => void;
   onDuplicate: (file: File) => void;
   currentUserId: string;
@@ -384,7 +379,7 @@ function BudgetFileListItem({
 type BudgetFileListProps = {
   files: File[];
   quickSwitchMode: boolean;
-  onSelect: (file: File) => void;
+  onSelect: (file: File) => Promise<void>;
   onDelete: (file: File) => void;
   onDuplicate: (file: File) => void;
   currentUserId: string;
@@ -452,7 +447,7 @@ function RefreshButton({ style, onRefresh }: RefreshButtonProps) {
 
   async function _onRefresh() {
     setLoading(true);
-    await onRefresh();
+    onRefresh();
     setLoading(false);
   }
 
@@ -495,7 +490,7 @@ function SettingsButton({ onOpenSettings }: SettingsButtonProps) {
 
 type BudgetFileSelectionHeaderProps = {
   quickSwitchMode: boolean;
-  onRefresh: () => void;
+  onRefresh?: () => void;
   onOpenSettings: () => void;
 };
 
@@ -526,7 +521,7 @@ function BudgetFileSelectionHeader({
             gap: '0.2rem',
           }}
         >
-          <RefreshButton onRefresh={onRefresh} />
+          {onRefresh && <RefreshButton onRefresh={onRefresh} />}
           {isElectron() && <SettingsButton onOpenSettings={onOpenSettings} />}
         </View>
       )}
@@ -549,6 +544,7 @@ export function BudgetFileSelection({
   const [id] = useMetadataPref('id');
   const [currentUserId, setCurrentUserId] = useState('');
   const userData = useSelector(state => state.user.data);
+  const serverStatus = useSyncServerStatus();
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -560,7 +556,7 @@ export function BudgetFileSelection({
 
   useEffect(() => {
     if (multiuserEnabled && !userData?.offline) {
-      fetchUsers();
+      void fetchUsers();
     }
   }, [multiuserEnabled, userData?.offline, fetchUsers]);
 
@@ -587,13 +583,13 @@ export function BudgetFileSelection({
   const onCreate = ({ testMode = false } = {}) => {
     if (!creating) {
       setCreating(true);
-      dispatch(createBudget({ testMode }));
+      void dispatch(createBudget({ testMode }));
     }
   };
 
   const refresh = () => {
-    dispatch(getUserData());
-    dispatch(loadAllFiles());
+    void dispatch(getUserData());
+    void dispatch(loadAllFiles());
   };
 
   const initialMount = useInitialMount();
@@ -623,10 +619,12 @@ export function BudgetFileSelection({
         maxHeight: '100%',
         flex: 1,
         justifyContent: 'center',
-        ...(!quickSwitchMode && {
-          marginTop: 20,
-          width: '100vw',
-        }),
+        ...(quickSwitchMode
+          ? {
+              marginTop: 20,
+              width: '100vw',
+            }
+          : { marginBottom: 20 }),
         [`@media (min-width: ${tokens.breakpoint_small})`]: {
           maxWidth: tokens.breakpoint_small,
           width: '100%',
@@ -636,7 +634,7 @@ export function BudgetFileSelection({
       {showHeader && (
         <BudgetFileSelectionHeader
           quickSwitchMode={quickSwitchMode}
-          onRefresh={refresh}
+          onRefresh={serverStatus === 'online' ? refresh : undefined}
           onOpenSettings={() =>
             dispatch(pushModal({ modal: { name: 'files-settings' } }))
           }
@@ -675,8 +673,9 @@ export function BudgetFileSelection({
           style={{
             flexDirection: 'row',
             justifyContent: 'flex-end',
-            alignItems: 'center',
-            padding: 25,
+            alignItems: 'stretch',
+            margin: 10,
+            minHeight: 39,
           }}
         >
           <Button

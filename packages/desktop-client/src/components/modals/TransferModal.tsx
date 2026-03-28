@@ -6,6 +6,8 @@ import { InitialFocus } from '@actual-app/components/initial-focus';
 import { styles } from '@actual-app/components/styles';
 import { View } from '@actual-app/components/view';
 
+import type { IntegerAmount } from 'loot-core/shared/util';
+
 import {
   addToBeBudgetedGroup,
   removeCategoriesFromGroups,
@@ -21,10 +23,9 @@ import {
 } from '@desktop-client/components/mobile/MobileForms';
 import { AmountInput } from '@desktop-client/components/util/AmountInput';
 import { useCategories } from '@desktop-client/hooks/useCategories';
-import {
-  type Modal as ModalType,
-  pushModal,
-} from '@desktop-client/modals/modalsSlice';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
+import { pushModal } from '@desktop-client/modals/modalsSlice';
+import type { Modal as ModalType } from '@desktop-client/modals/modalsSlice';
 import { useDispatch } from '@desktop-client/redux';
 
 type TransferModalProps = Extract<ModalType, { name: 'transfer' }>['options'];
@@ -38,8 +39,10 @@ export function TransferModal({
   onSubmit,
 }: TransferModalProps) {
   const { t } = useTranslation();
+  const [hideFraction] = useSyncedPref('hideFraction');
 
-  const { grouped: originalCategoryGroups } = useCategories();
+  const { data: { grouped: originalCategoryGroups } = { grouped: [] } } =
+    useCategories();
   const [categoryGroups, categories] = useMemo(() => {
     const expenseGroups = originalCategoryGroups.filter(g => !g.is_income);
     const categoryGroups = showToBeBudgeted
@@ -55,7 +58,7 @@ export function TransferModal({
     return [filteredCategoryGroups, filteredCategories];
   }, [categoryId, originalCategoryGroups, showToBeBudgeted]);
 
-  const [amount, setAmount] = useState<number>(initialAmount);
+  const [amount, setAmount] = useState<IntegerAmount>(initialAmount);
   const [toCategoryId, setToCategoryId] = useState<string | null>(null);
   const dispatch = useDispatch();
 
@@ -98,8 +101,8 @@ export function TransferModal({
               <FieldLabel title={t('Transfer this amount:')} />
               <InitialFocus>
                 <AmountInput
-                  value={initialAmount}
-                  autoDecimals={true}
+                  value={amount}
+                  autoDecimals={String(hideFraction) !== 'true'}
                   style={{
                     marginLeft: styles.mobileEditingPadding,
                     marginRight: styles.mobileEditingPadding,

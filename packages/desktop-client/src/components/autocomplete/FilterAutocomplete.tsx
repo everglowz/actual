@@ -1,6 +1,7 @@
-import React, { type ComponentProps } from 'react';
+import React from 'react';
+import type { ComponentProps } from 'react';
 
-import { type TransactionFilterEntity } from 'loot-core/types/models';
+import type { TransactionFilterEntity } from 'loot-core/types/models';
 
 import { Autocomplete } from './Autocomplete';
 import { FilterList } from './FilterList';
@@ -17,8 +18,8 @@ export function FilterAutocomplete({
 
   return (
     <Autocomplete
-      strict={true}
-      highlightFirst={true}
+      strict
+      highlightFirst
       embedded={embedded}
       suggestions={filters}
       renderItems={(items, getItemProps, highlightedIndex) => (

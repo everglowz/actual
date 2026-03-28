@@ -1,20 +1,26 @@
 // @ts-strict-ignore
-import React, { useState, type CSSProperties } from 'react';
+import React, { useState } from 'react';
+import type { CSSProperties } from 'react';
 
 import { theme } from '@actual-app/components/theme';
-import { PieChart, Pie, Cell, Sector, ResponsiveContainer } from 'recharts';
+import { Pie, PieChart, Sector, Tooltip } from 'recharts';
+import type { PieSectorShapeProps } from 'recharts';
 
-import {
-  type balanceTypeOpType,
-  type DataEntity,
-  type RuleConditionEntity,
+import type {
+  balanceTypeOpType,
+  DataEntity,
+  GroupedEntity,
+  IntervalEntity,
+  RuleConditionEntity,
 } from 'loot-core/types/models';
 
 import { adjustTextSize } from './adjustTextSize';
 import { renderCustomLabel } from './renderCustomLabel';
 import { showActivity } from './showActivity';
 
+import { FinancialText } from '@desktop-client/components/FinancialText';
 import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
+import { useRechartsAnimation } from '@desktop-client/components/reports/chart-theme';
 import { Container } from '@desktop-client/components/reports/Container';
 import { useAccounts } from '@desktop-client/hooks/useAccounts';
 import { useCategories } from '@desktop-client/hooks/useCategories';
@@ -57,7 +63,8 @@ const ActiveShapeMobile = props => {
         {`${yAxis}`}
       </text>
       <PrivacyFilter>
-        <text
+        <FinancialText
+          as="text"
           x={cx + outerRadius * Math.cos(-RADIAN * 240) - 30}
           y={ey}
           dy={0}
@@ -65,7 +72,7 @@ const ActiveShapeMobile = props => {
           fill={fill}
         >
           {`${format(value, 'financial')}`}
-        </text>
+        </FinancialText>
         <text
           x={cx + outerRadius * Math.cos(-RADIAN * 330) + 10}
           y={ey}
@@ -161,13 +168,16 @@ const ActiveShape = props => {
         fill={fill}
       >{`${yAxis}`}</text>
       <PrivacyFilter>
-        <text
+        <FinancialText
+          as="text"
           x={ex + (cos <= 0 ? 1 : -1) * 16}
           y={ey}
           dy={18}
           textAnchor={textAnchor}
           fill={fill}
-        >{`${format(value, 'financial')}`}</text>
+        >
+          {`${format(value, 'financial')}`}
+        </FinancialText>
         <text
           x={ex + (cos <= 0 ? 1 : -1) * 16}
           y={ey}
@@ -236,16 +246,17 @@ export function DonutGraph({
   showTooltip = true,
 }: DonutGraphProps) {
   const format = useFormat();
+  const animationProps = useRechartsAnimation({ isAnimationActive: false });
 
   const yAxis = groupBy === 'Interval' ? 'date' : 'name';
   const splitData = groupBy === 'Interval' ? 'intervalData' : 'data';
 
   const navigate = useNavigate();
-  const categories = useCategories();
-  const accounts = useAccounts();
+  const { data: categories = { grouped: [], list: [] } } = useCategories();
+  const { data: accounts = [] } = useAccounts();
   const [pointer, setPointer] = useState('');
 
-  const getVal = (obj: DataEntity) => {
+  const getVal = (obj: GroupedEntity | IntervalEntity) => {
     if (['totalDebts', 'netDebts'].includes(balanceTypeOp)) {
       return -1 * obj[balanceTypeOp];
     } else {
@@ -262,88 +273,88 @@ export function DonutGraph({
 
         return (
           data[splitData] && (
-            <ResponsiveContainer>
-              <div>
-                {!compact && <div style={{ marginTop: '15px' }} />}
-                <PieChart
-                  width={width}
-                  height={height}
-                  style={{ cursor: pointer }}
-                >
-                  <Pie
-                    activeIndex={activeIndex}
-                    activeShape={
-                      width < 220 || height < 130
-                        ? undefined
-                        : compact
-                          ? props => (
-                              <ActiveShapeMobileWithFormat
-                                {...props}
-                                format={format}
-                              />
-                            )
-                          : props => (
-                              <ActiveShapeWithFormat
-                                {...props}
-                                format={format}
-                              />
-                            )
+            <div>
+              {!compact && <div style={{ marginTop: '15px' }} />}
+              <PieChart
+                responsive
+                width={width}
+                height={height}
+                style={{ cursor: pointer }}
+              >
+                <Pie
+                  dataKey={val => getVal(val)}
+                  nameKey={yAxis}
+                  {...animationProps}
+                  data={
+                    data[splitData]?.map(item => ({
+                      ...item,
+                    })) ?? []
+                  }
+                  innerRadius={Math.min(width, height) * 0.2}
+                  fill="#8884d8"
+                  labelLine={false}
+                  label={e =>
+                    viewLabels && !compact ? customLabel(e) : <div />
+                  }
+                  startAngle={90}
+                  endAngle={-270}
+                  shape={(props: PieSectorShapeProps, index: number) => {
+                    const fill = data.legend[index]?.color ?? props.fill;
+                    const showActiveShape = width >= 220 && height >= 130;
+                    const isActive = props.isActive || index === activeIndex;
+                    if (isActive && showActiveShape) {
+                      const shapeProps = { ...props, fill, format };
+                      return compact ? (
+                        <ActiveShapeMobileWithFormat {...shapeProps} />
+                      ) : (
+                        <ActiveShapeWithFormat {...shapeProps} />
+                      );
                     }
-                    dataKey={val => getVal(val)}
-                    nameKey={yAxis}
-                    isAnimationActive={false}
-                    data={data[splitData]}
-                    innerRadius={Math.min(width, height) * 0.2}
-                    fill="#8884d8"
-                    labelLine={false}
-                    label={e =>
-                      viewLabels && !compact ? customLabel(e) : <div />
+                    return <Sector {...props} fill={fill} />;
+                  }}
+                  onMouseLeave={() => setPointer('')}
+                  onMouseEnter={(_, index) => {
+                    if (canDeviceHover()) {
+                      setActiveIndex(index);
+                      if (!['Group', 'Interval'].includes(groupBy)) {
+                        setPointer('pointer');
+                      }
                     }
-                    startAngle={90}
-                    endAngle={-270}
-                    onMouseLeave={() => setPointer('')}
-                    onMouseEnter={(_, index) => {
-                      if (canDeviceHover()) {
-                        setActiveIndex(index);
-                        if (!['Group', 'Interval'].includes(groupBy)) {
-                          setPointer('pointer');
-                        }
-                      }
-                    }}
-                    onClick={(item, index) => {
-                      if (!canDeviceHover()) {
-                        setActiveIndex(index);
-                      }
+                  }}
+                  onClick={(item, index) => {
+                    if (!canDeviceHover()) {
+                      setActiveIndex(index);
+                    }
 
-                      if (
-                        !['Group', 'Interval'].includes(groupBy) &&
-                        (canDeviceHover() || activeIndex === index) &&
-                        ((compact && showTooltip) || !compact)
-                      ) {
-                        showActivity({
-                          navigate,
-                          categories,
-                          accounts,
-                          balanceTypeOp,
-                          filters,
-                          showHiddenCategories,
-                          showOffBudget,
-                          type: 'totals',
-                          startDate: data.startDate,
-                          endDate: data.endDate,
-                          field: groupBy.toLowerCase(),
-                          id: item.id,
-                        });
-                      }
-                    }}
-                  >
-                    {data.legend.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </div>
-            </ResponsiveContainer>
+                    if (
+                      !['Group', 'Interval'].includes(groupBy) &&
+                      (canDeviceHover() || activeIndex === index) &&
+                      ((compact && showTooltip) || !compact)
+                    ) {
+                      showActivity({
+                        navigate,
+                        categories,
+                        accounts,
+                        balanceTypeOp,
+                        filters,
+                        showHiddenCategories,
+                        showOffBudget,
+                        type: 'totals',
+                        startDate: data.startDate,
+                        endDate: data.endDate,
+                        field: groupBy.toLowerCase(),
+                        id: item.id,
+                      });
+                    }
+                  }}
+                />
+                <Tooltip
+                  content={() => null}
+                  defaultIndex={activeIndex}
+                  active
+                />
+              </PieChart>
+            </div>
           )
         );
       }}

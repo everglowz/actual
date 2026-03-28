@@ -1,11 +1,11 @@
-import { IntegerAmount } from '../../shared/util';
+import type { IntegerAmount } from '../../shared/util';
 
-import { AccountEntity } from './account';
-import { CategoryEntity } from './category';
-import { PayeeEntity } from './payee';
-import { ScheduleEntity } from './schedule';
+import type { AccountEntity } from './account';
+import type { CategoryEntity } from './category';
+import type { PayeeEntity } from './payee';
+import type { ScheduleEntity } from './schedule';
 
-export interface TransactionEntity {
+export type TransactionEntity = {
   id: string;
   is_parent?: boolean;
   is_child?: boolean;
@@ -13,7 +13,7 @@ export interface TransactionEntity {
   account: AccountEntity['id'];
   category?: CategoryEntity['id'];
   amount: IntegerAmount;
-  payee?: PayeeEntity['id'];
+  payee?: PayeeEntity['id'] | null;
   notes?: string;
   date: string;
   imported_id?: string;
@@ -35,4 +35,5 @@ export interface TransactionEntity {
     difference: number;
   } | null;
   raw_synced_data?: string | undefined;
-}
+  _ruleErrors?: string[];
+};
