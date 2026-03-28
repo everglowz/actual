@@ -6,15 +6,15 @@ import { theme } from '@actual-app/components/theme';
 
 import { PayeeAutocomplete } from '@desktop-client/components/autocomplete/PayeeAutocomplete';
 import {
-  ModalCloseButton,
   Modal,
-  ModalTitle,
+  ModalCloseButton,
   ModalHeader,
+  ModalTitle,
 } from '@desktop-client/components/common/Modal';
 import { useAccounts } from '@desktop-client/hooks/useAccounts';
 import { useNavigate } from '@desktop-client/hooks/useNavigate';
 import { usePayees } from '@desktop-client/hooks/usePayees';
-import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
+import type { Modal as ModalType } from '@desktop-client/modals/modalsSlice';
 
 type PayeeAutocompleteModalProps = Extract<
   ModalType,
@@ -26,8 +26,8 @@ export function PayeeAutocompleteModal({
   onClose,
 }: PayeeAutocompleteModalProps) {
   const { t } = useTranslation();
-  const payees = usePayees() || [];
-  const accounts = useAccounts() || [];
+  const { data: payees = [] } = usePayees();
+  const { data: accounts = [] } = useAccounts();
   const navigate = useNavigate();
 
   const { isNarrowWidth } = useResponsive();
@@ -72,8 +72,8 @@ export function PayeeAutocompleteModal({
           <PayeeAutocomplete
             payees={payees}
             accounts={accounts}
-            focused={true}
-            embedded={true}
+            focused
+            embedded
             closeOnBlur={false}
             onClose={close}
             onManagePayees={onManagePayees}

@@ -1,6 +1,5 @@
 // @ts-strict-ignore
 import './polyfills';
-
 import * as injectAPI from '@actual-app/api/injected';
 
 import * as asyncStorage from '../platform/server/asyncStorage';
@@ -9,7 +8,8 @@ import * as fs from '../platform/server/fs';
 import { logger, setVerboseMode } from '../platform/server/log';
 import * as sqlite from '../platform/server/sqlite';
 import { q } from '../shared/query';
-import { Handlers } from '../types/handlers';
+import { amountToInteger, integerToAmount } from '../shared/util';
+import type { Handlers } from '../types/handlers';
 
 import { app as accountsApp } from './accounts/app';
 import { app as adminApp } from './admin/app';
@@ -41,7 +41,7 @@ import { app as tagsApp } from './tags/app';
 import { app as toolsApp } from './tools/app';
 import { app as transactionsApp } from './transactions/app';
 import * as rules from './transactions/transaction-rules';
-import { undo, redo } from './undo';
+import { redo, undo } from './undo';
 
 // handlers
 
@@ -83,7 +83,7 @@ handlers['get-server-version'] = async function () {
 
     const info = JSON.parse(res);
     version = info.build.version;
-  } catch (err) {
+  } catch {
     return { error: 'network-failure' };
   }
 
@@ -120,7 +120,7 @@ handlers['set-server-url'] = async function ({ url, validate = true }) {
 handlers['app-focused'] = async function () {
   if (prefs.getPrefs() && prefs.getPrefs().id) {
     // First we sync
-    fullSync();
+    void fullSync();
   }
 };
 
@@ -171,7 +171,7 @@ async function setupDocumentsDir() {
   if (documentDir) {
     try {
       await ensureExists(documentDir);
-    } catch (e) {
+    } catch {
       documentDir = null;
     }
   }
@@ -226,12 +226,35 @@ export async function initApp(isDev, socketName) {
   }
 }
 
-export type InitConfig = {
+type BaseInitConfig = {
   dataDir?: string;
-  serverURL?: string;
-  password?: string;
   verbose?: boolean;
 };
+
+type ServerInitConfig = BaseInitConfig & {
+  serverURL: string;
+};
+
+type PasswordAuthConfig = ServerInitConfig & {
+  password: string;
+  sessionToken?: never;
+};
+
+type SessionTokenAuthConfig = ServerInitConfig & {
+  sessionToken: string;
+  password?: never;
+};
+
+type NoServerConfig = BaseInitConfig & {
+  serverURL?: undefined;
+  password?: never;
+  sessionToken?: never;
+};
+
+export type InitConfig =
+  | PasswordAuthConfig
+  | SessionTokenAuthConfig
+  | NoServerConfig;
 
 export async function init(config: InitConfig) {
   // Get from build
@@ -257,10 +280,32 @@ export async function init(config: InitConfig) {
   if (serverURL) {
     setServer(serverURL);
 
-    if (config.password) {
-      await runHandler(handlers['subscribe-sign-in'], {
+    if ('sessionToken' in config && config.sessionToken) {
+      // Session token authentication
+      await runHandler(handlers['subscribe-set-token'], {
+        token: config.sessionToken,
+      });
+      // Validate the token
+      const user = await runHandler(handlers['subscribe-get-user'], undefined);
+      if (!user || user.tokenExpired === true) {
+        // Clear invalid token
+        await runHandler(handlers['subscribe-set-token'], { token: '' });
+        throw new Error(
+          'Authentication failed: invalid or expired session token',
+        );
+      }
+      if (user.offline === true) {
+        // Clear token since we can't validate
+        await runHandler(handlers['subscribe-set-token'], { token: '' });
+        throw new Error('Authentication failed: server offline or unreachable');
+      }
+    } else if ('password' in config && config.password) {
+      const result = await runHandler(handlers['subscribe-sign-in'], {
         password: config.password,
       });
+      if (result?.error) {
+        throw new Error(`Authentication failed: ${result.error}`);
+      }
     }
   } else {
     // This turns off all server URLs. In this mode we don't want any
@@ -290,4 +335,6 @@ export const lib = {
   on: (name, func) => app.events.on(name, func),
   q,
   db,
+  amountToInteger,
+  integerToAmount,
 };

@@ -8,14 +8,14 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 
 import * as monthUtils from 'loot-core/shared/months';
-import {
-  type AccountEntity,
-  type CategoryEntity,
-  type CategoryGroupEntity,
-  type PayeeEntity,
-  type CustomReportEntity,
+import type {
+  AccountEntity,
+  CategoryEntity,
+  CategoryGroupEntity,
+  CustomReportEntity,
+  PayeeEntity,
 } from 'loot-core/types/models';
-import { type SyncedPrefs } from 'loot-core/types/prefs';
+import type { SyncedPrefs } from 'loot-core/types/prefs';
 
 import { ChooseGraph } from '@desktop-client/components/reports/ChooseGraph';
 import { getLiveRange } from '@desktop-client/components/reports/getLiveRange';
@@ -132,6 +132,7 @@ export function GetCardData({
       showOffBudget: report.showOffBudget,
       showHiddenCategories: report.showHiddenCategories,
       showUncategorized: report.showUncategorized,
+      trimIntervals: report.trimIntervals,
       balanceTypeOp: ReportOptions.balanceTypeMap.get(report.balanceType),
       firstDayOfWeekIdx,
       sortByOp: report.sortBy,
@@ -149,6 +150,7 @@ export function GetCardData({
       showOffBudget: report.showOffBudget,
       showHiddenCategories: report.showHiddenCategories,
       showUncategorized: report.showUncategorized,
+      trimIntervals: report.trimIntervals,
       groupBy: report.groupBy,
       balanceTypeOp: ReportOptions.balanceTypeMap.get(report.balanceType),
       payees,
@@ -181,7 +183,7 @@ export function GetCardData({
         balanceType={report.balanceType}
         groupBy={report.groupBy}
         interval={report.interval}
-        compact={true}
+        compact
         style={{ height: 'auto', flex: 1 }}
         intervalsCount={intervals.length}
         showTooltip={!isNarrowWidth && showTooltip}

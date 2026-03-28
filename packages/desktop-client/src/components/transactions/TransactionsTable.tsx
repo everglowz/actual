@@ -1,19 +1,21 @@
 import {
   createElement,
   createRef,
-  type CSSProperties,
-  type ForwardedRef,
   forwardRef,
-  type KeyboardEvent,
   memo,
-  type ReactNode,
-  type Ref,
-  type RefObject,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
+} from 'react';
+import type {
+  CSSProperties,
+  ForwardedRef,
+  KeyboardEvent,
+  ReactNode,
+  Ref,
+  RefObject,
 } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { Trans, useTranslation } from 'react-i18next';
@@ -42,8 +44,10 @@ import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
 import { format as formatDate, parseISO } from 'date-fns';
+import memoizeOne from 'memoize-one';
 
 import * as monthUtils from 'loot-core/shared/months';
+import { q } from 'loot-core/shared/query';
 import { getStatusLabel } from 'loot-core/shared/schedules';
 import {
   addSplitTransaction,
@@ -57,18 +61,19 @@ import {
 } from 'loot-core/shared/transactions';
 import {
   amountToCurrency,
-  type IntegerAmount,
+  currencyToAmount,
   integerToCurrency,
   titleFirst,
 } from 'loot-core/shared/util';
-import {
-  type AccountEntity,
-  type CategoryEntity,
-  type CategoryGroupEntity,
-  type PayeeEntity,
-  type RuleEntity,
-  type ScheduleEntity,
-  type TransactionEntity,
+import type { IntegerAmount } from 'loot-core/shared/util';
+import type {
+  AccountEntity,
+  CategoryEntity,
+  CategoryGroupEntity,
+  PayeeEntity,
+  RuleEntity,
+  ScheduleEntity,
+  TransactionEntity,
 } from 'loot-core/types/models';
 
 import {
@@ -76,22 +81,21 @@ import {
   isLastChild,
   makeTemporaryTransactions,
   selectAscDesc,
-  type SerializedTransaction,
   serializeTransaction,
-  type TransactionEditFunction,
-  type TransactionUpdateFunction,
+} from './table/utils';
+import type {
+  SerializedTransaction,
+  TransactionEditFunction,
+  TransactionUpdateFunction,
 } from './table/utils';
 import { TransactionMenu } from './TransactionMenu';
 
 import { getAccountsById } from '@desktop-client/accounts/accountsSlice';
-import { getCategoriesById } from '@desktop-client/budget/budgetSlice';
 import { AccountAutocomplete } from '@desktop-client/components/autocomplete/AccountAutocomplete';
 import { CategoryAutocomplete } from '@desktop-client/components/autocomplete/CategoryAutocomplete';
 import { PayeeAutocomplete } from '@desktop-client/components/autocomplete/PayeeAutocomplete';
-import {
-  getStatusProps,
-  type StatusTypes,
-} from '@desktop-client/components/schedules/StatusBadge';
+import { getStatusProps } from '@desktop-client/components/schedules/StatusBadge';
+import type { StatusTypes } from '@desktop-client/components/schedules/StatusBadge';
 import { DateSelect } from '@desktop-client/components/select/DateSelect';
 import {
   Cell,
@@ -103,15 +107,23 @@ import {
   Row,
   SelectCell,
   Table,
-  type TableHandleRef,
-  type TableNavigator,
-  type TableProps,
   UnexposedCellContent,
   useTableNavigator,
 } from '@desktop-client/components/table';
-import { useCachedSchedules } from '@desktop-client/hooks/useCachedSchedules';
+import type {
+  TableHandleRef,
+  TableNavigator,
+  TableProps,
+} from '@desktop-client/components/table';
+import {
+  SchedulesProvider,
+  useCachedSchedules,
+} from '@desktop-client/hooks/useCachedSchedules';
 import { useContextMenu } from '@desktop-client/hooks/useContextMenu';
-import { useDisplayPayee } from '@desktop-client/hooks/useDisplayPayee';
+import {
+  DisplayPayeeProvider,
+  useDisplayPayee,
+} from '@desktop-client/hooks/useDisplayPayee';
 import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
 import { useMergedRefs } from '@desktop-client/hooks/useMergedRefs';
 import { usePrevious } from '@desktop-client/hooks/usePrevious';
@@ -121,14 +133,12 @@ import {
   useSelectedItems,
 } from '@desktop-client/hooks/useSelected';
 import { SheetNameProvider } from '@desktop-client/hooks/useSheetName';
-import {
-  type SplitsExpandedContextValue,
-  useSplitsExpanded,
-} from '@desktop-client/hooks/useSplitsExpanded';
+import { useSplitsExpanded } from '@desktop-client/hooks/useSplitsExpanded';
+import type { SplitsExpandedContextValue } from '@desktop-client/hooks/useSplitsExpanded';
 import { pushModal } from '@desktop-client/modals/modalsSlice';
 import { NotesTagFormatter } from '@desktop-client/notes/NotesTagFormatter';
 import { addNotification } from '@desktop-client/notifications/notificationsSlice';
-import { getPayeesById } from '@desktop-client/payees/payeesSlice';
+import { getPayeesById } from '@desktop-client/payees';
 import { useDispatch } from '@desktop-client/redux';
 
 type TransactionHeaderProps = {
@@ -176,7 +186,7 @@ const TransactionHeader = memo(
           fontWeight: 300,
           zIndex: 200,
           color: theme.tableHeaderText,
-          backgroundColor: theme.tableBackground,
+          backgroundColor: theme.tableHeaderBackground,
           paddingRight: `${5 + (scrollWidth ?? 0)}px`,
           borderTopWidth: 1,
           borderBottomWidth: 1,
@@ -185,7 +195,7 @@ const TransactionHeader = memo(
       >
         {showSelection && (
           <SelectCell
-            exposed={true}
+            exposed
             focused={false}
             selected={hasSelected}
             width={20}
@@ -716,9 +726,9 @@ function PayeeCell({
             onKeyDown,
             style: inputStyle,
           }}
-          showManagePayees={true}
+          showManagePayees
           clearOnBlur={false}
-          focused={true}
+          focused
           onUpdate={(_, value) => onUpdate?.(value)}
           onSelect={onSave}
           onManagePayees={() => onManagePayees(payee?.id)}
@@ -767,7 +777,11 @@ function PayeeIcons({
     return null;
   }
 
-  const recurring = schedule && schedule._date && !!schedule._date.frequency;
+  const recurring =
+    schedule &&
+    schedule._date &&
+    typeof schedule._date === 'object' &&
+    !!schedule._date.frequency;
   const isDeposit = transaction.amount > 0;
 
   return (
@@ -1014,18 +1028,22 @@ const Transaction = memo(function Transaction({
     if (
       name === 'account' &&
       value &&
+      typeof value === 'string' &&
       getAccountsById(accounts)[value].offbudget
     ) {
       newTransaction.category = undefined;
     }
 
     // If entering an amount in either of the credit/debit fields, we
-    // need to clear out the other one so it's always properly
+    // need to clear out the other one or both so it's always properly
     // translated into the desired amount (see
     // `deserializeTransaction`)
     if (name === 'credit') {
       newTransaction['debit'] = '';
     } else if (name === 'debit') {
+      newTransaction['credit'] = '';
+    } else {
+      newTransaction['debit'] = '';
       newTransaction['credit'] = '';
     }
 
@@ -1297,7 +1315,7 @@ const Transaction = memo(function Transaction({
               dateFormat={dateFormat}
               inputProps={{ onBlur, onKeyDown, style: inputStyle }}
               shouldSaveFromKey={shouldSaveFromKey}
-              clearOnBlur={true}
+              clearOnBlur
               onUpdate={onUpdate}
               onSelect={onSave}
             />
@@ -1342,7 +1360,7 @@ const Transaction = memo(function Transaction({
               value={accountId}
               shouldSaveFromKey={shouldSaveFromKey}
               clearOnBlur={false}
-              focused={true}
+              focused
               inputProps={{ onBlur, onKeyDown, style: inputStyle }}
               onUpdate={onUpdate}
               onSelect={onSave}
@@ -1569,7 +1587,7 @@ const Transaction = memo(function Transaction({
               <CategoryAutocomplete
                 categoryGroups={categoryGroups}
                 value={categoryId ?? null}
-                focused={true}
+                focused
                 clearOnBlur={false}
                 showSplitOption={!isChild && !isParent && allowSplitTransaction}
                 shouldSaveFromKey={shouldSaveFromKey}
@@ -1591,6 +1609,10 @@ const Transaction = memo(function Transaction({
         exposed={focusedField === 'debit'}
         focused={focusedField === 'debit'}
         value={debit === '' && credit === '' ? amountToCurrency(0) : debit}
+        formatter={value =>
+          // reformat value so since we might have kept decimals
+          value ? amountToCurrency(currencyToAmount(value) || 0) : ''
+        }
         valueStyle={valueStyle}
         textAlign="right"
         title={debit}
@@ -1618,6 +1640,10 @@ const Transaction = memo(function Transaction({
         exposed={focusedField === 'credit'}
         focused={focusedField === 'credit'}
         value={credit}
+        formatter={value =>
+          // reformat value so since we might have kept decimals
+          value ? amountToCurrency(currencyToAmount(value) || 0) : ''
+        }
         valueStyle={valueStyle}
         textAlign="right"
         title={credit}
@@ -1647,7 +1673,8 @@ const Transaction = memo(function Transaction({
               : integerToCurrency(runningBalance)
           }
           valueStyle={{
-            color: runningBalance < 0 ? theme.errorText : theme.noticeTextLight,
+            color:
+              runningBalance < 0 ? theme.numberNegative : theme.numberPositive,
           }}
           style={{ ...styles.tnum, ...amountStyle }}
           width={103}
@@ -1756,6 +1783,7 @@ type NewTransactionProps = {
   focusedField: string;
   hideFraction: boolean;
   onAdd: () => void;
+  onAddAndClose: () => void;
   onAddSplit: (id: TransactionEntity['id']) => void;
   onToggleSplit: (id: TransactionEntity['id']) => void;
   onClose: () => void;
@@ -1804,6 +1832,7 @@ function NewTransaction({
   onDelete,
   onSave,
   onAdd,
+  onAddAndClose,
   onAddSplit,
   onDistributeRemainder,
   onManagePayees,
@@ -1826,6 +1855,14 @@ function NewTransaction({
   useProperFocus(addButtonRef, focusedField === 'add');
   const cancelButtonRef = useRef(null);
   useProperFocus(cancelButtonRef, focusedField === 'cancel');
+
+  const handleAddClick = (e: { ctrlKey?: boolean; metaKey?: boolean }) => {
+    if (e.ctrlKey || e.metaKey) {
+      onAddAndClose();
+    } else {
+      onAdd();
+    }
+  };
 
   return (
     <View
@@ -1860,7 +1897,7 @@ function NewTransaction({
           payees={payees}
           dateFormat={dateFormat}
           hideFraction={!!hideFraction}
-          expanded={true}
+          expanded
           onEdit={onEdit}
           onSave={onSave}
           onSplit={onSplit}
@@ -1873,8 +1910,8 @@ function NewTransaction({
           onNavigateToSchedule={onNavigateToSchedule}
           onNotesTagClick={onNotesTagClick}
           balance={balance ?? 0}
-          showSelection={true}
-          allowSplitTransaction={true}
+          showSelection
+          allowSplitTransaction
           showHiddenCategories={showHiddenCategories}
         />
       ))}
@@ -1909,7 +1946,7 @@ function NewTransaction({
           <Button
             variant="primary"
             style={{ padding: '4px 10px' }}
-            onPress={onAdd}
+            onPress={handleAddClick}
             data-testid="add-button"
             ref={addButtonRef}
           >
@@ -1989,6 +2026,7 @@ type TransactionTableInnerProps = {
   onCheckNewEnter: (e: KeyboardEvent) => void;
   onCheckEnter: (e: KeyboardEvent) => void;
   onAddTemporary: (id?: TransactionEntity['id']) => void;
+  onAddAndCloseTemporary: () => void;
   onDistributeRemainder: (id: TransactionEntity['id']) => void;
   onToggleSplit: (id: TransactionEntity['id']) => void;
   onManagePayees: (id?: PayeeEntity['id']) => void;
@@ -2220,6 +2258,7 @@ function TransactionTableInner({
               hideFraction={props.hideFraction}
               onClose={props.onCloseAddTransaction}
               onAdd={props.onAddTemporary}
+              onAddAndClose={props.onAddAndCloseTemporary}
               onAddSplit={props.onAddSplit}
               onToggleSplit={props.onToggleSplit}
               onSplit={props.onSplit}
@@ -2344,9 +2383,9 @@ export const TransactionTable = forwardRef(
 
     const dispatch = useDispatch();
     const [showHiddenCategories] = useLocalPref('budget.showHiddenCategories');
-    const [newTransactions, setNewTransactions] = useState<
-      TransactionEntity[] | null
-    >(null);
+    const [newTransactions, setNewTransactions] = useState<TransactionEntity[]>(
+      [],
+    );
     const [prevIsAdding, setPrevIsAdding] = useState(false);
     const splitsExpanded = useSplitsExpanded();
     const splitsExpandedDispatch = splitsExpanded.dispatch;
@@ -2458,6 +2497,7 @@ export const TransactionTable = forwardRef(
       getFieldsTableTransaction,
     );
     const shouldAdd = useRef(false);
+    const shouldAddAndClose = useRef(false);
     const latestState = useRef<TableState>({
       newTransactions: newTransactions ?? [],
       newNavigator,
@@ -2489,7 +2529,7 @@ export const TransactionTable = forwardRef(
       setPrevIsAdding(props.isAdding);
     }
 
-    if (shouldAdd.current) {
+    if (shouldAdd.current || shouldAddAndClose.current) {
       if (newTransactions?.[0] && newTransactions[0].account == null) {
         dispatch(
           addNotification({
@@ -2502,18 +2542,26 @@ export const TransactionTable = forwardRef(
         newNavigator.onEdit('temp', 'account');
       } else {
         const transactions = latestState.current.newTransactions;
-        const lastDate = transactions.length > 0 ? transactions[0].date : null;
-        setNewTransactions(
-          makeTemporaryTransactions(
-            props.currentAccountId,
-            props.currentCategoryId,
-            lastDate,
-          ),
-        );
-        newNavigator.onEdit('temp', 'date');
-        props.onAdd(transactions);
+
+        if (shouldAddAndClose.current) {
+          props.onAdd(transactions);
+          props.onCloseAddTransaction();
+        } else {
+          const lastDate =
+            transactions.length > 0 ? transactions[0].date : null;
+          setNewTransactions(
+            makeTemporaryTransactions(
+              props.currentAccountId,
+              props.currentCategoryId,
+              lastDate,
+            ),
+          );
+          newNavigator.onEdit('temp', 'date');
+          props.onAdd(transactions);
+        }
       }
       shouldAdd.current = false;
+      shouldAddAndClose.current = false;
     }
 
     useEffect(() => {
@@ -2590,9 +2638,13 @@ export const TransactionTable = forwardRef(
 
     function onCheckNewEnter(e: KeyboardEvent) {
       if (e.key === 'Enter') {
-        if (e.metaKey) {
+        if (e.metaKey || e.ctrlKey) {
+          e.preventDefault();
           e.stopPropagation();
-          onAddTemporary();
+          afterSave(() => {
+            shouldAddAndClose.current = true;
+            forceRerender({});
+          });
         } else if (!e.shiftKey) {
           function getLastTransaction(state: RefObject<TableState>) {
             const { newTransactions } = state.current;
@@ -2660,6 +2712,13 @@ export const TransactionTable = forwardRef(
       // effect we want to run. We have to wait for all updates to be
       // committed (the input could still be saving a value).
       forceRerender({});
+    }, []);
+
+    const onAddAndCloseTemporary = useCallback(() => {
+      afterSave(() => {
+        shouldAddAndClose.current = true;
+        forceRerender({});
+      });
     }, []);
 
     const {
@@ -2934,43 +2993,68 @@ export const TransactionTable = forwardRef(
       [splitsExpandedDispatch],
     );
 
+    const displayPayeeTransactions = useMemo(
+      () => [...props.transactions, ...newTransactions],
+      [props.transactions, newTransactions],
+    );
+
+    const allSchedulesQuery = useMemo(() => q('schedules').select('*'), []);
+
     return (
-      <TransactionTableInner
-        tableRef={mergedRef}
-        listContainerRef={listContainerRef}
-        {...props}
-        transactions={transactionsWithExpandedSplits}
-        transactionMap={transactionMap}
-        transactionsByParent={transactionsByParent}
-        transferAccountsByTransaction={transferAccountsByTransaction}
-        selectedItems={selectedItems}
-        isExpanded={splitsExpanded.isExpanded}
-        onSave={onSave}
-        onDelete={onDelete}
-        onBatchDelete={onBatchDelete}
-        onBatchDuplicate={onBatchDuplicate}
-        onBatchLinkSchedule={onBatchLinkSchedule}
-        onBatchUnlinkSchedule={onBatchUnlinkSchedule}
-        onCreateRule={onCreateRule}
-        onScheduleAction={onScheduleAction}
-        onMakeAsNonSplitTransactions={onMakeAsNonSplitTransactions}
-        onSplit={onSplit}
-        onCheckNewEnter={onCheckNewEnter}
-        onCheckEnter={onCheckEnter}
-        onAddTemporary={onAddTemporary}
-        onAddSplit={onAddSplit}
-        onDistributeRemainder={onDistributeRemainder}
-        onCloseAddTransaction={onCloseAddTransaction}
-        onToggleSplit={onToggleSplit}
-        newTransactions={newTransactions ?? []}
-        tableNavigator={tableNavigator}
-        newNavigator={newNavigator}
-        showSelection={props.showSelection}
-        allowSplitTransaction={props.allowSplitTransaction}
-        showHiddenCategories={showHiddenCategories}
-      />
+      <DisplayPayeeProvider transactions={displayPayeeTransactions}>
+        <SchedulesProvider query={allSchedulesQuery}>
+          <TransactionTableInner
+            tableRef={mergedRef}
+            listContainerRef={listContainerRef}
+            {...props}
+            transactions={transactionsWithExpandedSplits}
+            transactionMap={transactionMap}
+            transactionsByParent={transactionsByParent}
+            transferAccountsByTransaction={transferAccountsByTransaction}
+            selectedItems={selectedItems}
+            isExpanded={splitsExpanded.isExpanded}
+            onSave={onSave}
+            onDelete={onDelete}
+            onBatchDelete={onBatchDelete}
+            onBatchDuplicate={onBatchDuplicate}
+            onBatchLinkSchedule={onBatchLinkSchedule}
+            onBatchUnlinkSchedule={onBatchUnlinkSchedule}
+            onCreateRule={onCreateRule}
+            onScheduleAction={onScheduleAction}
+            onMakeAsNonSplitTransactions={onMakeAsNonSplitTransactions}
+            onSplit={onSplit}
+            onCheckNewEnter={onCheckNewEnter}
+            onCheckEnter={onCheckEnter}
+            onAddTemporary={onAddTemporary}
+            onAddAndCloseTemporary={onAddAndCloseTemporary}
+            onAddSplit={onAddSplit}
+            onDistributeRemainder={onDistributeRemainder}
+            onCloseAddTransaction={onCloseAddTransaction}
+            onToggleSplit={onToggleSplit}
+            newTransactions={newTransactions ?? []}
+            tableNavigator={tableNavigator}
+            newNavigator={newNavigator}
+            showSelection={props.showSelection}
+            allowSplitTransaction={props.allowSplitTransaction}
+            showHiddenCategories={showHiddenCategories}
+          />
+        </SchedulesProvider>
+      </DisplayPayeeProvider>
     );
   },
 );
 
 TransactionTable.displayName = 'TransactionTable';
+
+const getCategoriesById = memoizeOne(
+  (categoryGroups: CategoryGroupEntity[] | null | undefined) => {
+    const res: { [id: CategoryEntity['id']]: CategoryEntity } = {};
+    categoryGroups?.forEach(group => {
+      group.categories?.forEach(cat => {
+        res[cat.id] = cat;
+      });
+    });
+
+    return res;
+  },
+);

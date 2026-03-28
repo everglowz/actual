@@ -5,12 +5,13 @@ import { Button } from '@actual-app/components/button';
 import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
-import { format as formatDate, type Locale } from 'date-fns';
+import { format as formatDate } from 'date-fns';
+import type { Locale } from 'date-fns';
 
 import { tsToRelativeTime } from 'loot-core/shared/util';
-import { type AccountEntity } from 'loot-core/types/models';
+import type { AccountEntity } from 'loot-core/types/models';
 
-import { Row, Cell } from '@desktop-client/components/table';
+import { Cell, Row } from '@desktop-client/components/table';
 
 type AccountRowProps = {
   account: AccountEntity;
@@ -47,7 +48,7 @@ export const AccountRow = memo(
             ? theme.tableRowBackgroundHover
             : theme.tableBackground,
         }}
-        collapsed={true}
+        collapsed
         onMouseEnter={() => onHover && onHover(account.id)}
         onMouseLeave={() => onHover && onHover(null)}
       >
@@ -89,6 +90,7 @@ export const AccountRow = memo(
                 textDecorationColor: theme.pageTextSubdued,
                 textUnderlineOffset: '4px',
               }}
+              data-vrt-mask
             >
               {lastSyncString}
             </Cell>

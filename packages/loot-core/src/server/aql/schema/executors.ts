@@ -1,17 +1,15 @@
 // @ts-strict-ignore
 
 import { aqlQuery } from '..';
-import { q, QueryState } from '../../../shared/query';
-import { CategoryEntity } from '../../../types/models';
+import { q } from '../../../shared/query';
+import type { QueryState } from '../../../shared/query';
+import type { CategoryEntity } from '../../../types/models';
 import * as db from '../../db';
 import { whereIn } from '../../db/util';
-import {
-  CompilerState,
-  isAggregateQuery,
-  OutputTypes,
-  SqlPieces,
-} from '../compiler';
-import { AqlQueryExecutor, execQuery } from '../exec';
+import { isAggregateQuery } from '../compiler';
+import type { CompilerState, OutputTypes, SqlPieces } from '../compiler';
+import { execQuery } from '../exec';
+import type { AqlQueryExecutor } from '../exec';
 import { convertOutputType } from '../schema-helpers';
 
 // Transactions executor
@@ -50,7 +48,7 @@ function execTransactions(
     ? (tableOptions.splits as string)
     : 'inline';
   if (!isValidSplitsOption(splitType)) {
-    throw new Error(`Invalid “splits” option for transactions: “${splitType}”`);
+    throw new Error(`Invalid "splits" option for transactions: "${splitType}"`);
   }
 
   if (splitType === 'all' || splitType === 'inline' || splitType === 'none') {
@@ -144,8 +142,6 @@ async function execTransactionsGrouped(
     rows = await db.all<db.DbViewTransactionInternal>(rowSql, params);
   } else {
     // TODO: phew, what a doozy. write docs why it works this way
-    //
-    // prettier-ignore
     const rowSql = `
       SELECT group_id, matched FROM (
         SELECT
@@ -267,7 +263,7 @@ async function execCategoryGroups(
     : 'all';
   if (!isValidCategoriesOption(categoriesOption)) {
     throw new Error(
-      `Invalid “categories” option for category_groups: “${categoriesOption}”`,
+      `Invalid "categories" option for category_groups: "${categoriesOption}"`,
     );
   }
 

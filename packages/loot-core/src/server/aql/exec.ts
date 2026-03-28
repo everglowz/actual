@@ -1,11 +1,10 @@
 // @ts-strict-ignore
-import { QueryState } from '../../shared/query';
+import type { QueryState } from '../../shared/query';
 import * as db from '../db';
 
-import {
-  compileQuery,
+import { compileQuery, defaultConstructQuery } from './compiler';
+import type {
   CompilerState,
-  defaultConstructQuery,
   OutputTypes,
   SchemaConfig,
   SqlPieces,
@@ -118,7 +117,7 @@ export async function compileAndRunAqlQuery(
   options: RunCompiledAqlQueryOptions,
 ) {
   const { sqlPieces, state } = compileQuery(queryState, schema, schemaConfig);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const data: any = await runCompiledAqlQuery(
     queryState,
     sqlPieces,

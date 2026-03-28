@@ -1,5 +1,6 @@
 // @ts-strict-ignore
-import { memo, useRef, useMemo, type CSSProperties } from 'react';
+import { memo, useMemo, useRef } from 'react';
+import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -12,7 +13,7 @@ import { Popover } from '@actual-app/components/popover';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 
-import { type PayeeEntity } from 'loot-core/types/models';
+import type { PayeeEntity } from 'loot-core/types/models';
 
 import { PayeeRuleCountLabel } from './PayeeRuleCountLabel';
 
@@ -234,9 +235,6 @@ export const PayeeTableRow = memo(
         <CustomCell
           width={20}
           exposed={!payee.transfer_acct}
-          onBlur={() => {}}
-          onUpdate={() => {}}
-          onClick={() => {}}
           style={{
             display: 'flex',
             justifyContent: 'center',

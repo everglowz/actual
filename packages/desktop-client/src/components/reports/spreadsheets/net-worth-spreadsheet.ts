@@ -1,18 +1,18 @@
 import * as d from 'date-fns';
-import { type Locale } from 'date-fns';
+import type { Locale } from 'date-fns';
 import keyBy from 'lodash/keyBy';
 
-import { send } from 'loot-core/platform/client/fetch';
+import { send } from 'loot-core/platform/client/connection';
 import * as monthUtils from 'loot-core/shared/months';
 import { q } from 'loot-core/shared/query';
-import {
-  type AccountEntity,
-  type RuleConditionEntity,
+import type {
+  AccountEntity,
+  RuleConditionEntity,
 } from 'loot-core/types/models';
 
 import { ReportOptions } from '@desktop-client/components/reports/ReportOptions';
-import { type FormatType } from '@desktop-client/hooks/useFormat';
-import { type useSpreadsheet } from '@desktop-client/hooks/useSpreadsheet';
+import type { FormatType } from '@desktop-client/hooks/useFormat';
+import type { useSpreadsheet } from '@desktop-client/hooks/useSpreadsheet';
 import { aqlQuery } from '@desktop-client/queries/aqlQuery';
 
 type Balance = {
@@ -52,9 +52,12 @@ export function createSpreadsheet(
         endDate = today;
       }
     } else if (interval === 'Weekly') {
-      const currentWeekStart = monthUtils.currentWeek(firstDayOfWeekIdx);
-      if (monthUtils.isAfter(endDate, currentWeekStart)) {
-        endDate = currentWeekStart;
+      // Include the ongoing (current) week up to today instead of clamping to the
+      // start of the current week. This ensures the current week appears in the
+      // report even if the week hasn't finished yet.
+      const today = monthUtils.currentDay();
+      if (monthUtils.isAfter(endDate, today)) {
+        endDate = today;
       }
     }
 
@@ -126,6 +129,7 @@ export function createSpreadsheet(
 
         return {
           id: acct.id,
+          name: acct.name,
           balances: processedBalances,
           starting,
         };
@@ -149,6 +153,7 @@ export function createSpreadsheet(
 function recalculate(
   data: Array<{
     id: string;
+    name: string;
     balances: Record<string, Balance>;
     starting: number;
   }>,
@@ -182,8 +187,12 @@ function recalculate(
     });
   });
 
+  const priorPeriodNetWorth = data.reduce(
+    (sum, account) => sum + account.starting,
+    0,
+  );
+
   let hasNegative = false;
-  let startNetWorth = 0;
   let endNetWorth = 0;
   let lowestNetWorth: number | null = null;
   let highestNetWorth: number | null = null;
@@ -204,8 +213,11 @@ function recalculate(
     let total = 0;
     const last = arr.length === 0 ? null : arr[arr.length - 1];
 
-    accountBalances.forEach(balances => {
-      const balance = balances[idx];
+    const balances: Record<string, number> = {};
+    accountBalances.forEach((acctBalances, i) => {
+      const balance = acctBalances[idx];
+      balances[data[i].id] = balance;
+
       if (balance < 0) {
         debt += -balance;
       } else {
@@ -228,16 +240,13 @@ function recalculate(
       x = d.parseISO(intervalItem + '-01');
     }
 
-    const change = last ? total - last.y : 0;
+    const change = last ? total - last.y : total - priorPeriodNetWorth;
 
-    if (arr.length === 0) {
-      startNetWorth = total;
-    }
     endNetWorth = total;
 
     // Use standardized format from ReportOptions
     const displayFormat =
-      ReportOptions.intervalFormat.get(interval) ?? 'MMM ‘yy';
+      ReportOptions.intervalFormat.get(interval) ?? "MMM ''yy";
 
     const tooltipFormat =
       interval === 'Daily'
@@ -256,6 +265,7 @@ function recalculate(
       change: format(change, 'financial'),
       networth: format(total, 'financial'),
       date: d.format(x, tooltipFormat, { locale }),
+      ...balances,
     };
 
     arr.push(graphPoint);
@@ -271,6 +281,10 @@ function recalculate(
     return arr;
   }, []);
 
+  const hasBalance = accountBalances.map(balances =>
+    balances.some(b => b !== 0),
+  );
+
   return {
     graphData: {
       data: graphData,
@@ -279,8 +293,11 @@ function recalculate(
       end: endDate,
     },
     netWorth: endNetWorth,
-    totalChange: endNetWorth - startNetWorth,
+    totalChange: endNetWorth - priorPeriodNetWorth,
     lowestNetWorth,
     highestNetWorth,
+    accounts: data
+      .filter((_, i) => hasBalance[i])
+      .map(d => ({ id: d.id, name: d.name })),
   };
 }

@@ -1,16 +1,17 @@
-import { useState, type Ref } from 'react';
+import { useState } from 'react';
+import type { Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { SvgRemove, SvgSearchAlternate } from '@actual-app/components/icons/v2';
 import { baseInputStyle, Input } from '@actual-app/components/input';
-import { type CSSProperties } from '@actual-app/components/styles';
+import type { CSSProperties } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { css } from '@emotion/css';
 
 type SearchProps = {
-  inputRef?: Ref<HTMLInputElement>;
+  ref?: Ref<HTMLInputElement>;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
@@ -21,7 +22,7 @@ type SearchProps = {
 };
 
 export function Search({
-  inputRef,
+  ref,
   value,
   onChange,
   placeholder,
@@ -70,7 +71,7 @@ export function Search({
       />
 
       <Input
-        ref={inputRef}
+        ref={ref}
         value={value}
         placeholder={placeholder}
         onEscape={() => onChange('')}

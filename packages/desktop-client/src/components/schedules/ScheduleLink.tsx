@@ -8,7 +8,7 @@ import { InitialFocus } from '@actual-app/components/initial-focus';
 import { Text } from '@actual-app/components/text';
 import { View } from '@actual-app/components/view';
 
-import { send } from 'loot-core/platform/client/fetch';
+import { send } from 'loot-core/platform/client/connection';
 import { q } from 'loot-core/shared/query';
 
 import { ROW_HEIGHT, SchedulesTable } from './SchedulesTable';
@@ -20,10 +20,8 @@ import {
 } from '@desktop-client/components/common/Modal';
 import { Search } from '@desktop-client/components/common/Search';
 import { useSchedules } from '@desktop-client/hooks/useSchedules';
-import {
-  type Modal as ModalType,
-  pushModal,
-} from '@desktop-client/modals/modalsSlice';
+import { pushModal } from '@desktop-client/modals/modalsSlice';
+import type { Modal as ModalType } from '@desktop-client/modals/modalsSlice';
 import { useDispatch } from '@desktop-client/redux';
 
 type ScheduleLinkProps = Extract<
@@ -51,7 +49,7 @@ export function ScheduleLink({
     statuses,
   } = useSchedules({ query: schedulesQuery });
 
-  const searchInput = useRef(null);
+  const searchInput = useRef<HTMLInputElement | null>(null);
 
   async function onSelect(scheduleId: string) {
     if (ids?.length > 0) {
@@ -105,15 +103,20 @@ export function ScheduleLink({
                 { count: ids?.length ?? 0 },
               )}
             </Text>
-            <InitialFocus>
-              <Search
-                inputRef={searchInput}
-                isInModal
-                width={300}
-                placeholder={t('Filter schedules…')}
-                value={filter}
-                onChange={setFilter}
-              />
+            <InitialFocus<HTMLInputElement>>
+              {node => (
+                <Search
+                  ref={r => {
+                    node.current = r;
+                    searchInput.current = r;
+                  }}
+                  isInModal
+                  width={300}
+                  placeholder={t('Filter schedules…')}
+                  value={filter}
+                  onChange={setFilter}
+                />
+              )}
             </InitialFocus>
             {ids.length === 1 && (
               <Button
@@ -121,7 +124,7 @@ export function ScheduleLink({
                 style={{ marginLeft: 15, padding: '4px 10px' }}
                 onPress={() => {
                   close();
-                  onCreate();
+                  void onCreate();
                 }}
               >
                 <SvgAdd style={{ width: '20', padding: '3' }} />
@@ -143,10 +146,9 @@ export function ScheduleLink({
               isLoading={isSchedulesLoading}
               allowCompleted={false}
               filter={filter}
-              minimal={true}
-              onAction={() => {}}
+              minimal
               onSelect={id => {
-                onSelect(id);
+                void onSelect(id);
                 close();
               }}
               schedules={schedules}

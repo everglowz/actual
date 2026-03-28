@@ -1,4 +1,5 @@
-import React, { type ComponentPropsWithoutRef } from 'react';
+import React from 'react';
+import type { ComponentPropsWithoutRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Menu } from '@actual-app/components/menu';
@@ -71,7 +72,7 @@ export function ToBudgetMenu({
       ? [
           {
             name: 'reset-buffer',
-            text: t('Reset next month’s buffer'),
+            text: t("Reset next month's buffer"),
           },
         ]
       : []),

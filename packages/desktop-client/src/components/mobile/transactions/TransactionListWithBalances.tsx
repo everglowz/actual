@@ -1,4 +1,5 @@
-import React, { type ComponentProps, useState } from 'react';
+import React, { useState } from 'react';
+import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Label } from '@actual-app/components/label';
@@ -6,7 +7,8 @@ import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { type TransactionEntity } from 'loot-core/types/models';
+import type { IntegerAmount } from 'loot-core/shared/util';
+import type { TransactionEntity } from 'loot-core/types/models';
 
 import { TransactionList } from './TransactionList';
 
@@ -16,6 +18,7 @@ import {
   CellValue,
   CellValueText,
 } from '@desktop-client/components/spreadsheet/CellValue';
+import { DisplayPayeeProvider } from '@desktop-client/hooks/useDisplayPayee';
 import {
   SelectedProvider,
   useSelected,
@@ -23,8 +26,8 @@ import {
 import { useSheetValue } from '@desktop-client/hooks/useSheetValue';
 import type {
   Binding,
-  SheetNames,
   SheetFields,
+  SheetNames,
 } from '@desktop-client/spreadsheet';
 
 type TransactionSearchInputProps = {
@@ -83,6 +86,8 @@ type TransactionListWithBalancesProps = {
   balanceUncleared?:
     | Binding<'category', 'balanceUncleared'>
     | Binding<'account', 'balanceUncleared'>;
+  showRunningBalances?: boolean;
+  runningBalances?: Map<TransactionEntity['id'], IntegerAmount>;
   searchPlaceholder: string;
   onSearch: (searchText: string) => void;
   isLoadingMore: boolean;
@@ -98,6 +103,8 @@ export function TransactionListWithBalances({
   balance,
   balanceCleared,
   balanceUncleared,
+  showRunningBalances,
+  runningBalances,
   searchPlaceholder = 'Search...',
   onSearch,
   isLoadingMore,
@@ -109,8 +116,8 @@ export function TransactionListWithBalances({
   const selectedInst = useSelected('transactions', [...transactions], []);
 
   return (
-    <SelectedProvider instance={selectedInst}>
-      <>
+    <DisplayPayeeProvider transactions={transactions}>
+      <SelectedProvider instance={selectedInst}>
         <View
           style={{
             flexShrink: 0,
@@ -141,18 +148,25 @@ export function TransactionListWithBalances({
         <PullToRefresh
           isPullable={!isLoading && !!onRefresh}
           onRefresh={async () => onRefresh?.()}
+          style={{
+            '& .ptr__children': {
+              display: 'flex',
+            },
+          }}
         >
           <TransactionList
             isLoading={isLoading}
             transactions={transactions}
+            showRunningBalances={showRunningBalances}
+            runningBalances={runningBalances}
             isLoadingMore={isLoadingMore}
             onLoadMore={onLoadMore}
             onOpenTransaction={onOpenTransaction}
             showMakeTransfer={showMakeTransfer}
           />
         </PullToRefresh>
-      </>
-    </SelectedProvider>
+      </SelectedProvider>
+    </DisplayPayeeProvider>
   );
 }
 
@@ -269,7 +283,11 @@ function Balance({ balance }: BalanceProps) {
               textAlign: 'center',
               fontWeight: '500',
               color:
-                props.value < 0 ? theme.errorText : theme.pillTextHighlighted,
+                props.value < 0
+                  ? theme.numberNegative
+                  : props.value > 0
+                    ? theme.numberPositive
+                    : theme.numberNeutral,
             }}
             data-testid="transactions-balance"
           />

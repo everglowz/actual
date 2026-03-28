@@ -1,7 +1,8 @@
 // @ts-strict-ignore
 import { APIError } from '../../../server/errors';
-import { runHandler, isMutating } from '../../../server/mutators';
+import { isMutating, runHandler } from '../../../server/mutators';
 import { captureException } from '../../exceptions';
+import { logger } from '../log';
 
 import type * as T from './index-types';
 
@@ -10,7 +11,7 @@ function coerceError(error) {
     return error;
   }
 
-  return { type: 'InternalError', message: error.message };
+  return { type: 'ServerError', message: error.message, cause: error };
 }
 
 export const init: T.Init = function (_socketName, handlers) {
@@ -51,10 +52,10 @@ export const init: T.Init = function (_socketName, handlers) {
               result: { error, data: null },
             });
           } else {
-            process.parentPort.postMessage({ type: 'error', id });
+            process.parentPort.postMessage({ type: 'error', id, error });
           }
 
-          if (error.type === 'InternalError' && name !== 'api/load-budget') {
+          if (error.type === 'ServerError' && name !== 'api/load-budget') {
             captureException(nativeError);
           }
 
@@ -65,14 +66,25 @@ export const init: T.Init = function (_socketName, handlers) {
         },
       );
     } else {
-      console.warn('Unknown method: ' + name);
+      logger.error('Unknown server method: ' + name);
       captureException(new Error('Unknown server method: ' + name));
-      process.parentPort.postMessage({
-        type: 'reply',
-        id,
-        result: null,
-        error: APIError('Unknown method: ' + name),
-      });
+      const unknownMethodError = APIError('Unknown server method: ' + name);
+
+      if (catchErrors) {
+        process.parentPort.postMessage({
+          type: 'reply',
+          id,
+          result: catchErrors
+            ? { error: unknownMethodError, data: null }
+            : null,
+        });
+      } else {
+        process.parentPort.postMessage({
+          type: 'error',
+          id,
+          error: unknownMethodError,
+        });
+      }
     }
   });
 };
@@ -85,4 +97,6 @@ export const send: T.Send = function (name, args) {
   process.parentPort.postMessage({ type: 'push', name, args });
 };
 
-export const resetEvents: T.ResetEvents = function () {};
+export const resetEvents: T.ResetEvents = function () {
+  // resetEvents is used in tests to mock the server
+};

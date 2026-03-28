@@ -1,5 +1,5 @@
 import { getNormalisedString } from '../../shared/normalisation';
-import { QueryState } from '../../shared/query';
+import type { QueryState } from '../../shared/query';
 
 // @ts-strict-ignore
 let _uid = 0;
@@ -38,7 +38,6 @@ function isKeyword(str) {
 }
 
 export function quoteAlias(alias) {
-  // eslint-disable-next-line actual/typography
   return alias.indexOf('.') === -1 && !isKeyword(alias) ? alias : `"${alias}"`;
 }
 
@@ -48,13 +47,13 @@ function typed(value, type, { literal = false } = {}) {
 
 function getFieldDescription(schema, tableName, field) {
   if (schema[tableName] == null) {
-    throw new CompileError(`Table “${tableName}” does not exist in the schema`);
+    throw new CompileError(`Table "${tableName}" does not exist in the schema`);
   }
 
   const fieldDesc = schema[tableName][field];
   if (fieldDesc == null) {
     throw new CompileError(
-      `Field “${field}” does not exist in table “${tableName}”`,
+      `Field "${field}" does not exist in table "${tableName}"`,
     );
   }
   return fieldDesc;
@@ -79,7 +78,7 @@ function makePath(state, path) {
 
     if (!table[field] || table[field].ref == null) {
       throw new CompileError(
-        `Field not joinable on table ${tableName}: “${field}”`,
+        `Field not joinable on table ${tableName}: "${field}"`,
       );
     }
 
@@ -172,7 +171,6 @@ function transformField(state, name) {
 
     if (!refPathInfo) {
       refPathInfo = makePath(state, refPath);
-      refPathInfo.noMapping = true;
       state.paths.set(refPath, refPathInfo);
     }
 
@@ -228,7 +226,7 @@ function inferParam(param, type) {
       (!casts[type] || !casts[type].includes(existingType))
     ) {
       throw new Error(
-        `Parameter “${param.paramName}” can’t convert to ${type} (already inferred as ${existingType})`,
+        `Parameter "${param.paramName}" can't convert to ${type} (already inferred as ${existingType})`,
       );
     }
   } else {
@@ -244,7 +242,7 @@ function castInput(state, expr, type) {
     return typed(expr.value, type);
   } else if (expr.type === 'null') {
     if (!expr.literal) {
-      throw new CompileError('A non-literal null doesn’t make sense');
+      throw new CompileError("A non-literal null doesn't make sense");
     }
 
     if (type === 'boolean') {
@@ -265,7 +263,7 @@ function castInput(state, expr, type) {
       }
     }
 
-    throw new CompileError(`Can’t cast ${expr.type} to date`);
+    throw new CompileError(`Can't cast ${expr.type} to date`);
   } else if (type === 'date-month') {
     let expr2;
     if (expr.type === 'date') {
@@ -276,7 +274,7 @@ function castInput(state, expr, type) {
         parseDate(expr.value) ||
         badDateFormat(expr.value, 'date-month');
     } else {
-      throw new CompileError(`Can’t cast ${expr.type} to date-month`);
+      throw new CompileError(`Can't cast ${expr.type} to date-month`);
     }
 
     if (expr2.literal) {
@@ -302,7 +300,7 @@ function castInput(state, expr, type) {
         parseDate(expr.value) ||
         badDateFormat(expr.value, 'date-year');
     } else {
-      throw new CompileError(`Can’t cast ${expr.type} to date-year`);
+      throw new CompileError(`Can't cast ${expr.type} to date-year`);
     }
 
     if (expr2.literal) {
@@ -329,7 +327,7 @@ function castInput(state, expr, type) {
     return typed(expr.value, type, { literal: expr.literal });
   }
 
-  throw new CompileError(`Can’t convert ${expr.type} to ${type}`);
+  throw new CompileError(`Can't convert ${expr.type} to ${type}`);
 }
 
 // TODO: remove state from these functions
@@ -342,7 +340,6 @@ function val(state, expr, type?: string) {
   }
 
   if (castedExpr.literal) {
-    /* eslint-disable actual/typography */
     if (castedExpr.type === 'id') {
       return `'${castedExpr.value}'`;
     } else if (castedExpr.type === 'string') {
@@ -350,7 +347,6 @@ function val(state, expr, type?: string) {
       const value = castedExpr.value.replace(/'/g, "''");
       return `'${value}'`;
     }
-    /* eslint-enable actual/typography */
   }
 
   return castedExpr.value;
@@ -524,7 +520,7 @@ const compileFunction = saveStack('function', (state, func) => {
 
   if (name[0] !== '$') {
     throw new CompileError(
-      `Unknown property “${name}.” Did you mean to call a function? Try prefixing it with $`,
+      `Unknown property "${name}." Did you mean to call a function? Try prefixing it with $`,
     );
   }
 
@@ -718,7 +714,7 @@ const compileOp = saveStack('op', (state, fieldRef, opData) => {
       const [left, right] = valArray(state, [lhs, rhs], [null, 'array']);
       // Dedupe the ids
       const ids = [...new Set(right)];
-      // eslint-disable-next-line actual/typography
+
       return `${left} IN (` + ids.map(id => `'${id}'`).join(',') + ')';
     }
     case '$like': {
@@ -817,8 +813,7 @@ const compileWhere = saveStack('filter', (state, conds) => {
 function compileJoins(state, tableRef, internalTableFilters) {
   const joins = [];
   state.paths.forEach((desc, path) => {
-    const { tableName, tableId, joinField, joinTable, noMapping } =
-      state.paths.get(path);
+    const { tableName, tableId, joinField, joinTable } = state.paths.get(path);
 
     let on = `${tableId}.id = ${tableRef(joinTable)}.${quoteAlias(joinField)}`;
 
@@ -833,9 +828,10 @@ function compileJoins(state, tableRef, internalTableFilters) {
     }
 
     joins.push(
-      `LEFT JOIN ${
-        noMapping ? tableName : tableRef(tableName, true)
-      } ${tableId} ON ${addTombstone(state.schema, tableName, tableId, on)}`,
+      `LEFT JOIN ${tableRef(
+        tableName,
+        true,
+      )} ${tableId} ON ${addTombstone(state.schema, tableName, tableId, on)}`,
     );
 
     if (state.dependencies.indexOf(tableName) === -1) {
@@ -861,7 +857,7 @@ function expandStar(state, expr) {
 
   const table = state.schema[pathInfo.tableName];
   if (table == null) {
-    throw new Error(`Table “${pathInfo.tableName}” does not exist`);
+    throw new Error(`Table "${pathInfo.tableName}" does not exist`);
   }
 
   return Object.keys(table).map(field => (path ? `${path}.${field}` : field));
@@ -898,7 +894,7 @@ const compileSelect = saveStack(
       if (name[0] === '$') {
         state.compileStack.push({ type: 'value', value: expr });
         throw new CompileError(
-          `Invalid field “${name}”, are you trying to select a function? You need to name the expression`,
+          `Invalid field "${name}", are you trying to select a function? You need to name the expression`,
         );
       }
 

@@ -27,7 +27,7 @@ export function isDateFormat(format: string): format is DateFormat {
 export function parseDate(
   str: string | number | null | Array<unknown> | object,
   order: DateFormat,
-) {
+): string | null {
   if (typeof str !== 'string') {
     return null;
   }
@@ -119,7 +119,7 @@ export function formatDate(
   }
   try {
     return formatDate_(date, format);
-  } catch (e) {}
+  } catch {}
   return null;
 }
 
@@ -166,6 +166,7 @@ export function applyFieldMappings(
   result.ignored = transaction.ignored;
   result.selected = transaction.selected;
   result.selected_merge = transaction.selected_merge;
+  result.tombstone = transaction.tombstone;
   return result as ImportTransaction;
 }
 
@@ -263,8 +264,15 @@ export function parseAmountFields(
 }
 
 export function stripCsvImportTransaction(transaction: ImportTransaction) {
-  const { existing, ignored, selected, selected_merge, trx_id, ...trans } =
-    transaction;
+  const {
+    existing: _existing,
+    ignored: _ignored,
+    selected: _selected,
+    selected_merge: _selected_merge,
+    trx_id: _trx_id,
+    tombstone: _tombstone,
+    ...trans
+  } = transaction;
 
   return trans;
 }

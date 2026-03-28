@@ -1,4 +1,5 @@
-import { useCallback, type ComponentPropsWithoutRef } from 'react';
+import { useCallback } from 'react';
+import type { ComponentPropsWithoutRef } from 'react';
 import { GridListItem } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 
@@ -10,7 +11,7 @@ import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
 import * as monthUtils from 'loot-core/shared/months';
-import { type CategoryEntity } from 'loot-core/types/models';
+import type { CategoryEntity } from 'loot-core/types/models';
 
 import { BalanceCell } from './BalanceCell';
 import { BudgetCell } from './BudgetCell';
@@ -195,7 +196,7 @@ export function IncomeCategoryListItem({
       return null;
     }
 
-    navigate(`/categories/${category.id}?month=${month}`);
+    void navigate(`/categories/${category.id}?month=${month}`);
   }, [category, month, navigate]);
 
   const onCarryover = useCallback(
@@ -258,7 +259,7 @@ export function IncomeCategoryListItem({
           paddingLeft: 5,
           paddingRight: 5,
           borderBottomWidth: 1,
-          opacity: !!category.hidden ? 0.5 : undefined,
+          opacity: category.hidden ? 0.5 : undefined,
           backgroundColor: monthUtils.isCurrentMonth(month)
             ? theme.budgetCurrentMonth
             : theme.budgetOtherMonth,

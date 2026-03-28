@@ -1,14 +1,8 @@
-import React, {
-  memo,
-  useMemo,
-  useCallback,
-  type CSSProperties,
-  type ReactNode,
-} from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import React, { memo, useCallback, useMemo } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { SvgArrowsSynchronize } from '@actual-app/components/icons/v2';
-import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import {
   format as formatDate,
@@ -17,9 +11,9 @@ import {
 } from 'date-fns';
 
 import * as monthUtils from 'loot-core/shared/months';
-import { integerToCurrency } from 'loot-core/shared/util';
-import { type TransactionEntity } from 'loot-core/types/models';
+import type { TransactionEntity } from 'loot-core/types/models';
 
+import { FinancialText } from '@desktop-client/components/FinancialText';
 import {
   Cell,
   Field,
@@ -31,9 +25,11 @@ import { DisplayId } from '@desktop-client/components/util/DisplayId';
 import { useAccount } from '@desktop-client/hooks/useAccount';
 import { useCategory } from '@desktop-client/hooks/useCategory';
 import { useDateFormat } from '@desktop-client/hooks/useDateFormat';
+import { useFormat } from '@desktop-client/hooks/useFormat';
+import type { FormatType } from '@desktop-client/hooks/useFormat';
 import {
-  useSelectedItems,
   useSelectedDispatch,
+  useSelectedItems,
 } from '@desktop-client/hooks/useSelected';
 
 function serializeTransaction(
@@ -56,16 +52,18 @@ type TransactionRowProps = {
   transaction: TransactionEntity;
   fields: string[];
   selected: boolean;
+  format: (value: unknown, type: FormatType) => string;
 };
 
 const TransactionRow = memo(function TransactionRow({
   transaction,
   fields,
   selected,
+  format,
 }: TransactionRowProps) {
   const { t } = useTranslation();
 
-  const category = useCategory(transaction.category || '');
+  const { data: category } = useCategory(transaction.category);
   const account = useAccount(transaction.account);
 
   const dispatchSelected = useSelectedDispatch();
@@ -73,7 +71,7 @@ const TransactionRow = memo(function TransactionRow({
   return (
     <Row style={{ color: theme.tableText }}>
       <SelectCell
-        exposed={true}
+        exposed
         focused={false}
         onSelect={e => {
           dispatchSelected({
@@ -94,7 +92,7 @@ const TransactionRow = memo(function TransactionRow({
             );
           case 'imported_payee':
             return (
-              <Field key={i} width="flex">
+              <Field key={i} width="flex" title={transaction.imported_payee}>
                 {transaction.imported_payee}
               </Field>
             );
@@ -103,7 +101,7 @@ const TransactionRow = memo(function TransactionRow({
               <Cell
                 key={i}
                 width="flex"
-                exposed={true}
+                exposed
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -152,12 +150,10 @@ const TransactionRow = memo(function TransactionRow({
             );
           case 'amount':
             return (
-              <Field
-                key={i}
-                width={75}
-                style={{ textAlign: 'right', ...styles.tnum }}
-              >
-                {integerToCurrency(transaction.amount)}
+              <Field key={i} width={75} style={{ textAlign: 'right' }}>
+                <FinancialText>
+                  {format(transaction.amount, 'financial')}
+                </FinancialText>
               </Field>
             );
           default:
@@ -181,6 +177,7 @@ export function SimpleTransactionsTable({
   fields = ['date', 'payee', 'amount'],
   style,
 }: SimpleTransactionsTableProps) {
+  const format = useFormat();
   const dateFormat = useDateFormat() || 'MM/dd/yyyy';
   const selectedItems = useSelectedItems();
   const dispatchSelected = useSelectedDispatch();
@@ -197,21 +194,23 @@ export function SimpleTransactionsTable({
           transaction={item}
           fields={memoFields}
           selected={selectedItems && selectedItems.has(item.id)}
+          format={format}
         />
       );
     },
-    [memoFields, selectedItems],
+    [memoFields, selectedItems, format],
   );
 
   return (
     <Table
       style={style}
+      backgroundColor={theme.tableBackground}
       items={serializedTransactions}
       renderEmpty={renderEmpty}
       headers={
         <>
           <SelectCell
-            exposed={true}
+            exposed
             focused={false}
             selected={selectedItems.size > 0}
             width={20}

@@ -1,26 +1,22 @@
 // @ts-strict-ignore
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  type ComponentProps,
-} from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import React, { useCallback, useEffect, useEffectEvent, useState } from 'react';
+import type { ComponentProps } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { Button, ButtonWithLoading } from '@actual-app/components/button';
 import { Input } from '@actual-app/components/input';
 import { Select } from '@actual-app/components/select';
-import { Stack } from '@actual-app/components/stack';
+import { SpaceBetween } from '@actual-app/components/space-between';
+import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
-import deepEqual from 'deep-equal';
+import { useQueryClient } from '@tanstack/react-query';
 
-import { send } from 'loot-core/platform/client/fetch';
-import { type ParseFileOptions } from 'loot-core/server/transactions/import/parse-file';
+import { send } from 'loot-core/platform/client/connection';
+import type { ParseFileOptions } from 'loot-core/server/transactions/import/parse-file';
 import { amountToInteger } from 'loot-core/shared/util';
 
-import { CheckboxOption } from './CheckboxOption';
 import { DateFormatSelect } from './DateFormatSelect';
 import { FieldMappings } from './FieldMappings';
 import { InOutOption } from './InOutOption';
@@ -33,21 +29,20 @@ import {
   parseAmountFields,
   parseDate,
   stripCsvImportTransaction,
-  type DateFormat,
-  type FieldMapping,
-  type ImportTransaction,
 } from './utils';
+import type { DateFormat, FieldMapping, ImportTransaction } from './utils';
 
 import {
-  importPreviewTransactions,
-  importTransactions,
-} from '@desktop-client/accounts/accountsSlice';
+  useImportPreviewTransactionsMutation,
+  useImportTransactionsMutation,
+} from '@desktop-client/accounts';
 import {
   Modal,
   ModalCloseButton,
   ModalHeader,
 } from '@desktop-client/components/common/Modal';
 import { SectionLabel } from '@desktop-client/components/forms';
+import { LabeledCheckbox } from '@desktop-client/components/forms/LabeledCheckbox';
 import {
   TableHeader,
   TableWithNavigator,
@@ -55,8 +50,7 @@ import {
 import { useCategories } from '@desktop-client/hooks/useCategories';
 import { useDateFormat } from '@desktop-client/hooks/useDateFormat';
 import { useSyncedPrefs } from '@desktop-client/hooks/useSyncedPrefs';
-import { reloadPayees } from '@desktop-client/payees/payeesSlice';
-import { useDispatch } from '@desktop-client/redux';
+import { payeeQueries } from '@desktop-client/payees';
 
 function getFileType(filepath: string): string {
   const m = filepath.match(/\.([^.]*)$/);
@@ -165,10 +159,10 @@ export function ImportTransactionsModal({
   onImported,
 }) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const dateFormat = useDateFormat() || ('MM/dd/yyyy' as const);
   const [prefs, savePrefs] = useSyncedPrefs();
-  const dispatch = useDispatch();
-  const categories = useCategories();
+  const { data: { list: categories } = { list: [] } } = useCategories();
 
   const [multiplierAmount, setMultiplierAmount] = useState('');
   const [loadingState, setLoadingState] = useState<
@@ -180,6 +174,9 @@ export function ImportTransactionsModal({
   } | null>(null);
   const [filename, setFilename] = useState(originalFileName);
   const [transactions, setTransactions] = useState<ImportTransaction[]>([]);
+  const [parsedTransactions, setParsedTransactions] = useState<
+    ImportTransaction[]
+  >([]);
   const [filetype, setFileType] = useState('unknown');
   const [fieldMappings, setFieldMappings] = useState<FieldMapping | null>(null);
   const [splitMode, setSplitMode] = useState(false);
@@ -197,8 +194,11 @@ export function ImportTransactionsModal({
     prefs[`csv-delimiter-${accountId}`] ||
       (filename.endsWith('.tsv') ? '\t' : ','),
   );
-  const [skipLines, setSkipLines] = useState(
-    parseInt(prefs[`csv-skip-lines-${accountId}`], 10) || 0,
+  const [skipStartLines, setSkipStartLines] = useState(
+    parseInt(prefs[`csv-skip-start-lines-${accountId}`], 10) || 0,
+  );
+  const [skipEndLines, setSkipEndLines] = useState(
+    parseInt(prefs[`csv-skip-end-lines-${accountId}`], 10) || 0,
   );
   const [inOutMode, setInOutMode] = useState(
     String(prefs[`csv-in-out-mode-${accountId}`]) === 'true',
@@ -221,18 +221,30 @@ export function ImportTransactionsModal({
 
   const getImportPreview = useCallback(
     async (
-      transactions,
-      filetype,
-      flipAmount,
-      fieldMappings,
-      splitMode,
+      transactions: ImportTransaction[],
+      filetype: string,
+      flipAmount: boolean,
+      fieldMappings: FieldMapping | null,
+      splitMode: boolean,
       parseDateFormat: DateFormat,
-      inOutMode,
-      outValue,
-      multiplierAmount,
+      inOutMode: boolean,
+      outValue: string,
+      multiplierAmount: string,
     ) => {
       const previewTransactions = [];
       const inOutModeEnabled = isOfxFile(filetype) ? false : inOutMode;
+      const getTransDate: (trans: ImportTransaction) => string | null =
+        isOfxFile(filetype)
+          ? trans => trans.date ?? null
+          : trans => parseDate(trans.date, parseDateFormat);
+
+      // Note that the sort will behave unpredictably if any date fails to parse.
+      transactions.sort((a, b) => {
+        const aDate = getTransDate(a);
+        const bDate = getTransDate(b);
+
+        return aDate < bDate ? 1 : aDate === bDate ? 0 : -1;
+      });
 
       for (let trans of transactions) {
         if (trans.isMatchedTransaction) {
@@ -244,9 +256,7 @@ export function ImportTransactionsModal({
           ? applyFieldMappings(trans, fieldMappings)
           : trans;
 
-        const date = isOfxFile(filetype)
-          ? trans.date
-          : parseDate(trans.date, parseDateFormat);
+        const date = getTransDate(trans);
         if (date == null) {
           console.log(
             `Unable to parse date ${
@@ -273,19 +283,20 @@ export function ImportTransactionsModal({
           break;
         }
 
-        const category_id = parseCategoryFields(trans, categories.list);
+        const category_id = parseCategoryFields(trans, categories);
         if (category_id != null) {
           trans.category = category_id;
         }
 
         const {
-          inflow,
-          outflow,
-          inOut,
-          existing,
-          ignored,
-          selected,
-          selected_merge,
+          inflow: _inflow,
+          outflow: _outflow,
+          inOut: _inOut,
+          existing: _existing,
+          ignored: _ignored,
+          selected: _selected,
+          selected_merge: _selected_merge,
+          tombstone: _tombstone,
           ...finalTransaction
         } = trans;
         previewTransactions.push({
@@ -296,57 +307,9 @@ export function ImportTransactionsModal({
         });
       }
 
-      // Retreive the transactions that would be updated (along with the existing trx)
-      const previewTrx = await dispatch(
-        importPreviewTransactions({
-          accountId,
-          transactions: previewTransactions,
-        }),
-      ).unwrap();
-      const matchedUpdateMap = previewTrx.reduce((map, entry) => {
-        // @ts-expect-error - entry.transaction might not have trx_id property
-        map[entry.transaction.trx_id] = entry;
-        return map;
-      }, {});
-
-      return transactions
-        .filter(trans => !trans.isMatchedTransaction)
-        .reduce((previous, current_trx) => {
-          let next = previous;
-          const entry = matchedUpdateMap[current_trx.trx_id];
-          const existing_trx = entry?.existing;
-
-          // if the transaction is matched with an existing one for update
-          current_trx.existing = !!existing_trx;
-          // if the transaction is an update that will be ignored
-          // (reconciled transactions or no change detected)
-          current_trx.ignored = entry?.ignored || false;
-
-          current_trx.selected = !current_trx.ignored;
-          current_trx.selected_merge = current_trx.existing;
-
-          next = next.concat({ ...current_trx });
-
-          if (existing_trx) {
-            // add the updated existing transaction in the list, with the
-            // isMatchedTransaction flag to identify it in display and not send it again
-            existing_trx.isMatchedTransaction = true;
-            existing_trx.category = categories.list.find(
-              cat => cat.id === existing_trx.category,
-            )?.name;
-            // add parent transaction attribute to mimic behaviour
-            existing_trx.trx_id = current_trx.trx_id;
-            existing_trx.existing = current_trx.existing;
-            existing_trx.selected = current_trx.selected;
-            existing_trx.selected_merge = current_trx.selected_merge;
-
-            next = next.concat({ ...existing_trx });
-          }
-
-          return next;
-        }, []);
+      return previewTransactions;
     },
-    [accountId, categories.list, clearOnImport, dispatch],
+    [categories, clearOnImport],
   );
 
   const parse = useCallback(
@@ -376,7 +339,6 @@ export function ImportTransactionsModal({
         return trans;
       });
 
-      setLoadingState(null);
       setError(null);
 
       /// Do fine grained reporting between the old and new OFX importers.
@@ -386,13 +348,8 @@ export function ImportTransactionsModal({
           message: errors[0].message || 'Internal error',
         });
       } else {
-        let flipAmount = false;
-        let fieldMappings = null;
-        let splitMode = false;
-        let parseDateFormat: string | null = null;
-
         if (filetype === 'csv' || filetype === 'qif') {
-          flipAmount =
+          const flipAmount =
             String(prefs[`flip-amount-${accountId}-${filetype}`]) === 'true';
           setFlipAmount(flipAmount);
         }
@@ -403,23 +360,22 @@ export function ImportTransactionsModal({
             ? JSON.parse(mappings)
             : getInitialMappings(transactions);
 
-          fieldMappings = mappings;
           // @ts-expect-error - mappings might not have outflow/inflow properties
           setFieldMappings(mappings);
 
           // Set initial split mode based on any saved mapping
           // @ts-expect-error - mappings might not have outflow/inflow properties
-          splitMode = !!(mappings.outflow || mappings.inflow);
+          const splitMode = !!(mappings.outflow || mappings.inflow);
           setSplitMode(splitMode);
 
-          parseDateFormat =
+          const parseDateFormat =
             prefs[`parse-date-${accountId}-${filetype}`] ||
             getInitialDateFormat(transactions, mappings);
           setParseDateFormat(
             isDateFormat(parseDateFormat) ? parseDateFormat : null,
           );
         } else if (filetype === 'qif') {
-          parseDateFormat =
+          const parseDateFormat =
             prefs[`parse-date-${accountId}-${filetype}`] ||
             getInitialDateFormat(transactions, { date: 'date' });
           setParseDateFormat(
@@ -430,33 +386,19 @@ export function ImportTransactionsModal({
           setParseDateFormat(null);
         }
 
-        // Reverse the transactions because it's very common for them to
-        // be ordered ascending, but we show transactions descending by
-        // date. This is purely cosmetic.
-        const transactionPreview = await getImportPreview(
-          transactions.reverse(),
-          filetype,
-          flipAmount,
-          fieldMappings,
-          splitMode,
-          isDateFormat(parseDateFormat) ? parseDateFormat : null,
-          inOutMode,
-          outValue,
-          multiplierAmount,
-        );
-        setTransactions(transactionPreview);
+        setParsedTransactions(transactions as ImportTransaction[]);
       }
+
+      setLoadingState(null);
     },
     // We use some state variables from the component, but do not want to re-parse when they change
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [accountId, getImportPreview, prefs],
+    [accountId, prefs],
   );
 
   function onMultiplierChange(e) {
     const amt = e;
     if (!amt || amt.match(/^\d{1,}(\.\d{0,4})?$/)) {
       setMultiplierAmount(amt);
-      runImportPreview();
     }
   }
 
@@ -465,17 +407,19 @@ export function ImportTransactionsModal({
     const parseOptions = getParseOptions(fileType, {
       delimiter,
       hasHeaderRow,
-      skipLines,
+      skipStartLines,
+      skipEndLines,
       fallbackMissingPayeeToMemo,
       importNotes,
     });
 
-    parse(originalFileName, parseOptions);
+    void parse(originalFileName, parseOptions);
   }, [
     originalFileName,
     delimiter,
     hasHeaderRow,
-    skipLines,
+    skipStartLines,
+    skipEndLines,
     fallbackMissingPayeeToMemo,
     importNotes,
     parse,
@@ -521,12 +465,13 @@ export function ImportTransactionsModal({
     const parseOptions = getParseOptions(fileType, {
       delimiter,
       hasHeaderRow,
-      skipLines,
+      skipStartLines,
+      skipEndLines,
       fallbackMissingPayeeToMemo,
       importNotes,
     });
 
-    parse(res[0], parseOptions);
+    void parse(res[0], parseOptions);
   }
 
   function onUpdateFields(field, name) {
@@ -535,7 +480,6 @@ export function ImportTransactionsModal({
       [field]: name === '' ? null : name,
     };
     setFieldMappings(newFieldMappings);
-    runImportPreview();
   }
 
   function onCheckTransaction(trx_id: string) {
@@ -579,6 +523,8 @@ export function ImportTransactionsModal({
 
     setTransactions(newTransactions);
   }
+
+  const importTransactions = useImportTransactionsMutation();
 
   async function onImport(close) {
     setLoadingState('importing');
@@ -626,18 +572,18 @@ export function ImportTransactionsModal({
         break;
       }
 
-      const category_id = parseCategoryFields(trans, categories.list);
+      const category_id = parseCategoryFields(trans, categories);
       trans.category = category_id;
 
       const {
-        inflow,
-        outflow,
-        inOut,
-        existing,
-        ignored,
-        selected,
-        selected_merge,
-        trx_id,
+        inflow: _inflow,
+        outflow: _outflow,
+        inOut: _inOut,
+        existing: _existing,
+        ignored: _ignored,
+        selected: _selected,
+        selected_merge: _selected_merge,
+        trx_id: _trx_id,
         ...finalTransaction
       } = trans;
 
@@ -686,7 +632,10 @@ export function ImportTransactionsModal({
       });
       savePrefs({ [`csv-delimiter-${accountId}`]: delimiter });
       savePrefs({ [`csv-has-header-${accountId}`]: String(hasHeaderRow) });
-      savePrefs({ [`csv-skip-lines-${accountId}`]: String(skipLines) });
+      savePrefs({
+        [`csv-skip-start-lines-${accountId}`]: String(skipStartLines),
+      });
+      savePrefs({ [`csv-skip-end-lines-${accountId}`]: String(skipEndLines) });
       savePrefs({ [`csv-in-out-mode-${accountId}`]: String(inOutMode) });
       savePrefs({ [`csv-out-value-${accountId}`]: String(outValue) });
     }
@@ -698,26 +647,34 @@ export function ImportTransactionsModal({
       });
     }
 
-    const didChange = await dispatch(
-      importTransactions({
+    importTransactions.mutate(
+      {
         accountId,
         transactions: finalTransactions,
         reconcile,
-      }),
-    ).unwrap();
-    if (didChange) {
-      await dispatch(reloadPayees());
-    }
+      },
+      {
+        onSuccess: async didChange => {
+          if (didChange) {
+            void queryClient.invalidateQueries(payeeQueries.list());
+          }
 
-    if (onImported) {
-      onImported(didChange);
-    }
-    close();
+          if (onImported) {
+            onImported(didChange);
+          }
+
+          close();
+        },
+      },
+    );
   }
 
-  const runImportPreview = useCallback(async () => {
-    const transactionPreview = await getImportPreview(
-      transactions,
+  const importPreviewTransactions = useImportPreviewTransactionsMutation();
+
+  const onImportPreview = useEffectEvent(async () => {
+    // always start from the original parsed transactions, not the previewed ones to ensure rules run
+    const previewTransactionsToImport = await getImportPreview(
+      parsedTransactions,
       filetype,
       flipAmount,
       fieldMappings,
@@ -728,21 +685,72 @@ export function ImportTransactionsModal({
       multiplierAmount,
     );
 
-    if (!deepEqual(transactions, transactionPreview)) {
-      setTransactions(transactionPreview);
+    // Retreive the transactions that would be updated (along with the existing trx)
+    importPreviewTransactions.mutate(
+      {
+        accountId,
+        transactions: previewTransactionsToImport,
+      },
+      {
+        onSuccess: previewTrx => {
+          const matchedUpdateMap = previewTrx.reduce((map, entry) => {
+            // @ts-expect-error - entry.transaction might not have trx_id property
+            map[entry.transaction.trx_id] = entry;
+            return map;
+          }, {});
+
+          const previewTransactions = parsedTransactions
+            .filter(trans => !trans.isMatchedTransaction)
+            .reduce((previous, currentTrx) => {
+              let next = previous;
+              const entry = matchedUpdateMap[currentTrx.trx_id];
+              const existingTrx = entry?.existing;
+
+              // if the transaction is matched with an existing one for update
+              currentTrx.existing = !!existingTrx;
+              // if the transaction is an update that will be ignored
+              // (reconciled transactions or no change detected)
+              currentTrx.ignored = entry?.ignored || false;
+
+              currentTrx.tombstone = entry?.tombstone || false;
+
+              currentTrx.selected = !currentTrx.ignored;
+              currentTrx.selected_merge = currentTrx.existing;
+
+              next = next.concat({ ...currentTrx });
+
+              if (existingTrx) {
+                // add the updated existing transaction in the list, with the
+                // isMatchedTransaction flag to identify it in display and not send it again
+                existingTrx.isMatchedTransaction = true;
+                existingTrx.category = categories.find(
+                  cat => cat.id === existingTrx.category,
+                )?.name;
+                // add parent transaction attribute to mimic behaviour
+                existingTrx.trx_id = currentTrx.trx_id;
+                existingTrx.existing = currentTrx.existing;
+                existingTrx.selected = currentTrx.selected;
+                existingTrx.selected_merge = currentTrx.selected_merge;
+
+                next = next.concat({ ...existingTrx });
+              }
+
+              return next;
+            }, []);
+
+          setTransactions(previewTransactions);
+        },
+      },
+    );
+  });
+
+  useEffect(() => {
+    if (parsedTransactions.length === 0 || loadingState === 'parsing') {
+      return;
     }
-  }, [
-    getImportPreview,
-    transactions,
-    filetype,
-    flipAmount,
-    fieldMappings,
-    splitMode,
-    parseDateFormat,
-    inOutMode,
-    outValue,
-    multiplierAmount,
-  ]);
+
+    void onImportPreview();
+  }, [loadingState, parsedTransactions.length]);
 
   const headers: ComponentProps<typeof TableHeader>['headers'] = [
     { name: t('Date'), width: 200 },
@@ -807,11 +815,7 @@ export function ImportTransactionsModal({
           )}
           {(!error || !error.parsed) && (
             <View
-              style={{
-                flex: 'unset',
-                height: 300,
-                border: '1px solid ' + theme.tableBorder,
-              }}
+              style={{ ...styles.tableContainer, height: 300, flex: 'unset' }}
             >
               <TableHeader headers={headers} />
 
@@ -852,7 +856,7 @@ export function ImportTransactionsModal({
                       outValue={outValue}
                       flipAmount={flipAmount}
                       multiplierAmount={multiplierAmount}
-                      categories={categories.list}
+                      categories={categories}
                       onCheckTransaction={onCheckTransaction}
                       reconcile={reconcile}
                     />
@@ -894,48 +898,31 @@ export function ImportTransactionsModal({
           )}
 
           {isOfxFile(filetype) && (
-            <CheckboxOption
+            <LabeledCheckbox
               id="form_fallback_missing_payee"
               checked={fallbackMissingPayeeToMemo}
               onChange={() => {
                 setFallbackMissingPayeeToMemo(state => !state);
-                parse(
-                  filename,
-                  getParseOptions('ofx', {
-                    fallbackMissingPayeeToMemo: !fallbackMissingPayeeToMemo,
-                    importNotes,
-                  }),
-                );
               }}
             >
               <Trans>Use Memo as a fallback for empty Payees</Trans>
-            </CheckboxOption>
+            </LabeledCheckbox>
           )}
 
           {filetype !== 'csv' && (
-            <CheckboxOption
+            <LabeledCheckbox
               id="import_notes"
               checked={importNotes}
               onChange={() => {
                 setImportNotes(!importNotes);
-                parse(
-                  filename,
-                  getParseOptions(filetype, {
-                    delimiter,
-                    hasHeaderRow,
-                    skipLines,
-                    fallbackMissingPayeeToMemo,
-                    importNotes: !importNotes,
-                  }),
-                );
               }}
             >
               <Trans>Import notes from file</Trans>
-            </CheckboxOption>
+            </LabeledCheckbox>
           )}
 
           {(isOfxFile(filetype) || isCamtFile(filetype)) && (
-            <CheckboxOption
+            <LabeledCheckbox
               id="form_dont_reconcile"
               checked={reconcile}
               onChange={() => {
@@ -943,17 +930,15 @@ export function ImportTransactionsModal({
               }}
             >
               <Trans>Merge with existing transactions</Trans>
-            </CheckboxOption>
+            </LabeledCheckbox>
           )}
 
           {/*Import Options */}
           {(filetype === 'qif' || filetype === 'csv') && (
             <View style={{ marginTop: 10 }}>
-              <Stack
-                direction="row"
-                align="flex-start"
-                spacing={1}
-                style={{ marginTop: 5 }}
+              <SpaceBetween
+                gap={5}
+                style={{ marginTop: 5, alignItems: 'flex-start' }}
               >
                 {/* Date Format */}
                 <View>
@@ -964,7 +949,6 @@ export function ImportTransactionsModal({
                       parseDateFormat={parseDateFormat || undefined}
                       onChange={value => {
                         setParseDateFormat(isDateFormat(value) ? value : null);
-                        runImportPreview();
                       }}
                     />
                   )}
@@ -975,6 +959,7 @@ export function ImportTransactionsModal({
                   <View style={{ marginLeft: 10, gap: 5 }}>
                     <SectionLabel title={t('CSV OPTIONS')} />
                     <label
+                      htmlFor="csv-delimiter-select"
                       style={{
                         display: 'flex',
                         flexDirection: 'row',
@@ -984,29 +969,23 @@ export function ImportTransactionsModal({
                     >
                       <Trans>Delimiter:</Trans>
                       <Select
+                        id="csv-delimiter-select"
                         options={[
                           [',', ','],
                           [';', ';'],
                           ['|', '|'],
                           ['\t', 'tab'],
+                          ['~', '~'],
                         ]}
                         value={delimiter}
                         onChange={value => {
                           setDelimiter(value);
-                          parse(
-                            filename,
-                            getParseOptions('csv', {
-                              delimiter: value,
-                              hasHeaderRow,
-                              skipLines,
-                              importNotes,
-                            }),
-                          );
                         }}
                         style={{ width: 50 }}
                       />
                     </label>
                     <label
+                      htmlFor="csv-skip-start-lines"
                       style={{
                         display: 'flex',
                         flexDirection: 'row',
@@ -1014,45 +993,51 @@ export function ImportTransactionsModal({
                         alignItems: 'baseline',
                       }}
                     >
-                      <Trans>Skip lines:</Trans>
+                      <Trans>Skip start lines:</Trans>
                       <Input
+                        id="csv-skip-start-lines"
                         type="number"
-                        value={skipLines}
+                        value={skipStartLines}
                         min="0"
+                        step="1"
                         onChangeValue={value => {
-                          setSkipLines(+value);
-                          parse(
-                            filename,
-                            getParseOptions('csv', {
-                              delimiter,
-                              hasHeaderRow,
-                              skipLines: +value,
-                              importNotes,
-                            }),
-                          );
+                          setSkipStartLines(Math.abs(parseInt(value, 10) || 0));
                         }}
                         style={{ width: 50 }}
                       />
                     </label>
-                    <CheckboxOption
+                    <label
+                      htmlFor="csv-skip-end-lines"
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'row',
+                        gap: 5,
+                        alignItems: 'baseline',
+                      }}
+                    >
+                      <Trans>Skip end lines:</Trans>
+                      <Input
+                        id="csv-skip-end-lines"
+                        type="number"
+                        value={skipEndLines}
+                        min="0"
+                        step="1"
+                        onChangeValue={value => {
+                          setSkipEndLines(Math.abs(parseInt(value, 10) || 0));
+                        }}
+                        style={{ width: 50 }}
+                      />
+                    </label>
+                    <LabeledCheckbox
                       id="form_has_header"
                       checked={hasHeaderRow}
                       onChange={() => {
                         setHasHeaderRow(!hasHeaderRow);
-                        parse(
-                          filename,
-                          getParseOptions('csv', {
-                            delimiter,
-                            hasHeaderRow: !hasHeaderRow,
-                            skipLines,
-                            importNotes,
-                          }),
-                        );
                       }}
                     >
                       <Trans>File has header row</Trans>
-                    </CheckboxOption>
-                    <CheckboxOption
+                    </LabeledCheckbox>
+                    <LabeledCheckbox
                       id="clear_on_import"
                       checked={clearOnImport}
                       onChange={() => {
@@ -1060,8 +1045,8 @@ export function ImportTransactionsModal({
                       }}
                     >
                       <Trans>Clear transactions on import</Trans>
-                    </CheckboxOption>
-                    <CheckboxOption
+                    </LabeledCheckbox>
+                    <LabeledCheckbox
                       id="form_dont_reconcile"
                       checked={reconcile}
                       onChange={() => {
@@ -1069,7 +1054,7 @@ export function ImportTransactionsModal({
                       }}
                     >
                       <Trans>Merge with existing transactions</Trans>
-                    </CheckboxOption>
+                    </LabeledCheckbox>
                   </View>
                 )}
 
@@ -1077,53 +1062,49 @@ export function ImportTransactionsModal({
 
                 <View style={{ marginRight: 10, gap: 5 }}>
                   <SectionLabel title={t('AMOUNT OPTIONS')} />
-                  <CheckboxOption
+                  <LabeledCheckbox
                     id="form_flip"
                     checked={flipAmount}
                     onChange={() => {
                       setFlipAmount(!flipAmount);
-                      runImportPreview();
                     }}
                   >
                     <Trans>Flip amount</Trans>
-                  </CheckboxOption>
+                  </LabeledCheckbox>
                   <MultiplierOption
                     multiplierEnabled={multiplierEnabled}
                     multiplierAmount={multiplierAmount}
                     onToggle={() => {
                       setMultiplierEnabled(!multiplierEnabled);
                       setMultiplierAmount('');
-                      runImportPreview();
                     }}
                     onChangeAmount={onMultiplierChange}
                   />
                   {filetype === 'csv' && (
                     <>
-                      <CheckboxOption
+                      <LabeledCheckbox
                         id="form_split"
                         checked={splitMode}
                         onChange={() => {
                           onSplitMode();
-                          runImportPreview();
                         }}
                       >
                         <Trans>
                           Split amount into separate inflow/outflow columns
                         </Trans>
-                      </CheckboxOption>
+                      </LabeledCheckbox>
                       <InOutOption
                         inOutMode={inOutMode}
                         outValue={outValue}
                         onToggle={() => {
                           setInOutMode(!inOutMode);
-                          runImportPreview();
                         }}
                         onChangeText={setOutValue}
                       />
                     </>
                   )}
                 </View>
-              </Stack>
+              </SpaceBetween>
             </View>
           )}
 
@@ -1139,7 +1120,10 @@ export function ImportTransactionsModal({
             >
               {(() => {
                 const count = transactions?.filter(
-                  trans => !trans.isMatchedTransaction && trans.selected,
+                  trans =>
+                    !trans.isMatchedTransaction &&
+                    trans.selected &&
+                    !trans.tombstone,
                 ).length;
 
                 return (
@@ -1149,7 +1133,7 @@ export function ImportTransactionsModal({
                     isDisabled={count === 0}
                     isLoading={loadingState === 'importing'}
                     onPress={() => {
-                      onImport(close);
+                      void onImport(close);
                     }}
                   >
                     <Trans count={count}>Import {{ count }} transactions</Trans>
@@ -1166,8 +1150,8 @@ export function ImportTransactionsModal({
 
 function getParseOptions(fileType: string, options: ParseFileOptions = {}) {
   if (fileType === 'csv') {
-    const { delimiter, hasHeaderRow, skipLines } = options;
-    return { delimiter, hasHeaderRow, skipLines };
+    const { delimiter, hasHeaderRow, skipStartLines, skipEndLines } = options;
+    return { delimiter, hasHeaderRow, skipStartLines, skipEndLines };
   }
   if (isOfxFile(fileType)) {
     const { fallbackMissingPayeeToMemo, importNotes } = options;

@@ -1,7 +1,8 @@
-FROM alpine:3.18 AS deps
+FROM node:22-alpine AS deps
 
 # Install required packages
-RUN apk add --no-cache nodejs yarn python3 openssl build-base
+RUN apk add --no-cache python3 openssl build-base
+RUN corepack enable
 
 WORKDIR /app
 
@@ -16,6 +17,7 @@ COPY packages/desktop-electron/package.json packages/desktop-electron/package.js
 COPY packages/eslint-plugin-actual/package.json packages/eslint-plugin-actual/package.json
 COPY packages/loot-core/package.json packages/loot-core/package.json
 COPY packages/sync-server/package.json packages/sync-server/package.json
+COPY packages/plugins-service/package.json packages/plugins-service/package.json
 
 # Avoiding memory issues with ARMv7
 RUN if [ "$(uname -m)" = "armv7l" ]; then yarn config set taskPoolConcurrency 2; yarn config set networkConcurrency 5; fi
@@ -36,7 +38,7 @@ RUN rm -rf ./node_modules/@actual-app/web ./node_modules/@actual-app/sync-server
 COPY packages/desktop-client/package.json ./node_modules/@actual-app/web/package.json
 COPY packages/desktop-client/build ./node_modules/@actual-app/web/build
 
-FROM alpine:3.18 AS prod
+FROM alpine:3.22 AS prod
 
 # Minimal runtime dependencies
 RUN apk add --no-cache nodejs tini

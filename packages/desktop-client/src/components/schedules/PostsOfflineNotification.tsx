@@ -4,12 +4,12 @@ import { useLocation } from 'react-router';
 
 import { Button } from '@actual-app/components/button';
 import { Paragraph } from '@actual-app/components/paragraph';
-import { Stack } from '@actual-app/components/stack';
+import { SpaceBetween } from '@actual-app/components/space-between';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 
-import { send } from 'loot-core/platform/client/fetch';
-import { type PayeeEntity } from 'loot-core/types/models';
+import { send } from 'loot-core/platform/client/connection';
+import type { PayeeEntity } from 'loot-core/types/models';
 
 import {
   Modal,
@@ -83,15 +83,13 @@ export function PostsOfflineNotification() {
           <Paragraph>
             <Trans>
               You can always manually post a transaction later for a due
-              schedule by selecting the schedule and clicking “Post transaction
-              today” in the action menu.
+              schedule by selecting the schedule and clicking "Post transaction
+              today" in the action menu.
             </Trans>
           </Paragraph>
-          <Stack
-            direction="row"
-            justify="flex-end"
-            style={{ marginTop: 20 }}
-            spacing={2}
+          <SpaceBetween
+            gap={10}
+            style={{ marginTop: 20, justifyContent: 'flex-end' }}
           >
             <Button onPress={close}>
               <Trans>Decide later</Trans>
@@ -100,13 +98,13 @@ export function PostsOfflineNotification() {
               variant="primary"
               autoFocus
               onPress={() => {
-                onPost();
+                void onPost();
                 close();
               }}
             >
               <Trans>Post transactions</Trans>
             </Button>
-          </Stack>
+          </SpaceBetween>
         </>
       )}
     </Modal>

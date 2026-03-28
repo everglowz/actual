@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Menu } from '@actual-app/components/menu';
 
-import { type CategoryEntity } from 'loot-core/types/models';
+import type { CategoryEntity } from 'loot-core/types/models';
 
 import { useEnvelopeSheetValue } from './EnvelopeBudgetComponents';
 
@@ -13,7 +13,7 @@ type IncomeMenuProps = {
   month: string;
   onBudgetAction: (month: string, action: string, arg?: unknown) => void;
   onShowActivity: (id: CategoryEntity['id'], month: string) => void;
-  onClose?: () => void;
+  onClose: () => void;
 };
 
 export function IncomeMenu({
@@ -21,7 +21,7 @@ export function IncomeMenu({
   month,
   onBudgetAction,
   onShowActivity,
-  onClose = () => {},
+  onClose,
 }: IncomeMenuProps) {
   const { t } = useTranslation();
   const carryover = useEnvelopeSheetValue(

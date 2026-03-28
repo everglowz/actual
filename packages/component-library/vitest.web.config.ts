@@ -5,7 +5,6 @@ import { defineConfig } from 'vitest/config';
 
 const resolveExtensions = [
   '.testing.ts',
-  '.web.ts',
   '.mjs',
   '.js',
   '.mts',
@@ -21,6 +20,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['src/**/*.web.test.(js|jsx|ts|tsx)'],
+    maxWorkers: 2,
   },
   resolve: {
     alias: [

@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 import { AccountPage } from './account-page';
 import { BudgetPage } from './budget-page';
@@ -19,7 +19,7 @@ export class ConfigurationPage {
   }
 
   async clickOnNoServer() {
-    await this.page.getByRole('button', { name: 'Don’t use a server' }).click();
+    await this.page.getByRole('button', { name: "Don't use a server" }).click();
   }
 
   async startFresh() {

@@ -1,4 +1,5 @@
-import React, { type ReactNode, type CSSProperties } from 'react';
+import React from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { styles } from '@actual-app/components/styles';
@@ -76,8 +77,7 @@ export function MobilePageHeader({
       >
         {leftContent}
       </View>
-      <View
-        role="heading"
+      <h1
         style={{
           textAlign: 'center',
           alignItems: 'center',
@@ -87,10 +87,13 @@ export function MobilePageHeader({
           fontSize: 17,
           fontWeight: 500,
           overflowY: 'auto',
+          display: 'flex',
+          margin: 0,
+          padding: 0,
         }}
       >
         {title}
-      </View>
+      </h1>
       <View
         style={{
           flexBasis: '25%',

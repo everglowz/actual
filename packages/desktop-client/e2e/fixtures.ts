@@ -1,4 +1,5 @@
-import { expect as baseExpect, type Locator } from '@playwright/test';
+import { expect as baseExpect } from '@playwright/test';
+import type { Locator } from '@playwright/test';
 
 export { test } from '@playwright/test';
 
@@ -14,7 +15,6 @@ export const expect = baseExpect.extend({
     }
 
     const config = {
-      // eslint-disable-next-line actual/typography
       mask: [locator.locator('[data-vrt-mask="true"]')],
       maxDiffPixels: 5,
     };

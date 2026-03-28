@@ -6,7 +6,8 @@ import { Card } from '@actual-app/components/card';
 import { SvgExpandArrow } from '@actual-app/components/icons/v0';
 import { SvgCheveronRight } from '@actual-app/components/icons/v1';
 import { Label } from '@actual-app/components/label';
-import { type CSSProperties, styles } from '@actual-app/components/styles';
+import { styles } from '@actual-app/components/styles';
+import type { CSSProperties } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
@@ -14,7 +15,7 @@ import { css } from '@emotion/css';
 import { AutoTextSize } from 'auto-text-size';
 
 import * as monthUtils from 'loot-core/shared/months';
-import { type CategoryGroupEntity } from 'loot-core/types/models';
+import type { CategoryGroupEntity } from 'loot-core/types/models';
 
 import { getColumnWidth, ROW_HEIGHT } from './BudgetTable';
 import { IncomeCategoryList } from './IncomeCategoryList';
@@ -124,22 +125,23 @@ function IncomeGroupHeader({
 }: IncomeGroupHeaderProps) {
   return (
     <View
+      data-testid="category-group-row"
+      onClick={() => onToggleCollapse(group.id)}
       style={{
+        cursor: 'pointer',
         height: ROW_HEIGHT,
         borderBottomWidth: 1,
         borderColor: theme.tableBorder,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
         paddingLeft: 5,
         paddingRight: 5,
-        opacity: !!group.hidden ? 0.5 : undefined,
+        opacity: group.hidden ? 0.5 : undefined,
         backgroundColor: monthUtils.isCurrentMonth(month)
           ? theme.budgetHeaderCurrentMonth
           : theme.budgetHeaderOtherMonth,
         ...style,
       }}
-      data-testid="category-group-row"
     >
       <IncomeGroupName
         group={group}
@@ -278,6 +280,7 @@ function IncomeGroupCells({ group }: IncomeGroupCellsProps) {
                   maxFontSizePx={12}
                   mode="oneline"
                   style={{
+                    ...styles.tnum,
                     width: columnWidth,
                     justifyContent: 'center',
                     alignItems: 'flex-end',
@@ -308,6 +311,7 @@ function IncomeGroupCells({ group }: IncomeGroupCellsProps) {
                 maxFontSizePx={12}
                 mode="oneline"
                 style={{
+                  ...styles.tnum,
                   width: columnWidth,
                   justifyContent: 'center',
                   alignItems: 'flex-end',

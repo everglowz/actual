@@ -1,5 +1,6 @@
-import { q, Query, QueryState } from '../../shared/query';
-import {
+import { q, Query } from '../../shared/query';
+import type { QueryState } from '../../shared/query';
+import type {
   AccountEntity,
   CategoryGroupEntity,
   PayeeEntity,
@@ -11,7 +12,8 @@ import { mutator } from '../mutators';
 import { undoable } from '../undo';
 
 import { exportQueryToCSV, exportToCSV } from './export/export-to-csv';
-import { parseFile, ParseFileOptions } from './import/parse-file';
+import { parseFile } from './import/parse-file';
+import type { ParseFileOptions } from './import/parse-file';
 import { mergeTransactions } from './merge';
 
 import { batchUpdateTransactions } from '.';

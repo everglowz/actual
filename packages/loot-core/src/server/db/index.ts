@@ -1,13 +1,13 @@
 // @ts-strict-ignore
 import {
-  makeClock,
-  setClock,
-  serializeClock,
   deserializeClock,
   makeClientId,
+  makeClock,
+  serializeClock,
+  setClock,
   Timestamp,
 } from '@actual-app/crdt';
-import { Database } from '@jlongster/sql.js';
+import type { Database, Statement } from '@jlongster/sql.js';
 import { LRUCache } from 'lru-cache';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -15,26 +15,26 @@ import * as fs from '../../platform/server/fs';
 import * as sqlite from '../../platform/server/sqlite';
 import * as monthUtils from '../../shared/months';
 import { groupById } from '../../shared/util';
-import { TransactionEntity } from '../../types/models';
-import { WithRequired } from '../../types/util';
+import type { TransactionEntity } from '../../types/models';
+import type { WithRequired } from '../../types/util';
 import {
-  schema,
-  schemaConfig,
   convertForInsert,
   convertForUpdate,
   convertFromSelect,
+  schema,
+  schemaConfig,
 } from '../aql';
 import {
-  toDateRepr,
   accountModel,
-  categoryModel,
   categoryGroupModel,
+  categoryModel,
   payeeModel,
+  toDateRepr,
 } from '../models';
-import { sendMessages, batchMessages } from '../sync';
+import { batchMessages, sendMessages } from '../sync';
 
 import { shoveSortOrders, SORT_INCREMENT } from './sort';
-import {
+import type {
   DbAccount,
   DbBank,
   DbCategory,
@@ -64,7 +64,7 @@ export function getDatabasePath() {
 
 export async function openDatabase(id?: string) {
   if (db) {
-    await sqlite.closeDatabase(db);
+    sqlite.closeDatabase(db);
   }
 
   dbPath = fs.join(fs.getBudgetDir(id), 'db.sqlite');
@@ -73,9 +73,9 @@ export async function openDatabase(id?: string) {
   // await execQuery('PRAGMA journal_mode = WAL');
 }
 
-export async function closeDatabase() {
+export function closeDatabase() {
   if (db) {
-    await sqlite.closeDatabase(db);
+    sqlite.closeDatabase(db);
     setDatabase(null);
   }
 }
@@ -101,7 +101,7 @@ export async function loadClock() {
     const clock = makeClock(timestamp);
     setClock(clock);
 
-    await runQuery('INSERT INTO messages_clock (id, clock) VALUES (?, ?)', [
+    runQuery('INSERT INTO messages_clock (id, clock) VALUES (?, ?)', [
       1,
       serializeClock(clock),
     ]);
@@ -110,19 +110,19 @@ export async function loadClock() {
 
 // Functions
 export function runQuery(
-  sql: string,
+  sql: string | Statement,
   params?: Array<string | number>,
   fetchAll?: false,
 ): { changes: unknown };
 
 export function runQuery<T>(
-  sql: string,
+  sql: string | Statement,
   params: Array<string | number> | undefined,
   fetchAll: true,
 ): T[];
 
 export function runQuery<T>(
-  sql: string,
+  sql: string | Statement,
   params: (string | number)[],
   fetchAll: boolean,
 ) {
@@ -139,7 +139,7 @@ export function execQuery(sql: string) {
 
 // This manages an LRU cache of prepared query statements. This is
 // only needed in hot spots when you are running lots of queries.
-let _queryCache = new LRUCache<string, string>({ max: 100 });
+let _queryCache = new LRUCache<string, Statement>({ max: 100 });
 export function cache(sql: string) {
   const cached = _queryCache.get(sql);
   if (cached) {
@@ -152,7 +152,7 @@ export function cache(sql: string) {
 }
 
 function resetQueryCache() {
-  _queryCache = new LRUCache<string, string>({ max: 100 });
+  _queryCache = new LRUCache<string, Statement>({ max: 100 });
 }
 
 export function transaction(fn: () => void) {
@@ -171,7 +171,7 @@ export async function all<T>(sql: string, params?: (string | number)[]) {
 }
 
 export async function first<T>(sql, params?: (string | number)[]) {
-  const arr = await runQuery<T>(sql, params, true);
+  const arr = runQuery<T>(sql, params, true);
   return arr.length === 0 ? null : arr[0];
 }
 
@@ -190,14 +190,10 @@ export async function run(sql, params?: (string | number)[]) {
 }
 
 export async function select(table, id) {
-  const rows = await runQuery(
-    'SELECT * FROM ' + table + ' WHERE id = ?',
-    [id],
-    true,
-  );
+  const rows = runQuery('SELECT * FROM ' + table + ' WHERE id = ?', [id], true);
   // TODO: In the next phase, we will make this function generic
   // and pass the type of the return type to `runQuery`.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   return rows[0] as any;
 }
 
@@ -274,12 +270,12 @@ export async function deleteAll(table: string) {
 }
 
 export async function selectWithSchema(table, sql, params) {
-  const rows = await runQuery(sql, params, true);
+  const rows = runQuery(sql, params, true);
   const convertedRows = rows
     .map(row => convertFromSelect(schema, schemaConfig, table, row))
     .filter(Boolean);
   // TODO: Make convertFromSelect generic so we don't need this cast
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   return convertedRows as any[];
 }
 
@@ -331,13 +327,13 @@ export async function getCategoriesGrouped(
     ? `cg.id IN (${toSqlQueryParameters(ids)}) AND`
     : '';
   const categoryGroupQuery = `SELECT cg.* FROM category_groups cg WHERE ${categoryGroupWhereIn} cg.tombstone = 0
-    ORDER BY cg.is_income, cg.sort_order, cg.id`;
+                              ORDER BY cg.is_income, cg.sort_order, cg.id`;
 
   const categoryWhereIn = ids
     ? `c.cat_group IN (${toSqlQueryParameters(ids)}) AND`
     : '';
   const categoryQuery = `SELECT c.* FROM categories c WHERE ${categoryWhereIn} c.tombstone = 0
-    ORDER BY c.sort_order, c.id`;
+                         ORDER BY c.sort_order, c.id`;
 
   const groups = ids
     ? await all<DbCategoryGroup>(categoryGroupQuery, [...ids])
@@ -365,7 +361,7 @@ export async function insertCategoryGroup(
   );
   if (existingGroup) {
     throw new Error(
-      `A ${existingGroup.hidden ? 'hidden ' : ''}’${existingGroup.name}’ category group already exists.`,
+      `A ${existingGroup.hidden ? 'hidden ' : ''}'${existingGroup.name}' category group already exists.`,
     );
   }
 
@@ -385,9 +381,20 @@ export async function insertCategoryGroup(
   return id;
 }
 
-export function updateCategoryGroup(
-  group: WithRequired<Partial<DbCategoryGroup>, 'name' | 'is_income'>,
+export async function updateCategoryGroup(
+  group: WithRequired<Partial<DbCategoryGroup>, 'id' | 'name' | 'is_income'>,
 ) {
+  const existingGroup = await first<
+    Pick<DbCategoryGroup, 'id' | 'name' | 'hidden'>
+  >(
+    `SELECT id, name, hidden FROM category_groups WHERE UPPER(name) = ? AND id != ? AND tombstone = 0 LIMIT 1`,
+    [group.name.toUpperCase(), group.id],
+  );
+  if (existingGroup) {
+    throw new Error(
+      `A ${existingGroup.hidden ? 'hidden ' : ''}'${existingGroup.name}' category group already exists.`,
+    );
+  }
   group = categoryGroupModel.validate(group, { update: true });
   return update('category_groups', group);
 }
@@ -436,7 +443,7 @@ export async function insertCategory(
     );
     if (existingCatInGroup) {
       throw new Error(
-        `Category ‘${category.name}’ already exists in group ‘${category.cat_group}’`,
+        `Category '${category.name}' already exists in group '${category.cat_group}'`,
       );
     }
 
@@ -541,6 +548,10 @@ export async function getPayee(id: DbPayee['id']) {
 
 export async function getAccount(id: DbAccount['id']) {
   return first<DbAccount>(`SELECT * FROM accounts WHERE id = ?`, [id]);
+}
+
+export async function getCategory(id: DbCategory['id']) {
+  return first<DbCategory>(`SELECT * FROM categories WHERE id = ?`, [id]);
 }
 
 export async function insertPayee(
@@ -663,7 +674,6 @@ export function getCommonPayees() {
   `);
 }
 
-/* eslint-disable actual/typography */
 const orphanedPayeesQuery = `
   SELECT p.id
   FROM payees p
@@ -681,7 +691,6 @@ const orphanedPayeesQuery = `
         AND json_extract(cond.value, '$.value') = pm.targetId
     );
 `;
-/* eslint-enable actual/typography */
 
 export function syncGetOrphanedPayees() {
   return all<Pick<DbPayee, 'id'>>(orphanedPayeesQuery);
@@ -758,9 +767,9 @@ export async function moveAccount(
   const { updates, sort_order } = shoveSortOrders(accounts, targetId);
   await batchMessages(async () => {
     for (const info of updates) {
-      update('accounts', info);
+      void update('accounts', info);
     }
-    update('accounts', { id, sort_order });
+    void update('accounts', { id, sort_order });
   });
 }
 
@@ -837,10 +846,10 @@ export function updateTag(tag) {
 export function findTags() {
   return all<{ notes: string }>(
     `
-    SELECT notes
-    FROM transactions
-    WHERE tombstone = 0 AND notes LIKE ?
-  `,
+      SELECT notes
+      FROM transactions
+      WHERE tombstone = 0 AND notes LIKE ?
+    `,
     ['%#%'],
   );
 }

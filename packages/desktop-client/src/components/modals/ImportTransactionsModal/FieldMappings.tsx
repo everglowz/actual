@@ -1,16 +1,13 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Stack } from '@actual-app/components/stack';
+import { SpaceBetween } from '@actual-app/components/space-between';
 import { View } from '@actual-app/components/view';
 
 import { SelectField } from './SelectField';
 import { SubLabel } from './SubLabel';
-import {
-  stripCsvImportTransaction,
-  type FieldMapping,
-  type ImportTransaction,
-} from './utils';
+import { stripCsvImportTransaction } from './utils';
+import type { FieldMapping, ImportTransaction } from './utils';
 
 import { SectionLabel } from '@desktop-client/components/forms';
 
@@ -51,13 +48,8 @@ export function FieldMappings({
   return (
     <View>
       <SectionLabel title={t('CSV FIELDS')} />
-      <Stack
-        direction="row"
-        align="flex-start"
-        spacing={1}
-        style={{ marginTop: 5 }}
-      >
-        <View style={{ flex: 1, marginRight: 10 }}>
+      <SpaceBetween gap={10} style={{ marginTop: 5, alignItems: 'flex-start' }}>
+        <View style={{ flex: 1 }}>
           <SubLabel title={t('Date')} />
           <SelectField
             options={options}
@@ -67,7 +59,7 @@ export function FieldMappings({
             firstTransaction={transactions[0]}
           />
         </View>
-        <View style={{ flex: 1, marginRight: 10 }}>
+        <View style={{ flex: 1 }}>
           <SubLabel title={t('Payee')} />
           <SelectField
             options={options}
@@ -77,7 +69,7 @@ export function FieldMappings({
             firstTransaction={transactions[0]}
           />
         </View>
-        <View style={{ flex: 1, marginRight: 10 }}>
+        <View style={{ flex: 1 }}>
           <SubLabel title={t('Notes')} />
           <SelectField
             options={options}
@@ -87,7 +79,7 @@ export function FieldMappings({
             firstTransaction={transactions[0]}
           />
         </View>
-        <View style={{ flex: 1, marginRight: 10 }}>
+        <View style={{ flex: 1 }}>
           <SubLabel title={t('Category')} />
           <SelectField
             options={options}
@@ -146,7 +138,7 @@ export function FieldMappings({
             </View>
           </>
         )}
-      </Stack>
+      </SpaceBetween>
     </View>
   );
 }

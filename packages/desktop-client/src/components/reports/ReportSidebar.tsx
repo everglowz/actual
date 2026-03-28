@@ -4,7 +4,8 @@ import { Trans, useTranslation } from 'react-i18next';
 import { Button } from '@actual-app/components/button';
 import { Menu } from '@actual-app/components/menu';
 import { Popover } from '@actual-app/components/popover';
-import { Select, type SelectOption } from '@actual-app/components/select';
+import { Select } from '@actual-app/components/select';
+import type { SelectOption } from '@actual-app/components/select';
 import { SpaceBetween } from '@actual-app/components/space-between';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
@@ -13,20 +14,22 @@ import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
 
 import * as monthUtils from 'loot-core/shared/months';
-import {
-  type CategoryEntity,
-  type CategoryGroupEntity,
-  type TimeFrame,
-  type CustomReportEntity,
-  type sortByOpType,
+import type {
+  CategoryEntity,
+  CategoryGroupEntity,
+  CustomReportEntity,
+  sortByOpType,
+  TimeFrame,
+  TransactionEntity,
 } from 'loot-core/types/models';
-import { type SyncedPrefs } from 'loot-core/types/prefs';
+import type { SyncedPrefs } from 'loot-core/types/prefs';
 
 import { CategorySelector } from './CategorySelector';
 import { defaultsList, disabledList } from './disabledList';
 import { getLiveRange } from './getLiveRange';
 import { ModeButton } from './ModeButton';
-import { type dateRangeProps, ReportOptions } from './ReportOptions';
+import { ReportOptions } from './ReportOptions';
+import type { dateRangeProps } from './ReportOptions';
 import { validateEnd, validateStart } from './reportRanges';
 import { setSessionReport } from './setSessionReport';
 
@@ -39,19 +42,26 @@ type ReportSidebarProps = {
   categories: { list: CategoryEntity[]; grouped: CategoryGroupEntity[] };
   dateRangeLine: number;
   allIntervals: { name: string; pretty: string }[];
-  setDateRange: (value: string) => void;
-  setGraphType: (value: string) => void;
-  setGroupBy: (value: string) => void;
-  setInterval: (value: string) => void;
-  setBalanceType: (value: string) => void;
-  setSortBy: (value: string) => void;
-  setMode: (value: string) => void;
-  setIsDateStatic: (value: boolean) => void;
-  setShowEmpty: (value: boolean) => void;
-  setShowOffBudget: (value: boolean) => void;
-  setShowHiddenCategories: (value: boolean) => void;
-  setShowUncategorized: (value: boolean) => void;
-  setIncludeCurrentInterval: (value: boolean) => void;
+  setDateRange: (value: CustomReportEntity['dateRange']) => void;
+  setGraphType: (value: CustomReportEntity['graphType']) => void;
+  setGroupBy: (value: CustomReportEntity['groupBy']) => void;
+  setInterval: (value: CustomReportEntity['interval']) => void;
+  setBalanceType: (value: CustomReportEntity['balanceType']) => void;
+  setSortBy: (value: CustomReportEntity['sortBy']) => void;
+  setMode: (value: CustomReportEntity['mode']) => void;
+  setIsDateStatic: (value: CustomReportEntity['isDateStatic']) => void;
+  setShowEmpty: (value: CustomReportEntity['showEmpty']) => void;
+  setShowOffBudget: (value: CustomReportEntity['showOffBudget']) => void;
+  setShowHiddenCategories: (
+    value: CustomReportEntity['showHiddenCategories'],
+  ) => void;
+  setShowUncategorized: (
+    value: CustomReportEntity['showUncategorized'],
+  ) => void;
+  setTrimIntervals: (value: CustomReportEntity['trimIntervals']) => void;
+  setIncludeCurrentInterval: (
+    value: CustomReportEntity['includeCurrentInterval'],
+  ) => void;
   setSelectedCategories: (value: CategoryEntity[]) => void;
   onChangeDates: (
     dateStart: string,
@@ -62,8 +72,8 @@ type ReportSidebarProps = {
   disabledItems: (type: string) => string[];
   defaultItems: (item: string) => void;
   defaultModeItems: (graph: string, item: string) => void;
-  earliestTransaction: string;
-  latestTransaction: string;
+  earliestTransaction: TransactionEntity['date'];
+  latestTransaction: TransactionEntity['date'];
   firstDayOfWeekIdx: SyncedPrefs['firstDayOfWeekIdx'];
   isComplexCategoryCondition?: boolean;
 };
@@ -87,6 +97,7 @@ export function ReportSidebar({
   setShowHiddenCategories,
   setIncludeCurrentInterval,
   setShowUncategorized,
+  setTrimIntervals,
   setSelectedCategories,
   onChangeDates,
   onReportChange,
@@ -407,6 +418,12 @@ export function ReportSidebar({
                     !customReportItems.showUncategorized,
                   );
                   setShowUncategorized(!customReportItems.showUncategorized);
+                } else if (type === 'trim-intervals') {
+                  setSessionReport(
+                    'trimIntervals',
+                    !customReportItems.trimIntervals,
+                  );
+                  setTrimIntervals(!customReportItems.trimIntervals);
                 }
               }}
               items={[
@@ -444,6 +461,14 @@ export function ReportSidebar({
                   text: t('Show uncategorized'),
                   tooltip: t('Show uncategorized transactions'),
                   toggle: customReportItems.showUncategorized,
+                },
+                {
+                  name: 'trim-intervals',
+                  text: t('Trim intervals'),
+                  tooltip: t(
+                    'Trim empty intervals at the start and end of the report',
+                  ),
+                  toggle: customReportItems.trimIntervals,
                 },
               ]}
             />

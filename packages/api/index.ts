@@ -6,8 +6,8 @@ import type {
 // loot-core types
 import type { InitConfig } from 'loot-core/server/main';
 
+// oxlint-disable-next-line typescript/ban-ts-comment
 // @ts-ignore: bundle not available until we build it
-// eslint-disable-next-line import/extensions
 import * as bundle from './app/bundle.api.js';
 import * as injected from './injected';
 import { validateNodeVersion } from './validateNodeVersion';
@@ -44,7 +44,7 @@ export async function shutdown() {
   if (actualApp) {
     try {
       await actualApp.send('sync');
-    } catch (e) {
+    } catch {
       // most likely that no budget is loaded, so the sync failed
     }
     await actualApp.send('close-budget');

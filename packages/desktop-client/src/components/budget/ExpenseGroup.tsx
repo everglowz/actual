@@ -1,19 +1,29 @@
 // @ts-strict-ignore
-import React, { type ComponentProps } from 'react';
+import React from 'react';
+import type { ComponentProps } from 'react';
 
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
+import type {
+  CategoryEntity,
+  CategoryGroupEntity,
+} from 'loot-core/types/models';
+
 import { RenderMonths } from './RenderMonths';
 import { SidebarGroup } from './SidebarGroup';
 
+import { useBudgetComponents } from '.';
+
 import {
+  DropHighlight,
   useDraggable,
   useDroppable,
-  DropHighlight,
-  type OnDragChangeCallback,
-  type OnDropCallback,
-  type DragState,
+} from '@desktop-client/components/sort';
+import type {
+  DragState,
+  OnDragChangeCallback,
+  OnDropCallback,
 } from '@desktop-client/components/sort';
 import { Row, ROW_HEIGHT } from '@desktop-client/components/table';
 import { useDragRef } from '@desktop-client/hooks/useDragRef';
@@ -22,8 +32,7 @@ type ExpenseGroupProps = {
   group: ComponentProps<typeof SidebarGroup>['group'];
   collapsed: boolean;
   editingCell: { id: string; cell: string } | null;
-  dragState: DragState<ComponentProps<typeof SidebarGroup>['group']>;
-  MonthComponent: ComponentProps<typeof RenderMonths>['component'];
+  dragState: DragState<CategoryEntity> | DragState<CategoryGroupEntity> | null;
   onEditName?: ComponentProps<typeof SidebarGroup>['onEdit'];
   onSave?: ComponentProps<typeof SidebarGroup>['onSave'];
   onDelete?: ComponentProps<typeof SidebarGroup>['onDelete'];
@@ -44,7 +53,6 @@ export function ExpenseGroup({
   collapsed,
   editingCell,
   dragState,
-  MonthComponent,
   onEditName,
   onSave,
   onDelete,
@@ -82,13 +90,15 @@ export function ExpenseGroup({
     },
   });
 
+  const { ExpenseGroupComponent: MonthComponent } = useBudgetComponents();
+
   return (
     <Row
-      collapsed={true}
+      collapsed
       style={{
         fontWeight: 600,
         opacity: group.hidden ? 0.33 : undefined,
-        backgroundColor: theme.tableRowHeaderBackground,
+        backgroundColor: theme.budgetHeaderCurrentMonth, //use budget colors
       }}
     >
       {dragState && !dragState.preview && dragState.type === 'group' && (
@@ -135,7 +145,9 @@ export function ExpenseGroup({
           onApplyBudgetTemplatesInGroup={onApplyBudgetTemplatesInGroup}
           onShowNewCategory={onShowNewCategory}
         />
-        <RenderMonths component={MonthComponent} args={{ group }} />
+        <RenderMonths>
+          {({ month }) => <MonthComponent month={month} group={group} />}
+        </RenderMonths>
       </View>
     </Row>
   );

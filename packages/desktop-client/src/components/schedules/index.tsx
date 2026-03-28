@@ -5,11 +5,12 @@ import { Button } from '@actual-app/components/button';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { send } from 'loot-core/platform/client/fetch';
+import { send } from 'loot-core/platform/client/connection';
 import { q } from 'loot-core/shared/query';
-import { type ScheduleEntity } from 'loot-core/types/models';
+import type { ScheduleEntity } from 'loot-core/types/models';
 
-import { type ScheduleItemAction, SchedulesTable } from './SchedulesTable';
+import { SchedulesTable } from './SchedulesTable';
+import type { ScheduleItemAction } from './SchedulesTable';
 
 import { Search } from '@desktop-client/components/common/Search';
 import { Page } from '@desktop-client/components/Page';
@@ -113,7 +114,7 @@ export function Schedules() {
         schedules={schedules}
         filter={filter}
         statuses={statuses}
-        allowCompleted={true}
+        allowCompleted
         onSelect={onEdit}
         onAction={onAction}
         style={{ backgroundColor: theme.tableBackground }}

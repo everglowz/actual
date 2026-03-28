@@ -1,9 +1,9 @@
 import { join } from 'path';
 
-import { type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
-import { type AccountPage } from './page-models/account-page';
+import type { AccountPage } from './page-models/account-page';
 import { ConfigurationPage } from './page-models/configuration-page';
 import { Navigation } from './page-models/navigation';
 
@@ -23,7 +23,7 @@ test.describe('Accounts', () => {
   });
 
   test.afterEach(async () => {
-    await page.close();
+    await page?.close();
   });
 
   test('creates a new account and views the initial balance transaction', async () => {
@@ -123,11 +123,14 @@ test.describe('Accounts', () => {
       const fileChooser = await fileChooserPromise;
       await fileChooser.setFiles(join(__dirname, 'data/test.csv'));
 
-      if (screenshot) await expect(page).toMatchThemeScreenshots();
-
       const importButton = accountPage.page.getByRole('button', {
         name: /Import \d+ transactions/,
       });
+
+      await importButton.waitFor({ state: 'visible' });
+
+      if (screenshot) await expect(page).toMatchThemeScreenshots();
+
       await importButton.click();
 
       await expect(importButton).not.toBeVisible();
@@ -146,16 +149,16 @@ test.describe('Accounts', () => {
       const fileChooser = await fileChooserPromise;
       await fileChooser.setFiles(join(__dirname, 'data/test.csv'));
 
-      await expect(page).toMatchThemeScreenshots();
-
       const importButton = accountPage.page.getByRole('button', {
         name: /Import \d+ transactions/,
       });
 
+      await importButton.waitFor({ state: 'visible' });
+
+      await expect(page).toMatchThemeScreenshots();
+
       await expect(importButton).toBeDisabled();
-      await expect(await importButton.innerText()).toMatch(
-        /Import 0 transactions/,
-      );
+      expect(await importButton.innerText()).toMatch(/Import 0 transactions/);
 
       await accountPage.page.getByRole('button', { name: 'Close' }).click();
 

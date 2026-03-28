@@ -12,40 +12,40 @@ import {
 import * as monthUtils from '../shared/months';
 import { q } from '../shared/query';
 import {
+  deleteTransaction,
   ungroupTransactions,
   updateTransaction,
-  deleteTransaction,
 } from '../shared/transactions';
 import { integerToAmount } from '../shared/util';
-import { Handlers } from '../types/handlers';
-import {
+import type { Handlers } from '../types/handlers';
+import type {
   AccountEntity,
   CategoryGroupEntity,
   ScheduleEntity,
 } from '../types/models';
-import { ServerHandlers } from '../types/server-handlers';
+import type { ServerHandlers } from '../types/server-handlers';
 
 import { addTransactions } from './accounts/sync';
 import {
   accountModel,
   budgetModel,
-  categoryModel,
   categoryGroupModel,
+  categoryModel,
   payeeModel,
   remoteFileModel,
   scheduleModel,
-  APIScheduleEntity,
-  AmountOPType,
+  tagModel,
 } from './api-models';
+import type { AmountOPType, APIScheduleEntity } from './api-models';
 import { aqlQuery } from './aql';
 import * as cloudStorage from './cloud-storage';
-import { type RemoteFile } from './cloud-storage';
+import type { RemoteFile } from './cloud-storage';
 import * as db from './db';
 import { APIError } from './errors';
 import { runMutator } from './mutators';
 import * as prefs from './prefs';
 import * as sheet from './sheet';
-import { setSyncingMode, batchMessages } from './sync';
+import { batchMessages, setSyncingMode } from './sync';
 
 let IMPORT_MODE = false;
 
@@ -109,11 +109,11 @@ async function validateExpenseCategory(debug, id) {
   );
 
   if (!row) {
-    throw APIError(`${debug}: category “${id}” does not exist`);
+    throw APIError(`${debug}: category "${id}" does not exist`);
   }
 
   if (row.is_income !== 0) {
-    throw APIError(`${debug}: category “${id}” is not an expense category`);
+    throw APIError(`${debug}: category "${id}" is not an expense category`);
   }
 }
 
@@ -134,13 +134,13 @@ handlers['api/batch-budget-start'] = async function () {
   // transaction. Updating spreadsheet cells doesn't go through the
   // syncing layer in that case.
   if (IMPORT_MODE) {
-    db.asyncTransaction(() => {
+    void db.asyncTransaction(() => {
       return new Promise((resolve, reject) => {
         batchPromise = { resolve, reject };
       });
     });
   } else {
-    batchMessages(() => {
+    void batchMessages(() => {
       return new Promise((resolve, reject) => {
         batchPromise = { resolve, reject };
       });
@@ -193,7 +193,7 @@ handlers['api/download-budget'] = async function ({ syncId, password }) {
     const file = files.find(f => f.groupId === syncId);
     if (!file) {
       throw new Error(
-        `Budget “${syncId}” not found. Check the sync id of your budget in the Advanced section of the settings page.`,
+        `Budget "${syncId}" not found. Check the sync id of your budget in the Advanced section of the settings page.`,
       );
     }
 
@@ -224,7 +224,7 @@ handlers['api/download-budget'] = async function ({ syncId, password }) {
     await handlers['load-budget']({ id: localBudget.id });
     const result = await handlers['sync-budget']();
     if (result.error) {
-      throw new Error(getSyncError(result.error, localBudget.id));
+      throw new Error(getSyncError(result.error.reason, localBudget.id));
     }
     return;
   }
@@ -253,7 +253,7 @@ handlers['api/sync'] = async function () {
   const { id } = prefs.getPrefs();
   const result = await handlers['sync-budget']();
   if (result.error) {
-    throw new Error(getSyncError(result.error, id));
+    throw new Error(getSyncError(result.error.reason, id));
   }
 };
 
@@ -304,8 +304,8 @@ handlers['api/start-import'] = async function ({ budgetName }) {
   await handlers['create-budget']({ budgetName, avoidUpload: true });
 
   // Clear out the default expense categories
-  await db.runQuery('DELETE FROM categories WHERE is_income = 0');
-  await db.runQuery('DELETE FROM category_groups WHERE is_income = 0');
+  db.runQuery('DELETE FROM categories WHERE is_income = 0');
+  db.runQuery('DELETE FROM category_groups WHERE is_income = 0');
 
   // Turn syncing off
   setSyncingMode('import');
@@ -329,7 +329,9 @@ handlers['api/finish-import'] = async function () {
   await handlers['get-budget-bounds']();
   await sheet.waitOnSpreadsheet();
 
-  await cloudStorage.upload().catch(() => {});
+  await cloudStorage.upload().catch(() => {
+    // Ignore errors
+  });
 
   connection.send('finish-import');
   IMPORT_MODE = false;
@@ -569,8 +571,7 @@ handlers['api/transaction-delete'] = withMutation(async function ({ id }) {
 
 handlers['api/accounts-get'] = async function () {
   checkFileOpen();
-  // TODO: Force cast to AccountEntity. This should be updated to an AQL query.
-  const accounts = (await db.getAccounts()) as AccountEntity[];
+  const accounts: AccountEntity[] = await handlers['accounts-get']();
   return accounts.map(account => accountModel.toExternal(account));
 };
 
@@ -739,6 +740,32 @@ handlers['api/payees-merge'] = withMutation(async function ({
   return handlers['payees-merge']({ targetId, mergeIds });
 });
 
+handlers['api/tags-get'] = async function () {
+  checkFileOpen();
+  const tags = await handlers['tags-get']();
+  return tags.map(tagModel.toExternal);
+};
+
+handlers['api/tag-create'] = withMutation(async function ({ tag }) {
+  checkFileOpen();
+  const result = await handlers['tags-create']({
+    tag: tag.tag,
+    color: tag.color,
+    description: tag.description,
+  });
+  return result.id;
+});
+
+handlers['api/tag-update'] = withMutation(async function ({ id, fields }) {
+  checkFileOpen();
+  await handlers['tags-update']({ id, ...tagModel.fromExternal(fields) });
+});
+
+handlers['api/tag-delete'] = withMutation(async function ({ id }) {
+  checkFileOpen();
+  await handlers['tags-delete']({ id });
+});
+
 handlers['api/rules-get'] = async function () {
   checkFileOpen();
   return handlers['rules-get']();
@@ -784,10 +811,10 @@ handlers['api/schedules-get'] = async function () {
 };
 
 handlers['api/schedule-create'] = withMutation(async function (
-  schedule: APIScheduleEntity,
+  schedule: Omit<APIScheduleEntity, 'id'>,
 ) {
   checkFileOpen();
-  const internalSchedule = scheduleModel.fromExternal(schedule);
+  const internalSchedule = scheduleModel.fromExternal({ ...schedule, id: '' });
   const partialSchedule = {
     name: internalSchedule.name,
     posts_transaction: internalSchedule.posts_transaction,

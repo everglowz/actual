@@ -2,14 +2,18 @@ import https from 'https';
 
 import express from 'express';
 
-import { handleError } from '../app-gocardless/util/handle-error.js';
-import { SecretName, secretsService } from '../services/secrets-service.js';
-import { requestLoggerMiddleware } from '../util/middlewares.js';
+import { handleError } from '../app-gocardless/util/handle-error';
+import { SecretName, secretsService } from '../services/secrets-service';
+import {
+  requestLoggerMiddleware,
+  validateSessionMiddleware,
+} from '../util/middlewares';
 
 const app = express();
 export { app as handlers };
-app.use(express.json());
 app.use(requestLoggerMiddleware);
+app.use(express.json());
+app.use(validateSessionMiddleware);
 
 app.post(
   '/status',
@@ -294,7 +298,7 @@ function parseAccessKey(accessKey) {
   let password = null;
   let baseUrl = null;
   if (!accessKey || !accessKey.match(/^.*\/\/.*:.*@.*$/)) {
-    console.log(`Invalid SimpleFIN access key: ${accessKey}`);
+    console.log('Invalid SimpleFIN access key');
     throw new Error(`Invalid access key`);
   }
   [scheme, rest] = accessKey.split('//');

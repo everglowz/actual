@@ -1,5 +1,6 @@
-import React, { type ReactNode, useEffect } from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import React, { useEffect } from 'react';
+import type { ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
@@ -10,7 +11,7 @@ import { tokens } from '@actual-app/components/tokens';
 import { View } from '@actual-app/components/view';
 import { css } from '@emotion/css';
 
-import { listen } from 'loot-core/platform/client/fetch';
+import { listen } from 'loot-core/platform/client/connection';
 import { isElectron } from 'loot-core/shared/environment';
 
 import { AuthSettings } from './AuthSettings';
@@ -43,14 +44,14 @@ import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
 import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
 import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
 import { loadPrefs } from '@desktop-client/prefs/prefsSlice';
-import { useSelector, useDispatch } from '@desktop-client/redux';
+import { useDispatch, useSelector } from '@desktop-client/redux';
 
 function About() {
   const version = useServerVersion();
   const versionInfo = useSelector(state => state.app.versionInfo);
   const [notifyWhenUpdateIsAvailable, setNotifyWhenUpdateIsAvailablePref] =
     useGlobalPref('notifyWhenUpdateIsAvailable', () => {
-      dispatch(getLatestAppVersion());
+      void dispatch(getLatestAppVersion());
     });
   const dispatch = useDispatch();
 
@@ -98,7 +99,7 @@ function About() {
         ) : (
           <Text style={{ color: theme.noticeText, fontWeight: 600 }}>
             {notifyWhenUpdateIsAvailable ? (
-              <Trans>You’re up to date!</Trans>
+              <Trans>You're up to date!</Trans>
             ) : null}
           </Text>
         )}
@@ -179,15 +180,15 @@ export function Settings() {
   const [_, setDefaultCurrencyCodePref] = useSyncedPref('defaultCurrencyCode');
 
   const onCloseBudget = () => {
-    dispatch(closeBudget());
+    void dispatch(closeBudget());
   };
 
   useEffect(() => {
     const unlisten = listen('prefs-updated', () => {
-      dispatch(loadPrefs());
+      void dispatch(loadPrefs());
     });
 
-    dispatch(loadPrefs());
+    void dispatch(loadPrefs());
     return () => unlisten();
   }, [dispatch]);
 
@@ -212,16 +213,22 @@ export function Settings() {
           marginTop: 10,
           flexShrink: 0,
           maxWidth: 530,
+          width: '100%',
           gap: 30,
           paddingBottom: MOBILE_NAV_HEIGHT,
         }}
       >
         {isNarrowWidth && (
           <View
-            style={{ gap: 10, flexDirection: 'row', alignItems: 'flex-end' }}
+            style={{
+              gap: 10,
+              flexDirection: 'row',
+              alignItems: 'flex-end',
+              width: '100%',
+            }}
           >
             {/* The only spot to close a budget on mobile */}
-            <FormField>
+            <FormField style={{ flex: 1 }}>
               <FormLabel title={t('Budget name')} />
               <Input
                 value={budgetName}
@@ -229,7 +236,7 @@ export function Settings() {
                 style={{ color: theme.buttonNormalDisabledText }}
               />
             </FormField>
-            <Button onPress={onCloseBudget}>
+            <Button onPress={onCloseBudget} style={{ flexShrink: 0 }}>
               <Trans>Switch file</Trans>
             </Button>
           </View>

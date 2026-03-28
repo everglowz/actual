@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useMemo } from 'react';
 
 import { evalArithmetic } from 'loot-core/shared/arithmetic';
-import { type Currency, getCurrency } from 'loot-core/shared/currencies';
+import { getCurrency } from 'loot-core/shared/currencies';
+import type { Currency } from 'loot-core/shared/currencies';
 import {
   amountToInteger,
   currencyToAmount,
   getNumberFormat,
-  type IntegerAmount,
   integerToAmount,
   integerToCurrency,
   parseNumberFormat,
   setNumberFormat,
 } from 'loot-core/shared/util';
+import type { IntegerAmount } from 'loot-core/shared/util';
 
 import { useSyncedPref } from './useSyncedPref';
 
@@ -41,13 +42,13 @@ export type FormatResult = {
 function format(
   value: unknown,
   type: FormatType,
-  formatter: Intl.NumberFormat,
+  formatter: { format: (value: number) => string },
   decimalPlaces: number,
 ): FormatResult {
   switch (type) {
     case 'string': {
       const val = JSON.stringify(value);
-      // eslint-disable-next-line actual/typography
+
       if (val.charAt(0) === '"' && val.charAt(val.length - 1) === '"') {
         return { formattedString: val.slice(1, -1) };
       }
@@ -72,7 +73,7 @@ function format(
         // This case is generally flawed, but we need to support it for
         // backwards compatibility for now.
         // For example, it is not clear how the string might look like
-        // The Budget sends 12300, if ther user inputs 123.00, but
+        // The Budget sends 12300, if the user inputs 123.00, but
         // there might be other components that send 123 with the same user input.
         // Ideally the string case will be removed in the future. We should always
         // use the IntegerAmount.
@@ -149,7 +150,7 @@ export function useFormat(): UseFormatResult {
         valueWithoutSign = formattedNumericValue.slice(1);
       }
 
-      const space = spaceEnabledPref === 'true' ? '\u00A0' : '';
+      const space = spaceEnabledPref === 'true' ? '\u202F' : '';
       const position = symbolPositionPref || 'before';
 
       const styledAmount =
@@ -259,10 +260,14 @@ export function useFormat(): UseFormatResult {
         return defaultValue;
       }
 
-      let numericValue: number | null = evalArithmetic(trimmed, null);
+      // strip directional formatting characters and letters
+      const normalized = trimmed
+        .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '')
+        .replace(/\p{L}+/gu, '');
+      let numericValue: number | null = evalArithmetic(normalized, null);
 
       if (numericValue === null || isNaN(numericValue)) {
-        numericValue = currencyToAmount(trimmed);
+        numericValue = currencyToAmount(normalized);
       }
 
       if (numericValue !== null && !isNaN(numericValue)) {

@@ -3,37 +3,41 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+import yargs from 'yargs';
+
 import { logger } from '../../platform/server/log';
 import * as sqlite from '../../platform/server/sqlite';
 
 import {
-  getMigrationsDir,
-  withMigrationsDir,
-  getUpMigration,
-  getMigrationList,
   getAppliedMigrations,
+  getMigrationList,
+  getMigrationsDir,
   getPending,
+  getUpMigration,
   migrate,
+  withMigrationsDir,
 } from './migrations';
 
-const argv = require('yargs').options({
-  m: {
-    alias: 'migrationsDir',
-    requiresArg: true,
-    type: 'string',
-    describe: 'Migrations directory',
-  },
-  name: {
-    requiresArg: true,
-    type: 'string',
-    describe: 'Name of new migration',
-  },
-  db: {
-    requiresArg: true,
-    type: 'string',
-    describe: 'Path to database',
-  },
-}).argv;
+const argv = yargs()
+  .options({
+    m: {
+      alias: 'migrationsDir',
+      requiresArg: true,
+      type: 'string',
+      describe: 'Migrations directory',
+    },
+    name: {
+      requiresArg: true,
+      type: 'string',
+      describe: 'Name of new migration',
+    },
+    db: {
+      requiresArg: true,
+      type: 'string',
+      describe: 'Path to database',
+    },
+  })
+  .parseSync();
 
 function getDatabase() {
   return sqlite.openDatabase(argv.db);
@@ -62,7 +66,7 @@ async function list(db) {
 
 const cmd = argv._[0];
 
-withMigrationsDir(argv.migrationsDir || getMigrationsDir(), async () => {
+void withMigrationsDir(argv.m || getMigrationsDir(), async () => {
   switch (cmd) {
     case 'reset':
       fs.unlinkSync(argv.db);
@@ -70,10 +74,10 @@ withMigrationsDir(argv.migrationsDir || getMigrationsDir(), async () => {
         path.join(__dirname, '../../../src/server/sql/init.sql'),
         'utf8',
       );
-      getDatabase().exec(initSql);
+      (await getDatabase()).exec(initSql);
       break;
     case 'migrate':
-      const applied = await migrate(getDatabase());
+      const applied = await migrate(await getDatabase());
       if (applied.length === 0) {
         logger.log('No pending migrations');
       } else {
@@ -81,7 +85,7 @@ withMigrationsDir(argv.migrationsDir || getMigrationsDir(), async () => {
       }
       break;
     case 'list':
-      await list(getDatabase());
+      await list(await getDatabase());
       break;
     case 'create':
     default:
@@ -90,7 +94,7 @@ withMigrationsDir(argv.migrationsDir || getMigrationsDir(), async () => {
         logger.log('Must pass a name for the new migration with --name');
         process.exit(1);
       }
-      await create(name);
+      create(name);
       break;
   }
 });

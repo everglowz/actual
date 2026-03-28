@@ -10,7 +10,7 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { send } from 'loot-core/platform/client/fetch';
+import { send } from 'loot-core/platform/client/connection';
 
 import { duplicateBudget } from '@desktop-client/budgetfiles/budgetfilesSlice';
 import {
@@ -19,7 +19,7 @@ import {
   ModalCloseButton,
   ModalHeader,
 } from '@desktop-client/components/common/Modal';
-import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
+import type { Modal as ModalType } from '@desktop-client/modals/modalsSlice';
 import { addNotification } from '@desktop-client/notifications/notificationsSlice';
 import { useDispatch } from '@desktop-client/redux';
 
@@ -49,7 +49,7 @@ export function DuplicateFileModal({
   );
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       setNewName(await uniqueBudgetName(file.name + fileEndingTranslation));
     })();
   }, [file.name, fileEndingTranslation]);
@@ -86,7 +86,7 @@ export function DuplicateFileModal({
           addNotification({
             notification: {
               type: 'message',
-              message: t('Duplicate file “{{newName}}” created.', { newName }),
+              message: t('Duplicate file "{{newName}}" created.', { newName }),
             },
           }),
         );
@@ -119,7 +119,7 @@ export function DuplicateFileModal({
       {({ state: { close } }) => (
         <View style={{ maxWidth: 700 }}>
           <ModalHeader
-            title={t('Duplicate “{{fileName}}”', { fileName: file.name })}
+            title={t('Duplicate "{{fileName}}"', { fileName: file.name })}
             rightContent={
               <ModalCloseButton
                 onPress={() => {

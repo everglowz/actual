@@ -1,12 +1,9 @@
-import React, {
-  type Ref,
-  type ComponentPropsWithRef,
-  type HTMLProps,
-  memo,
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
+import React, { memo, useEffect, useRef, useState } from 'react';
+import type {
+  ComponentPropsWithRef,
+  CSSProperties,
+  HTMLProps,
+  Ref,
 } from 'react';
 
 import { Button } from '@actual-app/components/button';
@@ -227,7 +224,9 @@ export const FocusableAmountInput = memo(function FocusableAmountInput({
         focused={focused && !disabled}
         style={{
           ...makeAmountFullStyle(value, {
-            zeroColor: isNegative ? theme.errorText : theme.noticeText,
+            zeroColor: isNegative ? theme.numberNegative : theme.numberNeutral,
+            positiveColor: theme.numberPositive,
+            negativeColor: theme.numberNegative,
           }),
           width: 80,
           justifyContent: 'center',
@@ -277,7 +276,11 @@ export const FocusableAmountInput = memo(function FocusableAmountInput({
           >
             <Text
               style={{
-                ...makeAmountFullStyle(value),
+                ...makeAmountFullStyle(value, {
+                  positiveColor: theme.numberPositive,
+                  negativeColor: theme.numberNegative,
+                  zeroColor: theme.numberNeutral,
+                }),
                 fontSize: 15,
                 userSelect: 'none',
                 ...textStyle,

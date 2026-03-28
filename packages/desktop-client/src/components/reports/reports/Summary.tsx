@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, type CSSProperties } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 
@@ -15,17 +16,18 @@ import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { parseISO } from 'date-fns';
 
-import { send } from 'loot-core/platform/client/fetch';
+import { send } from 'loot-core/platform/client/connection';
 import * as monthUtils from 'loot-core/shared/months';
-import {
-  type SummaryContent,
-  type SummaryWidget,
-  type TimeFrame,
+import type {
+  SummaryContent,
+  SummaryWidget,
+  TimeFrame,
 } from 'loot-core/types/models';
 
 import { EditablePageHeaderTitle } from '@desktop-client/components/EditablePageHeaderTitle';
 import { AppliedFilters } from '@desktop-client/components/filters/AppliedFilters';
 import { FilterButton } from '@desktop-client/components/filters/FiltersMenu';
+import { FinancialText } from '@desktop-client/components/FinancialText';
 import { Checkbox } from '@desktop-client/components/forms';
 import { MobileBackButton } from '@desktop-client/components/mobile/MobileBackButton';
 import {
@@ -34,7 +36,6 @@ import {
   PageHeader,
 } from '@desktop-client/components/Page';
 import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
-import { chartTheme } from '@desktop-client/components/reports/chart-theme';
 import { Header } from '@desktop-client/components/reports/Header';
 import { LoadingIndicator } from '@desktop-client/components/reports/LoadingIndicator';
 import { calculateTimeRange } from '@desktop-client/components/reports/reportRanges';
@@ -42,23 +43,24 @@ import { summarySpreadsheet } from '@desktop-client/components/reports/spreadshe
 import { useReport } from '@desktop-client/components/reports/useReport';
 import { fromDateRepr } from '@desktop-client/components/reports/util';
 import { FieldSelect } from '@desktop-client/components/rules/RuleEditor';
+import { useDashboardWidget } from '@desktop-client/hooks/useDashboardWidget';
 import { useFormat } from '@desktop-client/hooks/useFormat';
 import { useLocale } from '@desktop-client/hooks/useLocale';
 import { useNavigate } from '@desktop-client/hooks/useNavigate';
 import { useRuleConditionFilters } from '@desktop-client/hooks/useRuleConditionFilters';
 import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
-import { useWidget } from '@desktop-client/hooks/useWidget';
 import { addNotification } from '@desktop-client/notifications/notificationsSlice';
 import { useDispatch } from '@desktop-client/redux';
+import { useUpdateDashboardWidgetMutation } from '@desktop-client/reports/mutations';
 
 export function Summary() {
   const params = useParams();
-  const { data: widget, isLoading } = useWidget<SummaryWidget>(
-    params.id ?? '',
-    'summary-card',
-  );
+  const { data: widget, isPending } = useDashboardWidget<SummaryWidget>({
+    id: params.id,
+    type: 'summary-card',
+  });
 
-  if (isLoading) {
+  if (isPending) {
     return <LoadingIndicator />;
   }
 
@@ -179,11 +181,16 @@ function SummaryInner({ widget }: SummaryInnerProps) {
             parseISO(fromDateRepr(earliestTransaction.date)),
           )
         : currentMonth;
-      const latestMonth = latestTransaction
+      const latestTransactionMonth = latestTransaction
         ? monthUtils.monthFromDate(
             parseISO(fromDateRepr(latestTransaction.date)),
           )
         : currentMonth;
+
+      const latestMonth =
+        latestTransactionMonth > currentMonth
+          ? latestTransactionMonth
+          : currentMonth;
 
       // Make sure the month selects are at least populates with a
       // year's worth of months. We can undo this when we have fancier
@@ -197,13 +204,13 @@ function SummaryInner({ widget }: SummaryInnerProps) {
         .rangeInclusive(earliestMonth, latestMonth)
         .map(month => ({
           name: month,
-          pretty: monthUtils.format(month, 'MMMM, yyyy', locale),
+          pretty: monthUtils.format(month, 'MMMM yyyy', locale),
         }))
         .reverse();
 
       setAllMonths(allMonths);
     }
-    run();
+    void run();
   }, [locale]);
 
   useEffect(() => {
@@ -228,6 +235,8 @@ function SummaryInner({ widget }: SummaryInnerProps) {
   const { isNarrowWidth } = useResponsive();
   const title = widget?.meta?.name || t('Summary');
 
+  const updateDashboardWidgetMutation = useUpdateDashboardWidgetMutation();
+
   const onSaveWidgetName = async (newName: string) => {
     if (!widget) {
       dispatch(
@@ -242,12 +251,14 @@ function SummaryInner({ widget }: SummaryInnerProps) {
     }
 
     const name = newName || t('Summary');
-    await send('dashboard-update-widget', {
-      id: widget.id,
-      meta: {
-        ...(widget.meta ?? {}),
-        name,
-        content: JSON.stringify(content),
+    updateDashboardWidgetMutation.mutate({
+      widget: {
+        id: widget.id,
+        meta: {
+          ...(widget.meta ?? {}),
+          name,
+          content: JSON.stringify(content),
+        },
       },
     });
   };
@@ -270,32 +281,43 @@ function SummaryInner({ widget }: SummaryInnerProps) {
       );
       return;
     }
-    await send('dashboard-update-widget', {
-      id: widget.id,
-      meta: {
-        ...(widget.meta ?? {}),
-        conditions: dividendFilters.conditions,
-        conditionsOp: dividendFilters.conditionsOp,
-        timeFrame: {
-          start,
-          end,
-          mode,
+
+    updateDashboardWidgetMutation.mutate(
+      {
+        widget: {
+          id: widget.id,
+          meta: {
+            ...(widget.meta ?? {}),
+            conditions: dividendFilters.conditions,
+            conditionsOp: dividendFilters.conditionsOp,
+            timeFrame: {
+              start,
+              end,
+              mode,
+            },
+            content: JSON.stringify(content),
+          },
         },
-        content: JSON.stringify(content),
       },
-    });
-    dispatch(
-      addNotification({
-        notification: {
-          type: 'message',
-          message: t('Dashboard widget successfully saved.'),
+      {
+        onSuccess: () => {
+          dispatch(
+            addNotification({
+              notification: {
+                type: 'message',
+                message: t('Dashboard widget successfully saved.'),
+              },
+            }),
+          );
         },
-      }),
+      },
     );
   }
 
   const getDivisorFormatted = (contentType: string, value: number) => {
     if (contentType === 'avgPerMonth') {
+      return format(value, 'number');
+    } else if (contentType === 'avgPerYear') {
       return format(value, 'number');
     } else if (contentType === 'avgPerTransact') {
       return format(value, 'number');
@@ -339,12 +361,7 @@ function SummaryInner({ widget }: SummaryInnerProps) {
         firstDayOfWeekIdx={firstDayOfWeekIdx}
         mode={mode}
         onChangeDates={onChangeDates}
-        onApply={dividendFilters.onApply}
-        onUpdateFilter={dividendFilters.onUpdate}
-        onDeleteFilter={dividendFilters.onDelete}
-        conditionsOp={dividendFilters.conditionsOp}
-        onConditionsOpChange={dividendFilters.onConditionsOpChange}
-        show1Month={true}
+        show1Month
       >
         {widget && (
           <Button variant="primary" onPress={onSaveWidget}>
@@ -376,12 +393,18 @@ function SummaryInner({ widget }: SummaryInnerProps) {
             fields={[
               ['sum', t('Sum')],
               ['avgPerMonth', t('Average per month')],
+              ['avgPerYear', t('Average per year')],
               ['avgPerTransact', t('Average per transaction')],
               ['percentage', t('Percentage')],
             ]}
             value={content.type ?? 'sum'}
             onChange={(
-              newValue: 'sum' | 'avgPerMonth' | 'avgPerTransact' | 'percentage',
+              newValue:
+                | 'sum'
+                | 'avgPerMonth'
+                | 'avgPerYear'
+                | 'avgPerTransact'
+                | 'percentage',
             ) =>
               setContent(
                 (prev: SummaryContent) =>
@@ -450,7 +473,9 @@ function SummaryInner({ widget }: SummaryInnerProps) {
                   }}
                 >
                   <PrivacyFilter>
-                    {format(data?.dividend ?? 0, 'financial')}
+                    <FinancialText>
+                      {format(data?.dividend ?? 0, 'financial')}
+                    </FinancialText>
                   </PrivacyFilter>
                 </Text>
                 <div
@@ -489,9 +514,11 @@ function SummaryInner({ widget }: SummaryInnerProps) {
               fontSize: '50px',
               justifyContent: 'center',
               color:
-                (data?.total ?? 0) < 0
-                  ? chartTheme.colors.red
-                  : chartTheme.colors.blue,
+                (data?.total ?? 0) === 0
+                  ? theme.reportsNumberNeutral
+                  : (data?.total ?? 0) < 0
+                    ? theme.reportsNumberNegative
+                    : theme.reportsNumberPositive,
             }}
           >
             <PrivacyFilter>
@@ -508,7 +535,7 @@ function SummaryInner({ widget }: SummaryInnerProps) {
 }
 
 type OperatorProps = {
-  type: 'sum' | 'avgPerMonth' | 'avgPerTransact' | 'percentage';
+  type: 'sum' | 'avgPerMonth' | 'avgPerYear' | 'avgPerTransact' | 'percentage';
   dividendFilterObject: FilterObject;
   divisorFilterObject: FilterObject;
   fromRange: string;
@@ -566,7 +593,9 @@ function Operator({
           >
             {type === 'avgPerMonth'
               ? t('number of months')
-              : t('number of transactions')}
+              : type === 'avgPerYear'
+                ? t('number of years')
+                : t('number of transactions')}
           </Text>
         </>
       )}
@@ -629,7 +658,6 @@ function SumWithRange({
           compact={false}
           onApply={filterObject.onApply}
           hover={false}
-          exclude={undefined}
         />
       </View>
     </View>

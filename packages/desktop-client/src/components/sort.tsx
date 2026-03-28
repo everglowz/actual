@@ -1,12 +1,10 @@
-// @ts-strict-ignore
 import React, {
   createContext,
-  useEffect,
-  useRef,
-  useLayoutEffect,
-  useState,
   useContext,
-  type Context,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
 } from 'react';
 import { useDrag, useDrop } from 'react-dnd';
 
@@ -47,10 +45,10 @@ export function useDraggable<T>({
   const [, dragRef] = useDrag({
     type,
     item: () => {
-      _onDragChange.current({ state: 'start-preview', type, item });
+      void _onDragChange.current({ state: 'start-preview', type, item });
 
       setTimeout(() => {
-        _onDragChange.current({ state: 'start' });
+        void _onDragChange.current({ state: 'start' });
       }, 0);
 
       return { type, item };
@@ -58,7 +56,7 @@ export function useDraggable<T>({
     collect: monitor => ({ isDragging: monitor.isDragging() }),
 
     end(dragState) {
-      _onDragChange.current({ state: 'end', type, item: dragState.item });
+      void _onDragChange.current({ state: 'end', type, item: dragState.item });
     },
 
     canDrag() {
@@ -68,22 +66,22 @@ export function useDraggable<T>({
 
   useLayoutEffect(() => {
     _onDragChange.current = onDragChange;
-  });
+  }, [onDragChange]);
 
   return { dragRef };
 }
 
 export type OnDropCallback = (
   id: string,
-  dropPos: DropPosition,
-  targetId: unknown,
+  dropPos: DropPosition | null,
+  targetId: string,
 ) => Promise<void> | void;
 
 type OnLongHoverCallback = () => Promise<void> | void;
 
 type UseDroppableArgs = {
   types: string | string[];
-  id: unknown;
+  id: string;
   onDrop: OnDropCallback;
   onLongHover?: OnLongHoverCallback;
 };
@@ -94,8 +92,9 @@ export function useDroppable<T extends { id: string }>({
   onDrop,
   onLongHover,
 }: UseDroppableArgs) {
-  const ref = useRef(null);
-  const [dropPos, setDropPos] = useState<DropPosition>(null);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const onLongHoverRef = useRef(onLongHover);
+  const [dropPos, setDropPos] = useState<DropPosition | null>(null);
 
   const [{ isOver }, dropRef] = useDrop<
     { item: T },
@@ -104,13 +103,15 @@ export function useDroppable<T extends { id: string }>({
   >({
     accept: types,
     drop({ item }) {
-      onDrop(item.id, dropPos, id);
+      void onDrop(item.id, dropPos, id);
     },
     hover(_, monitor) {
+      if (!ref.current) return;
       const hoverBoundingRect = ref.current.getBoundingClientRect();
       const hoverMiddleY =
         (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
       const clientOffset = monitor.getClientOffset();
+      if (!clientOffset) return;
       const hoverClientY = clientOffset.y - hoverBoundingRect.top;
       const pos: DropPosition = hoverClientY < hoverMiddleY ? 'top' : 'bottom';
 
@@ -123,12 +124,20 @@ export function useDroppable<T extends { id: string }>({
   const handleDropRef = useDragRef(dropRef);
 
   useEffect(() => {
-    let timeout;
-    if (onLongHover && isOver) {
-      timeout = setTimeout(onLongHover, 700);
+    onLongHoverRef.current = onLongHover;
+  }, [onLongHover]);
+
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    if (onLongHoverRef.current && isOver) {
+      timeout = setTimeout(() => onLongHoverRef.current?.(), 700);
     }
 
-    return () => timeout && clearTimeout(timeout);
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
   }, [isOver]);
 
   return {
@@ -137,9 +146,8 @@ export function useDroppable<T extends { id: string }>({
   };
 }
 
-type ItemPosition = 'first' | 'last';
-export const DropHighlightPosContext: Context<ItemPosition> =
-  createContext(null);
+type ItemPosition = 'first' | 'last' | null;
+export const DropHighlightPosContext = createContext<ItemPosition>(null);
 
 type DropHighlightProps = {
   pos: DropPosition;

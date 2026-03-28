@@ -1,16 +1,16 @@
 import React, {
   createContext,
-  useState,
   useCallback,
-  useEffect,
   useContext,
-  type ReactNode,
+  useEffect,
+  useState,
 } from 'react';
+import type { ReactNode } from 'react';
 
 import { t } from 'i18next';
 
-import { send } from 'loot-core/platform/client/fetch';
-import { type Handlers } from 'loot-core/types/handlers';
+import { send } from 'loot-core/platform/client/connection';
+import type { Handlers } from 'loot-core/types/handlers';
 
 import { addNotification } from '@desktop-client/notifications/notificationsSlice';
 import { useDispatch } from '@desktop-client/redux';
@@ -43,8 +43,12 @@ const ServerContext = createContext<ServerContextValue>({
   setURL: () => Promise.reject(new Error('ServerContext not initialized')),
   refreshLoginMethods: () =>
     Promise.reject(new Error('ServerContext not initialized')),
-  setMultiuserEnabled: () => {},
-  setLoginMethods: () => {},
+  setMultiuserEnabled: () => {
+    throw new Error('ServerContext not initialized');
+  },
+  setLoginMethods: () => {
+    throw new Error('ServerContext not initialized');
+  },
 });
 
 export const useServerURL = () => useContext(ServerContext).url;
@@ -103,7 +107,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
       setServerURL(serverURL);
       setVersion(await getServerVersion());
     }
-    run();
+    void run();
   }, []);
 
   const refreshLoginMethods = useCallback(async () => {
@@ -131,7 +135,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (serverURL) {
-      send('subscribe-needs-bootstrap').then(
+      void send('subscribe-needs-bootstrap').then(
         (data: Awaited<ReturnType<Handlers['subscribe-needs-bootstrap']>>) => {
           if ('hasServer' in data && data.hasServer) {
             setAvailableLoginMethods(data.availableLoginMethods || []);
