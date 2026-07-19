@@ -1,3 +1,4 @@
+import type { ForecastSource } from './forecast';
 import type { CustomReportEntity } from './reports';
 import type { RuleConditionEntity } from './rule';
 
@@ -57,6 +58,19 @@ export type CashFlowWidget = AbstractWidget<
     showBalance?: boolean;
   } | null
 >;
+
+export type SpendingAverageRange =
+  | {
+      mode: 'last-n-months';
+      months: 3 | 6 | 12;
+    }
+  | {
+      mode: 'year-to-date';
+    }
+  | {
+      mode: 'all-time';
+    };
+
 export type SpendingWidget = AbstractWidget<
   'spending-card',
   {
@@ -67,6 +81,7 @@ export type SpendingWidget = AbstractWidget<
     compareTo?: string;
     isLive?: boolean;
     mode?: 'single-month' | 'budget' | 'average';
+    averageRange?: SpendingAverageRange;
   } | null
 >;
 export type BudgetAnalysisWidget = AbstractWidget<
@@ -79,6 +94,7 @@ export type BudgetAnalysisWidget = AbstractWidget<
     interval?: 'Daily' | 'Weekly' | 'Monthly' | 'Yearly';
     graphType?: 'Line' | 'Bar';
     showBalance?: boolean;
+    balanceOnly?: boolean;
   } | null
 >;
 export type CustomReportWidget = AbstractWidget<
@@ -105,6 +121,19 @@ export type MarkdownWidget = AbstractWidget<
   { content: string; text_align?: 'left' | 'right' | 'center' }
 >;
 
+export type AgeOfMoneyGranularity = 'daily' | 'weekly' | 'monthly';
+
+export type AgeOfMoneyWidget = AbstractWidget<
+  'age-of-money-card',
+  {
+    name?: string;
+    conditions?: RuleConditionEntity[];
+    conditionsOp?: 'and' | 'or';
+    timeFrame?: TimeFrame;
+    granularity?: AgeOfMoneyGranularity;
+  } | null
+>;
+
 type SpecializedWidget =
   | NetWorthWidget
   | CashFlowWidget
@@ -114,13 +143,15 @@ type SpecializedWidget =
   | MarkdownWidget
   | SummaryWidget
   | CalendarWidget
-  | FormulaWidget;
+  | FormulaWidget
+  | SankeyWidget
+  | AgeOfMoneyWidget
+  | BalanceForecastWidget;
 export type DashboardWidgetEntity = SpecializedWidget | CustomReportWidget;
 export type NewDashboardWidgetEntity = Omit<
   DashboardWidgetEntity,
   'id' | 'tombstone' | 'dashboard_page_id'
 >;
-
 // Exported/imported (json) widget definition
 export type ExportImportCustomReportWidget = Omit<
   CustomReportWidget,
@@ -185,6 +216,7 @@ export type FormulaWidget = AbstractWidget<
     fontSize?: number;
     fontSizeMode?: 'dynamic' | 'static';
     staticFontSize?: number;
+    showTitle?: boolean;
     colorFormula?: string;
     queriesVersion?: number;
     queries?: Record<
@@ -195,5 +227,37 @@ export type FormulaWidget = AbstractWidget<
         timeFrame?: TimeFrame;
       }
     >;
+  } | null
+>;
+
+export type SankeyWidget = AbstractWidget<
+  'sankey-card',
+  {
+    name?: string;
+    conditions?: RuleConditionEntity[];
+    conditionsOp?: 'and' | 'or';
+    timeFrame?: TimeFrame;
+    mode?: 'budgeted' | 'spent';
+    topNcategories?: number;
+    categorySort?: 'per-group' | 'global' | 'budget-order';
+    showPercentages?: boolean;
+    groupAccounts?: boolean;
+    layerFrom?: string;
+    layerTo?: string;
+  } | null
+>;
+
+export type BalanceForecastWidget = AbstractWidget<
+  'balance-forecast-card',
+  {
+    name?: string;
+    startDate?: string;
+    endDate?: string;
+    accounts?: string[];
+    conditions?: RuleConditionEntity[];
+    conditionsOp?: 'and' | 'or';
+    timeFrame?: TimeFrame;
+    granularity?: 'Daily' | 'Monthly';
+    source?: ForecastSource;
   } | null
 >;

@@ -8,45 +8,46 @@ import { Button } from '@actual-app/components/button';
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { SvgChart, SvgChartBar } from '@actual-app/components/icons/v1';
 import { Paragraph } from '@actual-app/components/paragraph';
+import { Select } from '@actual-app/components/select';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
-import * as d from 'date-fns';
-
-import { send } from 'loot-core/platform/client/connection';
-import * as monthUtils from 'loot-core/shared/months';
+import { send } from '@actual-app/core/platform/client/connection';
+import * as monthUtils from '@actual-app/core/shared/months';
 import type {
   BudgetAnalysisWidget,
   RuleConditionEntity,
   TimeFrame,
-} from 'loot-core/types/models';
+} from '@actual-app/core/types/models';
+import * as d from 'date-fns';
 
-import { EditablePageHeaderTitle } from '@desktop-client/components/EditablePageHeaderTitle';
-import { FinancialText } from '@desktop-client/components/FinancialText';
-import { MobileBackButton } from '@desktop-client/components/mobile/MobileBackButton';
-import {
-  MobilePageHeader,
-  Page,
-  PageHeader,
-} from '@desktop-client/components/Page';
-import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
-import { Change } from '@desktop-client/components/reports/Change';
-import { BudgetAnalysisGraph } from '@desktop-client/components/reports/graphs/BudgetAnalysisGraph';
-import { Header } from '@desktop-client/components/reports/Header';
-import { LoadingIndicator } from '@desktop-client/components/reports/LoadingIndicator';
-import { calculateTimeRange } from '@desktop-client/components/reports/reportRanges';
-import { createBudgetAnalysisSpreadsheet } from '@desktop-client/components/reports/spreadsheets/budget-analysis-spreadsheet';
-import { useReport } from '@desktop-client/components/reports/useReport';
-import { fromDateRepr } from '@desktop-client/components/reports/util';
-import { useDashboardWidget } from '@desktop-client/hooks/useDashboardWidget';
-import { useFormat } from '@desktop-client/hooks/useFormat';
-import { useLocale } from '@desktop-client/hooks/useLocale';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { useRuleConditionFilters } from '@desktop-client/hooks/useRuleConditionFilters';
-import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
-import { addNotification } from '@desktop-client/notifications/notificationsSlice';
-import { useDispatch } from '@desktop-client/redux';
-import { useUpdateDashboardWidgetMutation } from '@desktop-client/reports/mutations';
+import { EditablePageHeaderTitle } from '#components/EditablePageHeaderTitle';
+import { FinancialText } from '#components/FinancialText';
+import { MobileBackButton } from '#components/mobile/MobileBackButton';
+import { MobilePageHeader, Page, PageHeader } from '#components/Page';
+import { PrivacyFilter } from '#components/PrivacyFilter';
+import { Change } from '#components/reports/Change';
+import { BudgetAnalysisGraph } from '#components/reports/graphs/BudgetAnalysisGraph';
+import { Header } from '#components/reports/Header';
+import { LoadingIndicator } from '#components/reports/LoadingIndicator';
+import { calculateTimeRange } from '#components/reports/reportRanges';
+import { createBudgetAnalysisSpreadsheet } from '#components/reports/spreadsheets/budget-analysis-spreadsheet';
+import { useReport } from '#components/reports/useReport';
+import { fromDateRepr } from '#components/reports/util';
+import { useDashboardWidget } from '#hooks/useDashboardWidget';
+import { useFormat } from '#hooks/useFormat';
+import { useLocale } from '#hooks/useLocale';
+import { useNavigate } from '#hooks/useNavigate';
+import { useRuleConditionFilters } from '#hooks/useRuleConditionFilters';
+import { useSyncedPref } from '#hooks/useSyncedPref';
+import { addNotification } from '#notifications/notificationsSlice';
+import { useDispatch } from '#redux';
+import { useUpdateDashboardWidgetMutation } from '#reports/mutations';
+
+type BalanceMode =
+  | 'balance-only'
+  | 'balance-and-categories'
+  | 'categories-only';
 
 export function BudgetAnalysis() {
   const params = useParams();
@@ -97,6 +98,9 @@ function BudgetAnalysisInternal({ widget }: BudgetAnalysisInternalProps) {
   );
   const [showBalance, setShowBalance] = useState(
     widget?.meta?.showBalance ?? true,
+  );
+  const [balanceOnly, setBalanceOnly] = useState(
+    widget?.meta?.balanceOnly ?? false,
   );
   const [latestTransaction, setLatestTransaction] = useState('');
   const [isConcise, setIsConcise] = useState(() => {
@@ -230,6 +234,7 @@ function BudgetAnalysisInternal({ widget }: BudgetAnalysisInternalProps) {
             },
             graphType,
             showBalance,
+            balanceOnly,
           },
         },
       },
@@ -274,6 +279,17 @@ function BudgetAnalysisInternal({ widget }: BudgetAnalysisInternalProps) {
     });
   };
 
+  const balanceMode: BalanceMode = balanceOnly
+    ? 'balance-only'
+    : showBalance
+      ? 'balance-and-categories'
+      : 'categories-only';
+
+  function onBalanceModeChange(newMode: BalanceMode) {
+    setBalanceOnly(newMode === 'balance-only');
+    setShowBalance(newMode !== 'categories-only');
+  }
+
   return (
     <Page
       header={
@@ -317,16 +333,7 @@ function BudgetAnalysisInternal({ widget }: BudgetAnalysisInternalProps) {
         onUpdateFilter={onUpdateFilter}
         onDeleteFilter={onDeleteFilter}
         onConditionsOpChange={onConditionsOpChange}
-        filterExclude={[
-          'date',
-          'account',
-          'payee',
-          'notes',
-          'amount',
-          'cleared',
-          'reconciled',
-          'transfer',
-        ]}
+        filterInclude={['category', 'saved']}
         inlineContent={
           <Tooltip
             content={
@@ -351,9 +358,15 @@ function BudgetAnalysisInternal({ widget }: BudgetAnalysisInternalProps) {
         }
       >
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <Button onPress={() => setShowBalance(state => !state)}>
-            {showBalance ? t('Hide balance') : t('Show balance')}
-          </Button>
+          <Select<BalanceMode>
+            value={balanceMode}
+            onChange={onBalanceModeChange}
+            options={[
+              ['balance-only', t('Balance only')],
+              ['balance-and-categories', t('Balance + Categories')],
+              ['categories-only', t('Categories only')],
+            ]}
+          />
 
           {widget && (
             <Button variant="primary" onPress={onSaveWidget}>
@@ -456,23 +469,21 @@ function BudgetAnalysisInternal({ widget }: BudgetAnalysisInternalProps) {
                             </FinancialText>
                           }
                         />
-                        {showBalance && (
-                          <AlignedText
-                            style={{ marginBottom: 5, minWidth: 210 }}
-                            left={
-                              <Block>
-                                <Trans>Ending balance:</Trans>
-                              </Block>
-                            }
-                            right={
-                              <FinancialText style={{ fontWeight: 600 }}>
-                                <PrivacyFilter>
-                                  <Change amount={endingBalance} />
-                                </PrivacyFilter>
-                              </FinancialText>
-                            }
-                          />
-                        )}
+                        <AlignedText
+                          style={{ marginBottom: 5, minWidth: 210 }}
+                          left={
+                            <Block>
+                              <Trans>Ending balance:</Trans>
+                            </Block>
+                          }
+                          right={
+                            <FinancialText style={{ fontWeight: 600 }}>
+                              <PrivacyFilter>
+                                <Change amount={endingBalance} />
+                              </PrivacyFilter>
+                            </FinancialText>
+                          }
+                        />
                       </>
                     )}
                   </View>
@@ -483,6 +494,7 @@ function BudgetAnalysisInternal({ widget }: BudgetAnalysisInternalProps) {
                 data={data}
                 graphType={graphType}
                 showBalance={showBalance}
+                balanceOnly={balanceOnly}
                 isConcise={isConcise}
               />
               <View style={{ marginTop: 30 }}>
